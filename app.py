@@ -124,6 +124,10 @@ def brl_num(valor: float) -> str:
 if "historico" not in st.session_state:
     st.session_state.historico = []
 
+if "ultimo_resultado" not in st.session_state:
+    st.session_state.ultimo_resultado = None  # {"verba", "codigo", "tipo", "valor", "memoria"}
+
+
 if "dados_servidor" not in st.session_state:
     st.session_state.dados_servidor = {
         "nome": "", "masp": "", "admissao": "1",
@@ -618,17 +622,29 @@ else:
                       [f"  até {brl(f['limite'])}: {f['aliq']*100:.1f}%" for f in tab] + \
                       [f"Alíquota aplicada: {aliq*100:.1f}%", f"= {brl(resultado)}"]
 
-    # ── Resultado ────────────────────────────────────────────────────────────
+    # ── Salva resultado no session_state ao calcular ─────────────────────────
 
     if resultado is not None:
+        st.session_state.ultimo_resultado = {
+            "verba":   verba,
+            "codigo":  meta["codigo"],
+            "tipo":    meta["tipo"],
+            "valor":   resultado,
+            "memoria": memoria,
+        }
+
+    # ── Exibe resultado persistido ────────────────────────────────────────────
+
+    ur = st.session_state.ultimo_resultado
+    if ur is not None and ur["verba"] == verba:
         st.markdown("<hr>", unsafe_allow_html=True)
         st.markdown("### Resultado")
-        st.metric(label=verba, value=brl(resultado))
+        st.metric(label=ur["verba"], value=brl(ur["valor"]))
 
-        if memoria:
+        if ur["memoria"]:
             with st.expander("Ver memória de cálculo"):
                 st.markdown(
-                    '<div class="memoria-box">' + "\n".join(memoria) + '</div>',
+                    '<div class="memoria-box">' + "\n".join(ur["memoria"]) + '</div>',
                     unsafe_allow_html=True
                 )
 
@@ -642,13 +658,14 @@ else:
         )
         if c_add.button("➕ Adicionar à lista", use_container_width=True):
             st.session_state.historico.append({
-                "verba":      verba,
-                "codigo":     meta["codigo"],
-                "tipo":       meta["tipo"],
+                "verba":      ur["verba"],
+                "codigo":     ur["codigo"],
+                "tipo":       ur["tipo"],
                 "referencia": ref_input or "—",
-                "valor":      resultado,
+                "valor":      ur["valor"],
             })
-            st.success(f"✅ {verba} adicionada à lista de exportação.")
+            st.session_state.ultimo_resultado = None
+            st.rerun()
 
         # Conferência
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -658,12 +675,12 @@ else:
         val_unidade = c1.number_input("Valor informado pela unidade (R$)",
                                        min_value=0.0, step=0.01, format="%.2f", key="val_unidade")
         if c2.button("Conferir", use_container_width=True) and val_unidade > 0:
-            dif = abs(val_unidade - resultado)
+            dif = abs(val_unidade - ur["valor"])
             if dif < 0.05:
-                st.success(f"✅ **Valores conferem.** Calculado: **{brl(resultado)}** | Informado: **{brl(val_unidade)}**")
+                st.success(f"✅ **Valores conferem.** Calculado: **{brl(ur['valor'])}** | Informado: **{brl(val_unidade)}**")
             else:
-                sinal = "a mais" if val_unidade > resultado else "a menos"
-                st.error(f"❌ **Divergência de {brl(dif)} ({sinal}).** Calculado: **{brl(resultado)}** | Informado: **{brl(val_unidade)}**")
+                sinal = "a mais" if val_unidade > ur["valor"] else "a menos"
+                st.error(f"❌ **Divergência de {brl(dif)} ({sinal}).** Calculado: **{brl(ur['valor'])}** | Informado: **{brl(val_unidade)}**")
 
 # ─── SEÇÃO 3: LISTA DE CÁLCULOS E EXPORTAÇÃO ─────────────────────────────────
 
