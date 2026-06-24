@@ -1,0 +1,59 @@
+{
+  "tabela_cargos": [
+    {"classe": "PENF", "nivel": "2", "grau": "A", "ch_semanal": "40 Horas Semanais", "ch_mensal": 240, "vencimento": 2138.08, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "4", "grau": "A", "ch_semanal": "40 Horas Semanais", "ch_mensal": 240, "vencimento": 4204.52, "dt_inicio": "01/01/2026"},
+    {"classe": "TOS",  "nivel": "1", "grau": "A", "ch_semanal": "40 Horas Semanais", "ch_mensal": 240, "vencimento": 1732.73, "dt_inicio": "01/01/2026"},
+    {"classe": "AGAS", "nivel": "1", "grau": "A", "ch_semanal": "40 Horas Semanais", "ch_mensal": 240, "vencimento": 4204.52, "dt_inicio": "01/01/2026"}
+  ],
+  "tabela_inss": {
+    "2026": [
+      {"limite": 1621.00, "aliq": 0.075, "deducao": 0.00},
+      {"limite": 2902.84, "aliq": 0.090, "deducao": 24.32},
+      {"limite": 4354.27, "aliq": 0.120, "deducao": 111.40},
+      {"limite": 8475.55, "aliq": 0.140, "deducao": 198.49}
+    ],
+    "2025": [
+      {"limite": 1518.00, "aliq": 0.075, "deducao": 0.00},
+      {"limite": 2793.88, "aliq": 0.090, "deducao": 22.77},
+      {"limite": 4190.83, "aliq": 0.120, "deducao": 106.59},
+      {"limite": 8157.41, "aliq": 0.140, "deducao": 190.40}
+    ],
+    "2024": [
+      {"limite": 1412.00, "aliq": 0.075, "deducao": 0.00},
+      {"limite": 2666.68, "aliq": 0.090, "deducao": 21.18},
+      {"limite": 4000.03, "aliq": 0.120, "deducao": 101.18},
+      {"limite": 7786.02, "aliq": 0.140, "deducao": 181.18}
+    ]
+  },
+  "verbas_meta": {
+    "Gratificação de Final de Semana": {"codigo": "2416", "tipo": "Vantagem"},
+    "Adicional Noturno":               {"codigo": "2411", "tipo": "Vantagem"},
+    "Hora Extra":                      {"codigo": "2412", "tipo": "Vantagem"},
+    "13º Salário":                     {"codigo": "2491", "tipo": "Vantagem"},
+    "GIEFS — 13º Salário":             {"codigo": "3171", "tipo": "Vantagem"},
+    "INSS sobre 13º Salário":          {"codigo": "7708", "tipo": "Desconto"},
+    "GIEFS — Dias":                    {"codigo": "2417", "tipo": "Vantagem"},
+    "GIEFS — Meses (parcelas)":        {"codigo": "2417", "tipo": "Vantagem"},
+    "GIEFS — 1/3 de Férias":           {"codigo": "3242", "tipo": "Vantagem"},
+    "GRS — Dias":                      {"codigo": "2420", "tipo": "Vantagem"},
+    "GRS — Meses":                     {"codigo": "2420", "tipo": "Vantagem"},
+    "GRS — Desconto de Horas":         {"codigo": "7820", "tipo": "Desconto"},
+    "1/3 de Férias":                   {"codigo": "2431", "tipo": "Vantagem"},
+    "Férias Indenizadas":              {"codigo": "2432", "tipo": "Vantagem"},
+    "Faltas — Horas (desconto)":       {"codigo": "7810", "tipo": "Desconto"},
+    "Faltas — Dias (desconto)":        {"codigo": "7811", "tipo": "Desconto"},
+    "Ajuda de Custo Mensal":           {"codigo": "2070", "tipo": "Vantagem"},
+    "Desconto de Custeio (4%)":        {"codigo": "9018", "tipo": "Desconto"},
+    "Aumento Salarial (4,62%)":        {"codigo": "----", "tipo": "Vantagem"},
+    "Desconto de IPSEMG (3,2%)":       {"codigo": "7700", "tipo": "Desconto"},
+    "INSS Mensal (tabela progressiva)":{"codigo": "7808", "tipo": "Desconto"}
+  },
+  "grupos": {
+    "Gratificações e Adicionais": ["Gratificação de Final de Semana", "Adicional Noturno", "Hora Extra"],
+    "13º Salário":                 ["13º Salário", "GIEFS — 13º Salário", "INSS sobre 13º Salário"],
+    "GIEFS":                       ["GIEFS — Dias", "GIEFS — Meses (parcelas)", "GIEFS — 1/3 de Férias"],
+    "GRS":                         ["GRS — Dias", "GRS — Meses", "GRS — Desconto de Horas"],
+    "Férias":                      ["1/3 de Férias", "Férias Indenizadas"],
+    "Descontos e Outros":          ["Faltas — Horas (desconto)", "Faltas — Dias (desconto)", "Ajuda de Custo Mensal", "Desconto de Custeio (4%)", "Aumento Salarial (4,62%)", "Desconto de IPSEMG (3,2%)", "INSS Mensal (tabela progressiva)"]
+  }
+}
