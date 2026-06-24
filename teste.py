@@ -1,7 +1,7 @@
 import streamlit as st
 # Importa as funções que criamos dentro do pacote data
 from data import ProvedorDadosFhemig
-from utils import FormatadorCampos
+from utils import FormatadorCampos, on_change_masp, on_change_moeda
 
 # Inicializa as classes
 provedor_dados = ProvedorDadosFhemig()
@@ -42,29 +42,46 @@ with st.expander("Ver dicionário completo de verbas_meta"):
 with st.expander("Ver dicionário de grupos organizados"):
     st.json(provedor_dados.obter_grupos_verbas())   
 
+st.subheader("4. Testando 'FormatadorCampos' (Módulo Utils)")
+st.write("Demonstração prática: os inputs guardam o dado puro (float/str) e a tela exibe a máscara.")
 
-st.subheader("4. Testando 'FormatadorCampos'")
-st.write("Validação das funções utilitárias de formatação visual.")
+col_input_valor, col_input_masp = st.columns(2)
 
-# Criamos uma linha com 3 colunas para testar os 3 métodos lado a lado
-c1, c2, c3 = st.columns(3)
+with col_input_valor:
+    valor_teste = st.number_input(
+        "Digite um valor numérico bruto:",
+        value=14204.52,
+        format="%.2f",
+        step=0.01,
+        key="campo_valor_teste",
+        on_change=on_change_moeda,
+        args=("campo_valor_teste",),   # <- adiciona isso
+        help="Ao sair do campo (Tab), arredonda automaticamente para 2 casas.",
+    )
 
-# Teste 1: Moeda com Símbolo
-with c1:
-    st.caption("moeda_com_simbolo(14204.529)")
-    st.success(formatador_campos.moeda_com_simbolo(14204.529))
+with col_input_masp:
+    masp_teste = st.text_input(
+        "Digite um MASP para mascarar:",
+        value="12345678",
+        key="masp_input",
+        on_change=on_change_masp,
+        args=("masp_input",),          # <- adiciona isso
+        placeholder="Ex: 12345678",
+        help="Ao sair do campo (Tab), formata automaticamente para 1234567-8.",
+    )
 
-# Teste 2: Moeda sem Símbolo
-with c2:
-    st.caption("moeda_sem_simbolo(14204.529)")
-    st.info(formatador_campos.moeda_sem_simbolo(14204.529))
+st.write("##### Máscaras geradas pela classe:")
 
-# Teste 3: MASP
-with c3:
-    st.caption("masp('12345678')")
-    masp_formatado = formatador_campos.masp("12345678")
-    
-    if masp_formatado is None:
-        st.warning("Ainda não implementado")
-    else:
-        st.error(masp_formatado)
+cx1, cx2, cx3 = st.columns(3)
+
+with cx1:
+    st.caption(f"moeda_com_simbolo({st.session_state['campo_valor_teste']})")
+    st.success(FormatadorCampos.moeda_com_simbolo(st.session_state["campo_valor_teste"]))
+
+with cx2:
+    st.caption(f"moeda_sem_simbolo({st.session_state['campo_valor_teste']})")
+    st.info(FormatadorCampos.moeda_sem_simbolo(st.session_state["campo_valor_teste"]))
+
+with cx3:
+    st.caption(f"masp('{st.session_state['masp_input']}')")
+    st.error(st.session_state["masp_input"])
