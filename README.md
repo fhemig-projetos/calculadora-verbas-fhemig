@@ -37,3 +37,33 @@ streamlit run app.py
 ## Deploy no Streamlit Community Cloud
 
 Ver instruções completas no guia de deploy.
+
+---
+
+### Próximos passos do Projeto
+
+* **[ ] Refinamento da Interface (Layout Dinâmico):**
+* Implementar a organização dos campos em colunas (estilo *grid*), mantendo a responsividade do layout original.
+* Refinar o `Gerador de Formulários` para suportar agrupamento lógico de inputs.
+
+* **[ ] Revisar a validação de campos**
+* Mapear se a validação está fazendo sentido e se é necessário adicionar alguma nova regra.
+* O MASP, por exemplo, acho que pode ser validado para forçar apenas inserção de dados numéricos.
+
+* **[ ] Conclusão do Motor de Memória de Cálculo:**
+* Padronizar a estrutura de dados da memória entre todas as classes de calculadoras.
+* Implementar a exibição otimizada da memória no front-end, garantindo clareza e rastreabilidade dos cálculos.
+
+* **[ ] Implementação do Cabeçalho e Identidade Visual:**
+* Padronizar o cabeçalho com logo e informações institucionais.
+* Aplicar estilos (CSS) para manter a interface alinhada com a identidade visual da instituição.
+
+* **[ ] Funcionalidade de Exportação (PDF):**
+* Integrar biblioteca de geração de documentos (ex: `ReportLab` ou `FPDF`).
+* Criar o template de impressão que consolida os dados de entrada, o resultado final e a memória de cálculo.
+
+* **[ ] Integração com Dados do Servidor:**
+* Refatorar a busca de níveis/graus para injetar os dados externos diretamente na estrutura das calculadoras.
+
+---
+
