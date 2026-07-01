@@ -25,27 +25,51 @@ Cria uma caixa colapsável no Streamlit.
 - cargo_classe, cargo_nivel, cargo_grau
 - ch_semanal, ch_mensal, vencimento
 
-### ⬜ Passo 2 — Próximo passo
-Implementar o `render()` com:
-1. `with st.expander("📋 Dados do Servidor...", expanded=True):`
+### ✅ Passo 2 — Concluído
+`render()` implementado com:
+1. `with st.expander("Dados do Servidor", expanded=True):`
 2. `ds = st.session_state["dados_servidor"]`
 3. 3 colunas com: Nome, MASP, Admissão
 
-Código esperado:
+### ✅ Passo 3 — Concluído
+Datas implementadas com `st.date_input` (formato DD/MM/YYYY):
+- `dt_admissao` → "Data de Admissão"
+- `dt_fim` → "Data Fim Efetiva"
+
+### ✅ Passo 4 — Concluído
+Campos de cargo com 4 colunas:
+- `c6`: Cargo / Classe (text_input, `.upper().strip()`)
+- `c7`: Nível (text_input, `.strip()`)
+- `c8`: Grau (text_input, `.upper().strip()`)
+- `c9`: C.H. Semanal (selectbox com opções: 20, 30, 40, 44 Horas Semanais)
+
+### ⬜ Passo 5 — Próximo passo
+Implementar a busca automática de cargo via `ProvedorDadosFhemig.buscar_cargo()`
+com a chave composta de 4 campos (classe + nivel + grau + ch_semanal).
+
+Atualmente o esqueleto está montado:
 ```python
-def render(self):
-    with st.expander("📋 Dados do Servidor (cabeçalho do PDF)", expanded=True):
-        ds = st.session_state["dados_servidor"]
-        c1, c2, c3 = st.columns(3)
-        ds["nome"]     = c1.text_input("Nome Completo do Servidor", value=ds["nome"])
-        ds["masp"]     = c2.text_input("MASP", value=ds["masp"])
-        ds["admissao"] = c3.text_input("Admissão", value=ds["admissao"], help="Ex: 1, 2")
+cargo_encontrado = None
+if cargo_classe and cargo_nivel and cargo_grau and ch_semanal != "- Selecione -":
+    cargo_encontrado = ProvedorDadosFhemig.buscar_cargo(cargo_classe, cargo_nivel, cargo_grau, ch_semanal)
+
+if cargo_encontrado:
+    pass  # ← precisa preencher ds["ch_mensal"], ds["vencimento"], etc.
 ```
 
-### ⬜ Passo 3 — Datas (dt_admissao, dt_fim_efetiva)
-### ⬜ Passo 4 — Classe, Nível, Grau
-### ⬜ Passo 5 — Busca automática de cargo (ProvedorDadosFhemig)
-### ⬜ Passo 6 — Fallback manual (campos manuais se cargo não encontrado)
+### ⬜ Passo 6 — Fallback manual
+Se cargo não encontrado, exibir campos manuais para:
+- C.H. Mensal (number_input)
+- Vencimento Básico (number_input)
+
+### ⬜ Pendências técnicas
+- Remover `key="ch_semanal_select"` do selectbox (desnecessário, discutido em reunião)
+- Ajustar `__init__` para inicializar `dt_admissao` e `dt_fim_efetiva` como `None` (já que agora são `date_input`)
+- Ajustar `gerar_pdf()` em `app.py` para lidar com `datetime.date` ao invés de string nas datas
+
+## Mudanças já aplicadas
+- `data/provedor_dados.py`: `buscar_cargo()` agora aceita 4º parâmetro `ch_semanal` e filtra por ele
+- `ui/form_servidor.py`: `render()` com Passos 2, 3 e 4 implementados
 
 ## Como testar
 ```bash
@@ -57,3 +81,4 @@ streamlit run teste_form.py
   deixada para depois.
 - O `on_change_masp` existe em `utils/ui_callbacks.py` mas o `app.py` original
   não usa.
+- A chave de busca de cargo agora é composta por 4 campos: Classe + Nível + Grau + CH Semanal

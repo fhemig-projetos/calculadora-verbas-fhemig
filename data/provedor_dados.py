@@ -20,13 +20,14 @@ class ProvedorDadosFhemig:
             return json.load(f)
 
     @classmethod
-    def buscar_cargo(cls, classe: str, nivel: str, grau: str) -> Optional[dict]:
+    def buscar_cargo(cls, classe: str, nivel: str, grau: str, ch_semanal: str) -> Optional[dict]:
         """Retorna o registo de cargo ou None se não for encontrado."""
         dados = cls._carregar_dados_globais()
         for cargo in dados["tabela_cargos"]:
             if (cargo["classe"].upper() == classe.upper() and
                 str(cargo["nivel"]) == str(nivel) and
-                cargo["grau"].upper() == grau.upper()):
+                cargo["grau"].upper() == grau.upper() and
+                cargo["ch_semanal"] == ch_semanal):
                 return cargo
         return None
 
