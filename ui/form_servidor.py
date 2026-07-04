@@ -16,14 +16,14 @@ class FormularioServidor:
                 "nome": "",
                 "masp": "",
                 "admissao": "1",
-                "dt_admissao": "",
-                "dt_fim_efetiva": "",
+                "dt_admissao": None,
+                "dt_fim_efetiva": None,
                 "cargo_classe": "",
                 "cargo_nivel": "",
                 "cargo_grau": "",
-                "ch_semanal": "",
+                "ch_semanal": 0,
                 "ch_mensal": 0.0,
-                "vencimento": 0.0,
+                "vencimento_basico": 0.0,
             }
             
     def render(self):
@@ -35,27 +35,34 @@ class FormularioServidor:
             ds["nome"] = c1.text_input("Nome Completo do Servidor", value=ds["nome"])
             ds["masp"]     = c2.text_input("MASP", value=ds["masp"])
             ds["admissao"] = c3.text_input("Admissão", value=ds["admissao"], help="Ex: 1, 2")
-            ds["dt_admissao"] = c4.date_input("Data de Admissão", value=None, format="DD/MM/YYYY")
-            ds["dt_fim"] = c5.date_input("Data Fim Efetiva", value=None, format="DD/MM/YYYY")
+            ds["dt_admissao"] = c4.date_input("Data de Admissão", value=ds["dt_admissao"], format="DD/MM/YYYY")
+            ds["dt_fim_efetiva"] = c5.date_input("Data Fim Efetiva", value=ds["dt_fim_efetiva"], format="DD/MM/YYYY")
 
             st.divider()
 
             st.caption("**Cargo** — preencha para busca automática do vencimento e carga horária")
             c6, c7, c8, c9 = st.columns(4)
-            cargo_classe = c6.text_input("Cargo / Classe", value=ds["cargo_classe"], placeholder="Ex: PENF").upper().strip()
-            cargo_nivel  = c7.text_input("Nível",          value=ds["cargo_nivel"],  placeholder="Ex: 2").strip()
-            cargo_grau   = c8.text_input("Grau",           value=ds["cargo_grau"],   placeholder="Ex: A").upper().strip()
-            ch_semanal   = c9.selectbox(
+            ds["cargo_classe"] = c6.text_input("Cargo / Classe", value=ds["cargo_classe"], placeholder="Ex: PENF").upper().strip()
+            ds["cargo_nivel"]  = c7.text_input("Nível",          value=ds["cargo_nivel"],  placeholder="Ex: 2").strip()
+            ds["cargo_grau"]   = c8.text_input("Grau",           value=ds["cargo_grau"],   placeholder="Ex: A").upper().strip()
+            ds["ch_semanal"]   = c9.selectbox(
                 "C.H. Semanal",
-                options=["- Selecione -", "20 Horas Semanais", "30 Horas Semanais", "40 Horas Semanais", "44 Horas Semanais"],
-                key="ch_semanal_select"
+                options=["- Selecione -", 20, 30, 40, 44],
             )
 
             cargo_encontrado = None
-            if cargo_classe and cargo_nivel and cargo_grau and ch_semanal != "- Selecione -":
-                cargo_encontrado = ProvedorDadosFhemig.buscar_cargo(cargo_classe, cargo_nivel, cargo_grau, ch_semanal)
+            if ds["cargo_classe"] and ds["cargo_nivel"] and ds["cargo_grau"] and ds["ch_semanal"] != "- Selecione -":
+                cargo_encontrado = ProvedorDadosFhemig.buscar_cargo(ds["cargo_classe"], ds["cargo_nivel"], ds["cargo_grau"], ds["ch_semanal"])
 
             if cargo_encontrado:
+                ds["ch_mensal"] = cargo_encontrado["ch_mensal"]
+                ds["vencimento_basico"] = cargo_encontrado["vencimento_basico"]
+                st.success(
+                    f"✅ Cargo encontrado\n\n"
+                    f"Vencimento: **R$ {cargo_encontrado['vencimento_basico']:,.2f}** · "
+                    f"C.H. Mensal: **{cargo_encontrado['ch_mensal']}h** · "
+                    f"Vigência: **{cargo_encontrado['dt_inicio']}**"
+                )
                 pass
 
 
