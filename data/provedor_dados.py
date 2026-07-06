@@ -39,13 +39,7 @@ class ProvedorDadosFhemig:
         return dados["tabela_inss"].get(str(ano), dados["tabela_inss"]["2026"])
 
     @classmethod
-    def obter_metadados_verbas(cls) -> dict:
-        """Retorna o dicionário de metadados das verbas."""
+    def obter_verbas(cls) -> dict:
+        """Retorna o dicionário com os metadados das verbas."""
         dados = cls._carregar_dados_globais()
-        return dados["verbas_meta"]
-
-    @classmethod
-    def obter_grupos_verbas(cls) -> dict:
-        """Retorna a estrutura de agrupamento das verbas para o selectbox."""
-        dados = cls._carregar_dados_globais()
-        return dados["grupos"]
+        return dados["verbas"]
