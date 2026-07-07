@@ -5,17 +5,17 @@ class CalculadoraAdicionalNoturno(CalculadoraVerba):
     
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: Venc. Básico ÷ Carga Horária × Horas Realizadas × 0,20"
+        return "Fórmula: Venc. Básico ÷ Carga Horária Mensal × Horas Realizadas × 0,20"
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento", "carga_horaria", "horas_realizadas"]
+        return ["vencimento_basico", "carga_horaria_mensal", "horas_realizadas"]
     
-    def calcular(self, vencimento: float, carga_horaria: float, horas_realizadas: float) -> ResultadoCalculo:
-        if carga_horaria <= 0:
+    def calcular(self, vencimento_basico: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
+        if carga_horaria_mensal <= 0:
             return ResultadoCalculo(0.0, ["Erro: Carga horária deve ser maior que zero."])
             
-        valor_hora = vencimento / carga_horaria
+        valor_hora = vencimento_basico / carga_horaria_mensal
         adicional_por_hora = valor_hora * 0.20
         resultado_final = adicional_por_hora * horas_realizadas
         

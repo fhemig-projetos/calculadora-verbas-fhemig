@@ -27,19 +27,6 @@ class FormularioServidor:
             }
 
     def render(self):
-        st.markdown("""
-        <style>
-            input[type=number]::-webkit-inner-spin-button,
-            input[type=number]::-webkit-outer-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            input[type=number] {
-                -moz-appearance: textfield;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-
         with st.expander("Dados do Servidor", expanded=True):
             ds = st.session_state["dados_servidor"]
             c1, c2, c3 = st.columns(3)
@@ -53,15 +40,21 @@ class FormularioServidor:
 
             st.divider()
 
-            st.caption("**Cargo** — preencha para busca automática do vencimento e carga horária")
-            c6, c7, c8, c9 = st.columns(4)
+            st.caption("**Cargo** — preencha para busca automática do vencimento básico e carga horária mensal")
+            c6, c7, c8 = st.columns(3)
             ds["cargo_classe"] = c6.text_input("Cargo / Classe", value=ds["cargo_classe"], placeholder="Ex: PENF").upper().strip()
             ds["cargo_nivel"]  = c7.text_input("Nível",          value=ds["cargo_nivel"],  placeholder="Ex: 2").strip()
             ds["cargo_grau"]   = c8.text_input("Grau",           value=ds["cargo_grau"],   placeholder="Ex: A").upper().strip()
+            
+            c9, c10 = st.columns(2)
             ds["ch_semanal"]   = c9.selectbox(
                 "C.H. Semanal",
                 options=["- Selecione -", 20, 30, 40, 44],
             )
+
+            if ds["ch_semanal"] != "- Selecione -":
+                ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
+                c10.number_input("C.H. Mensal (h)", value=ds["ch_mensal"], disabled=True)
 
             cargo_encontrado = None
             # Se campos preenchidos
@@ -71,20 +64,13 @@ class FormularioServidor:
 
                 # Se cargo encontrado retorna valores
                 if cargo_encontrado:
-                    ds["ch_mensal"] = cargo_encontrado["ch_mensal"]
                     ds["vencimento_basico"] = cargo_encontrado["vencimento_basico"]
                     st.success(
                         f"✅ Cargo encontrado\n\n"
                         f"Vencimento: **R$ {cargo_encontrado['vencimento_basico']:,.2f}** · "
-                        f"C.H. Mensal: **{cargo_encontrado['ch_mensal']}h** · "
                         f"Vigência: **{cargo_encontrado['dt_inicio']}**"
                     )
                 # Se cargo não encontrado abre campos para preenchimento
                 else:
-                    st.warning("⚠️ Cargo não encontrado na tabela. Preencha manualmente abaixo.")
-                    c10, c11 = st.columns(2)
-                    ds["ch_mensal"] = c10.selectbox(
-                        "C.H. Mensal (h)",
-                        options=["- Selecione -", 120, 180, 240, 264],
-                    )
-                    ds["vencimento_basico"] = c11.number_input("Vencimento Básico (R$)", value=0.0, format="%.2f")
+                    st.warning("⚠️ Cargo não encontrado na tabela. Preencha o vencimento básico manualmente abaixo.")
+                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=0.0, format="%.2f")

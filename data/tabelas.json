@@ -1,9 +1,9 @@
 {
   "tabela_cargos": [
-    {"classe": "PENF", "nivel": "2", "grau": "A", "ch_semanal": 40, "ch_mensal": 240, "vencimento_basico": 2138.08, "dt_inicio": "01/01/2026"},
-    {"classe": "PENF", "nivel": "4", "grau": "A", "ch_semanal": 40, "ch_mensal": 240, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"},
-    {"classe": "TOS",  "nivel": "1", "grau": "A", "ch_semanal": 40, "ch_mensal": 240, "vencimento_basico": 1732.73, "dt_inicio": "01/01/2026"},
-    {"classe": "AGAS", "nivel": "1", "grau": "A", "ch_semanal": 40, "ch_mensal": 240, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"}
+    {"classe": "PENF", "nivel": "2", "grau": "A", "ch_semanal": 40, "vencimento_basico": 2138.08, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "4", "grau": "A", "ch_semanal": 40, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"},
+    {"classe": "TOS",  "nivel": "1", "grau": "A", "ch_semanal": 40, "vencimento_basico": 1732.73, "dt_inicio": "01/01/2026"},
+    {"classe": "AGAS", "nivel": "1", "grau": "A", "ch_semanal": 40, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"}
   ],
   "tabela_inss": {
     "2026": [

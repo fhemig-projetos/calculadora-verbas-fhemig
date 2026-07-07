@@ -5,7 +5,7 @@ class CalculadoraGratificacaoFinalSemana(CalculadoraVerba):
     
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: (Venc. Básico + Ad. Desempenho) ÷ Carga Horária Mensal× Horas Realizadas × 0,5"
+        return "Fórmula: (Venc. Básico + Ad. Desempenho) ÷ Carga Horária Mensal × Horas Realizadas × 0,5"
 
     @property
     def campos_necessarios(self) -> list[str]:

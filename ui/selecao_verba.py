@@ -72,20 +72,18 @@ class SelecaoVerba:
                 valor_default = 0.0
             elif campo == "carga_horaria_mensal":
                 valor_default = ds.get("ch_mensal")
+            elif campo == "horas_realizadas":
+                valor_default = 0
             else:
                 valor_default = 0
+            
+            desabilitado = campo in ("vencimento_basico", "carga_horaria_mensal")
 
             with cols[i % 2]:
-                if config.get("tipo") == "hora_mensal":
-                    opcoes = ["- Selecione -", 120, 180, 240, 264]
-                    valores[campo] = st.selectbox(
-                        config["label"],
-                        options=opcoes,
-                    )
-                else:
                     valores[campo] = st.number_input(
                         config["label"],
                         value=valor_default,
+                        disabled=desabilitado,
                     )
 
                 

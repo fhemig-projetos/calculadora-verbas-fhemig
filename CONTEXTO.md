@@ -51,8 +51,8 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 ## Arquivos envolvidos
 - `ui/form_servidor.py` → formulário de dados do servidor (✅ concluído)
 - `ui/cabecalho.py` → cabeçalho da calculadora (✅ concluído)
-- `ui/selecao_verba.py` → seleção e cálculo de verbas (⬜ em andamento — ver bugs abaixo)
-- `main.py` → entry point do app refatorado (✅ integrado com SelecaoVerba)
+- `ui/selecao_verba.py` → seleção e cálculo de verbas (⬜ em andamento)
+- `main.py` → entry point do app refatorado (✅ integrado)
 - `app.py` → arquivo original (referência, será descontinuado)
 - `data/provedor_dados.py` → classe `ProvedorDadosFhemig` com acesso a dados
 - `data/tabelas.json` → base de cargos, INSS e metadados das verbas
@@ -76,46 +76,34 @@ Classe `Cabecalho` com método `render()` que exibe:
 
 ### ✅ Módulo `ui/form_servidor.py` — Concluído
 
-#### Passo 1 — `__init__`
+#### `__init__`
 Dicionário `dados_servidor` com todas as chaves:
 - `nome`, `masp`, `admissao`, `dt_admissao` (None), `dt_fim_efetiva` (None)
 - `cargo_classe`, `cargo_nivel`, `cargo_grau`
 - `ch_semanal` (0), `ch_mensal` (0), `vencimento_basico` (0.0)
 
-#### Passo 2 — Estrutura do `render()`
+#### `render()` — Estrutura geral
 1. CSS para ocultar setinhas dos `number_input`
 2. `with st.expander("Dados do Servidor", expanded=True):`
 3. `ds = st.session_state["dados_servidor"]`
 4. 3 colunas com: Nome, MASP, Admissão
+5. 2 colunas com: Data de Admissão, Data Fim Efetiva (`date_input`, preservam estado)
 
-#### Passo 3 — Datas
-- `st.date_input` (formato DD/MM/YYYY) vinculado ao `ds` (preserva estado)
-- `dt_admissao` → "Data de Admissão"
-- `dt_fim_efetiva` → "Data Fim Efetiva"
+#### Campos de cargo (Passo 4)
+Linha 1 — 3 colunas: Cargo / Classe, Nível, Grau
+Linha 2 — 2 colunas: C.H. Semanal (selectbox) + C.H. Mensal (disabled, calculado automaticamente)
 
-#### Passo 4 — Campos de cargo
-4 colunas, todos salvos em `ds[...]`:
-- Cargo / Classe (text_input, `.upper().strip()`)
-- Nível (text_input, `.strip()`)
-- Grau (text_input, `.upper().strip()`)
-- C.H. Semanal (selectbox: "- Selecione -", 20, 30, 40, 44)
-
-#### Passo 5 — Busca automática de cargo
+#### Cálculo de C.H. Mensal
 ```python
-cargo_encontrado = ProvedorDadosFhemig.buscar_cargo(
-    ds["cargo_classe"], ds["cargo_nivel"], ds["cargo_grau"], ds["ch_semanal"]
-)
-if cargo_encontrado:
-    ds["ch_mensal"] = cargo_encontrado["ch_mensal"]
-    ds["vencimento_basico"] = cargo_encontrado["vencimento_basico"]
-    st.success(...)
+if ds["ch_semanal"] != "- Selecione -":
+    ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
 ```
+Fórmula: `ch_semanal ÷ 5 × 30`. O campo é exibido como `disabled` ao lado do selectbox.
 
-#### Passo 6 — Fallback manual
-Se cargo não encontrado:
-- Aviso `st.warning("⚠️ Cargo não encontrado...")`
-- Selectbox para C.H. Mensal (120, 180, 240, 264)
-- `number_input` para Vencimento Básico
+#### Busca automática de cargo (Passo 5)
+- Se todos os 4 campos preenchidos → busca via `ProvedorDadosFhemig.buscar_cargo()`
+- Se encontrado → preenche `vencimento_basico` e exibe `st.success()`
+- Se não encontrado → aviso + campo manual apenas para Vencimento Básico (C.H. Mensal já foi calculada)
 
 ### ✅ Módulo `calculadoras/` — 3 calculadoras implementadas
 
@@ -127,47 +115,50 @@ Se cargo não encontrado:
 
 Cada calculadora implementa:
 - `descricao_formula` → texto explicativo da fórmula
-- `campos_necessarios` → lista de nomes dos campos que precisa
+- `campos_necessarios` → lista de nomes dos campos (`vencimento_basico`, `ad_desempenho`, `carga_horaria_mensal`, etc.)
 - `calcular(**kwargs)` → retorna `ResultadoCalculo(valor, memoria_calculo)`
 
 ### ⬜ Módulo `ui/selecao_verba.py` — Em andamento
 
 #### Implementado
-- `__init__()` com inicialização de `historico` (lista) e `ultimo_resultado` (lista — precisa ser `None`)
-- `render()` com selectbox de verbas, exibição de código + tag Vantagem/Desconto, e roteamento para `_render_calculadora()`
-- `_render_calculadora()` com geração dinâmica de campos via `CONFIG_CAMPOS`, selectbox para carga horária, e `st.caption()` para fórmula
+- `__init__()` com inicialização de `historico` (lista) e `ultimo_resultado` (⬜ precisa ser `None`)
+- `render()` com selectbox de verbas, exibição de código + tag Vantagem/Desconto
+- Roteamento para `_render_calculadora()` quando existe calculadora registrada
+- `_render_calculadora()` com:
+  - Exibição da fórmula via `st.caption()`
+  - Geração dinâmica dos campos usando `CONFIG_CAMPOS`
+  - `vencimento_basico` e `carga_horaria_mensal` como `disabled` (vinculados ao cabeçalho)
+  - `ad_desempenho` e `horas_realizadas` como editáveis
 
-#### Bugs conhecidos (a corrigir)
-1. `ultimo_resultado` inicializado como `[]` em vez de `None`
-2. Nomes dos campos no `CONFIG_CAMPOS` (`"vencimento_basico"`, `"carga_horaria_mensal"`) não correspondem aos nomes usados pelas calculadoras (`"vencimento"`, `"carga_horaria"`) — precisa de um `MAPEAMENTO_CAMPOS` ou alinhar os nomes
-3. Condições `if campo ==` usam nomes do CONFIG_CAMPOS em vez dos nomes reais das calculadoras
-4. Selectbox de carga horária sem `index` e com `"- Selecione -"` nas opções (pode causar crash)
-5. `_render_fallback()` não foi implementado — verbas sem calculadora não mostram nada
-6. `_exibir_resultado()` não foi implementado — resultado nunca é exibido
+#### Falta implementar
+- [ ] `ultimo_resultado` = `[]` → `None`
+- [ ] Botão "Calcular" que chama `calculadora.calcular(**valores)`
+- [ ] `_exibir_resultado()` com resultado, memória de cálculo, adicionar à lista e conferência
+- [ ] `_render_fallback()` para verbas sem calculadora registrada
+- [ ] Seção "Lista de cálculos realizados" (tabela, totais, limpar, PDF)
 
 ## Mudanças já aplicadas
-- `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `verbas_meta` renomeado para `verbas`; `grupos` removido (não era utilizado)
-- `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int) e filtra por ele; `obter_metadados_verbas()` e `obter_grupos_verbas()` removidos; `obter_verbas()` adicionado
-- `ui/form_servidor.py`: implementação completa dos Passos 1 a 6
+- `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `ch_mensal` removido dos cargos (calculado por fórmula); `verbas_meta` renomeado para `verbas`; `grupos` removido
+- `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int); `obter_verbas()` adicionado
+- `ui/form_servidor.py`: implementação completa com C.H. Mensal calculado automaticamente
 - `ui/cabecalho.py`: criado com classe `Cabecalho`
-- `ui/selecao_verba.py`: criado com classe `SelecaoVerba` com `__init__`, `render()`, `_render_calculadora()`
-- `main.py`: entry point do app refatorado com `SelecaoVerba` integrado
-- `utils/ui_config.py`: `CONFIG_CAMPOS` com 4 campos (nomes pendentes de alinhamento com as calculadoras)
+- `ui/selecao_verba.py`: renderização dinâmica de campos com `disabled` para campos vinculados
+- `calculadoras/`: nomes dos campos alinhados com `CONFIG_CAMPOS` (vencimento_basico, carga_horaria_mensal)
+- `main.py`: entry point do app refatorado
 
 ## Como testar
 ```bash
 streamlit run main.py
 ```
 
-## Pendências — Plano de Implementação
+## Pendências — Próximas etapas
 
-### 🔴 Corrigir bugs no `ui/selecao_verba.py`
-- [ ] `ultimo_resultado` = `[]` → `None`
-- [ ] Adicionar `MAPEAMENTO_CAMPOS` para traduzir nomes das calculadoras para nomes do `CONFIG_CAMPOS`
-- [ ] Corrigir condições `if campo ==` para usar nomes reais das calculadoras
-- [ ] Remover `"- Selecione -"` do selectbox de carga horária e adicionar `index`
-- [ ] Adicionar `_render_fallback()` e `else` no `render()`
-- [ ] Adicionar `_exibir_resultado()` com resultado, memória, adicionar à lista e conferência
+### 🔴 Imediato — Finalizar `ui/selecao_verba.py`
+- [ ] Corrigir `ultimo_resultado = []` → `None`
+- [ ] Adicionar botão "Calcular" que chama a calculadora
+- [ ] Implementar `_exibir_resultado()` (resultado, memória, adicionar à lista)
+- [ ] Implementar `_render_fallback()` para verbas sem calculadora
+- [ ] Adicionar seção "Lista de cálculos realizados" (tabela, totais, limpar)
 
 ### Etapa 1 — Implementar calculadoras restantes (18 verbas)
 Criar classes no pacote `calculadoras/` para as verbas que ainda não têm implementação.
@@ -176,16 +167,10 @@ Criar classes no pacote `calculadoras/` para as verbas que ainda não têm imple
 Adicionar todos os campos necessários ao `CONFIG_CAMPOS`.
 
 ### Etapa 3 — Atualizar `calculadoras/factory.py`
-Adicionar as 18 novas calculadoras ao `REGISTRO_CALCULADORAS`.
+Adicionar as novas calculadoras ao `REGISTRO_CALCULADORAS`.
 
-### Etapa 4 — Finalizar `ui/selecao_verba.py`
-Completar implementação após correção dos bugs.
-
-### Etapa 5 — Atualizar `main.py`
-Adicionar seção "Lista de cálculos realizados" com tabela, totais e botão de limpar.
-
-### Etapa 6 — Implementar `utils/exportador_pdf.py`
+### Etapa 4 — Implementar `utils/exportador_pdf.py`
 Migrar função `gerar_pdf()` do `app.py`.
 
-### Etapa 7 — Descontinuar `app.py`
+### Etapa 5 — Descontinuar `app.py`
 Após todas as funcionalidades migradas, remover ou arquivar o `app.py` original.
