@@ -1,7 +1,7 @@
 import streamlit as st
 from data import ProvedorDadosFhemig
 from calculadoras import CalculadoraVerba, REGISTRO_CALCULADORAS
-from utils import CONFIG_CAMPOS
+from utils import CONFIG_CAMPOS, FormatadorCampos
 
 class SelecaoVerba:
 
@@ -10,7 +10,7 @@ class SelecaoVerba:
             st.session_state["historico"] = []
 
         if "ultimo_resultado" not in st.session_state:
-            st.session_state["ultimo_resultado"] = []
+            st.session_state["ultimo_resultado"] = {}
 
     def render(self):
         verbas_json = ProvedorDadosFhemig.obter_verbas()
@@ -78,6 +78,7 @@ class SelecaoVerba:
                 valor_default = 0
             
             desabilitado = campo in ("vencimento_basico", "carga_horaria_mensal")
+            desabilitado = False
 
             with cols[i % 2]:
                     valores[campo] = st.number_input(
@@ -86,7 +87,24 @@ class SelecaoVerba:
                         disabled=desabilitado,
                     )
 
-                
-                    
+        if st.button("Calcular", type="primary", use_container_width=True):
+            resultado = calculadora.calcular(**valores)
 
+            st.session_state["ultimo_resultado"] = {
+                "verba": verba_meta,
+                "valor": resultado.valor,
+                "memoria": resultado.memoria_calculo,
+            }
 
+            self._exibir_resultado()
+
+    def _exibir_resultado(self):
+        ur = st.session_state["ultimo_resultado"]
+
+        st.divider()
+        st.markdown("### Resultado")
+        st.metric(label="Resultado", value=FormatadorCampos.brl(ur["valor"]), label_visibility="collapsed")
+
+        with st.expander("Ver memória de cálculo"):
+            texto_memoria = "\n".join(ur["memoria"])
+            st.code(texto_memoria, language="text")
