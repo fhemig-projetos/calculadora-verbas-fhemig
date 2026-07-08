@@ -35,7 +35,7 @@ class ProvedorDadosFhemig:
     def obter_tabela_inss(cls, ano: int) -> list:
         """Retorna as faixas de INSS para o ano solicitado."""
         dados = cls._carregar_dados_globais()
-        # No JSON os anos são strings, convertemos o parâmetro 'ano' para texto
+        # Busca o ano mais recente se não encontrar tabela p/ o ano especificado
         return dados["tabela_inss"].get(str(ano), dados["tabela_inss"]["2026"])
 
     @classmethod

@@ -10,7 +10,7 @@ class SelecaoVerba:
             st.session_state["historico"] = []
 
         if "ultimo_resultado" not in st.session_state:
-            st.session_state["ultimo_resultado"] = {}
+            st.session_state["ultimo_resultado"] = None
 
     def render(self):
         verbas_json = ProvedorDadosFhemig.obter_verbas()
@@ -50,9 +50,9 @@ class SelecaoVerba:
         # Verifica se existe calculadora correspondente
         calculadora = REGISTRO_CALCULADORAS.get(verba_input)
         if calculadora: 
-            self._render_calculadora(calculadora, verba_meta)
+            self._render_calculadora(calculadora, verba_meta, verba_input)
 
-    def _render_calculadora(self, calculadora: CalculadoraVerba, verba_meta: dict):
+    def _render_calculadora(self, calculadora: CalculadoraVerba, verba_meta: dict, nome_verba: str):
         # Exibe a fórmula
         st.caption(calculadora.descricao_formula)
 
@@ -91,20 +91,77 @@ class SelecaoVerba:
             resultado = calculadora.calcular(**valores)
 
             st.session_state["ultimo_resultado"] = {
-                "verba": verba_meta,
+                "nome_verba": nome_verba,
+                "codigo": verba_meta["codigo"],
+                "tipo": verba_meta["tipo"],
                 "valor": resultado.valor,
                 "memoria": resultado.memoria_calculo,
             }
 
-            self._exibir_resultado()
+        self._exibir_resultado()
 
     def _exibir_resultado(self):
         ur = st.session_state["ultimo_resultado"]
+        if ur is None:
+            return
 
         st.divider()
         st.markdown("### Resultado")
         st.metric(label="Resultado", value=FormatadorCampos.brl(ur["valor"]), label_visibility="collapsed")
 
-        with st.expander("Ver memória de cálculo"):
+        with st.expander("Ver memória de cálculo", expanded=True):
             texto_memoria = "\n".join(ur["memoria"])
             st.code(texto_memoria, language="text")
+        
+        if st.button("➕ Adicionar à lista", type="secondary", use_container_width=True):
+            st.session_state["historico"].append({
+                "nome_verba": ur["nome_verba"],
+                "codigo": ur["codigo"],
+                "tipo": ur["tipo"],
+                "valor": ur["valor"],
+                "memoria": ur["memoria"],
+            })
+            st.rerun()
+
+        self._exibir_historico()
+
+    def _exibir_historico(self):
+        historico = st.session_state.get("historico")
+        if not historico:
+            return
+        
+        st.divider()
+        st.markdown("### Lista de cálculos realizados")
+
+        # Monta o dataframe c/ os itens
+        dados = []
+        for item in historico:
+            dados.append({
+                "Verba": item.get("nome_verba"),
+                "Código": item.get("codigo"),
+                "Tipo": item.get("tipo"),
+                "Valor (R$)": FormatadorCampos.brl(item["valor"]),
+            })
+
+        st.dataframe(dados, width="stretch", hide_index=True)
+
+        # Exibe totais separados
+        vantagens = sum(item["valor"] for item in historico if item.get("tipo") == "Vantagem")
+        descontos = sum(item["valor"] for item in historico if item.get("tipo") == "Desconto")
+        liquido = vantagens - descontos
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Vantagens", FormatadorCampos.brl(vantagens))
+        col2.metric("Total Descontos", FormatadorCampos.brl(descontos))
+        col3.metric("Líquido", FormatadorCampos.brl(liquido))
+
+        # Botões de limpar o dataframe
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("🗑️ Remover último", type="secondary", use_container_width=True):
+                st.session_state["historico"].pop()
+                st.rerun()
+        with col_btn2:
+            if st.button("🗑️ Limpar lista", type="secondary", use_container_width=True):
+                st.session_state["historico"] = []
+                st.rerun()

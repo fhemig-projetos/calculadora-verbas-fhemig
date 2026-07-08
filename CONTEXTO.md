@@ -21,6 +21,7 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 │  - hora_extra.py     → CalculadoraHoraExtra │
 │  - adicional_noturno.py → ...               │
 │  - gratificacao_final_semana.py → ...       │
+│  - inss_mensal.py    → CalculadoraINSS (esboço)│
 │  - (demais verbas a implementar)            │
 └──────────────────────┬──────────────────────┘
                        │ usa
@@ -61,6 +62,7 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 - `calculadoras/hora_extra.py` → `CalculadoraHoraExtra` (✅ implementada)
 - `calculadoras/adicional_noturno.py` → `CalculadoraAdicionalNoturno` (✅ implementada)
 - `calculadoras/gratificacao_final_semana.py` → `CalculadoraGratificacaoFinalSemana` (✅ implementada)
+- `calculadoras/inss_mensal.py` → `CalculadoraINSS` (⬜ esboço, implementar lógica depois)
 - `utils/formatador_campos.py` → `FormatadorCampos` com `brl()` e `masp()`
 - `utils/ui_config.py` → `CONFIG_CAMPOS` com metadados dos campos (label, tipo)
 - `utils/ui_callbacks.py` → `on_change_masp` (callback opcional)
@@ -105,13 +107,14 @@ Fórmula: `ch_semanal ÷ 5 × 30`. Campo exibido como `disabled` ao lado do sele
 - Se encontrado → preenche `vencimento_basico` e exibe `st.success()`
 - Se não encontrado → aviso + campo manual apenas para Vencimento Básico (C.H. Mensal já foi calculada)
 
-### ✅ Módulo `calculadoras/` — 3 calculadoras implementadas
+### ✅ Módulo `calculadoras/` — 3 calculadoras implementadas + 1 esboço
 
-| Verba | Classe | Arquivo |
-|-------|--------|---------|
-| Hora Extra | `CalculadoraHoraExtra` | `calculadoras/hora_extra.py` |
-| Adicional Noturno | `CalculadoraAdicionalNoturno` | `calculadoras/adicional_noturno.py` |
-| Gratificação de Final de Semana | `CalculadoraGratificacaoFinalSemana` | `calculadoras/gratificacao_final_semana.py` |
+| Verba | Classe | Arquivo | Status |
+|-------|--------|---------|--------|
+| Hora Extra | `CalculadoraHoraExtra` | `calculadoras/hora_extra.py` | ✅ |
+| Adicional Noturno | `CalculadoraAdicionalNoturno` | `calculadoras/adicional_noturno.py` | ✅ |
+| Gratificação de Final de Semana | `CalculadoraGratificacaoFinalSemana` | `calculadoras/gratificacao_final_semana.py` | ✅ |
+| INSS Mensal | `CalculadoraINSS` | `calculadoras/inss_mensal.py` | ⬜ esboço |
 
 Cada calculadora implementa:
 - `descricao_formula` → texto explicativo da fórmula
@@ -121,7 +124,7 @@ Cada calculadora implementa:
 ### ⬜ Módulo `ui/selecao_verba.py` — Em andamento
 
 #### Implementado
-- `__init__()` com inicialização de `historico` (lista) e `ultimo_resultado` (dict — ⚠️ precisa ser `None`)
+- `__init__()` com inicialização de `historico` (lista) e `ultimo_resultado` (dict)
 - `render()` com selectbox de verbas, exibição de código + tag Vantagem/Desconto
 - Roteamento para `_render_calculadora()` quando existe calculadora registrada
 - `_render_calculadora()` com:
@@ -132,21 +135,41 @@ Cada calculadora implementa:
   - `st.metric()` mostrando o valor calculado
   - `st.expander("Ver memória de cálculo")` com `st.code()` para exibir a memória
 
-#### ⚠️ Bugs conhecidos
+#### ⚠️ Bugs conhecidos (não prioritários)
 - Linha 81: `desabilitado = False` sobrescreve a atribuição anterior (linha 80) — campos disabled não funcionam
 - `_exibir_resultado()` é chamado **dentro** do `if st.button`, então só aparece imediatamente após o clique, não persiste entre rerenders
 - `ultimo_resultado` inicializado como `{}` (dict vazio) em vez de `None` — na rerenderização, `_exibir_resultado()` vai tentar acessar `ur["valor"]` e quebrar porque o dict está vazio
 - Selectbox de carga horária sem `index` — não está sendo usado no momento (carga_horaria_mensal usa `number_input`)
 
+> **Decisão:** Os bugs acima serão ignorados por enquanto. Se causarem problemas no futuro, voltamos e corrigimos.
+
 #### Falta implementar
-- [ ] Corrigir `ultimo_resultado` de `{}` para `None`
-- [ ] Mover `_exibir_resultado()` para fora do `if st.button` (para persistir entre rerenders)
-- [ ] Corrigir `_exibir_resultado()` com proteção `if ur is None or not ur: return`
-- [ ] Remover linha 81 (`desabilitado = False`) para campos disabled funcionarem
+- [ ] Passar `verba_input` (nome da verba) para `_render_calculadora()` e salvar no `ultimo_resultado`
+- [ ] Botão "Adicionar à lista" dentro de `_exibir_resultado()` (sem campo de referência)
+- [ ] Método `_exibir_historico()` com:
+  - Tabela (`st.dataframe`) com colunas: Verba, Código, Valor (R$)
+  - Totais separados: Total Vantagens, Total Descontos, Líquido
+  - Botão "Remover último" (usa `pop()` na lista)
+  - Botão "Limpar lista"
+- [ ] Método `_exibir_conferencia()` com campo de valor da unidade e comparação (calculado vs unidade vs diferença)
 - [ ] Implementar `_render_fallback()` para verbas sem calculadora registrada
-- [ ] Implementar seção "Adicionar à lista" (referência + botão)
-- [ ] Implementar seção "Lista de cálculos realizados" (tabela, totais, limpar)
-- [ ] Implementar "Conferência" (comparação com valor informado pela unidade)
+
+## Decisões de design
+
+### Ano de referência
+- O ano **não** será implementado como campo de cálculo por enquanto
+- A calculadora de INSS usará a tabela de 2026 fixa (lógica básica)
+- As demais verbas não dependem de ano (percentuais fixos por lei)
+- O ano de referência como metadado da lista fica para uma etapa futura
+
+### Funcionalidade "Adicionar à lista"
+- Não terá campo de referência (mês/ano) por enquanto
+- Apenas botão "Adicionar" que insere o item no histórico
+- Os itens aparecem na tabela com nome da verba, código e valor
+
+### Total na lista
+- Serão exibidos 3 valores: Total Vantagens, Total Descontos, Líquido
+- Descontos são subtraídos do total (multiplicados por -1 no cálculo do líquido)
 
 ## Mudanças já aplicadas
 - `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `ch_mensal` removido dos cargos (calculado por fórmula); `verbas_meta` renomeado para `verbas`; `grupos` removido
@@ -156,6 +179,7 @@ Cada calculadora implementa:
 - `ui/selecao_verba.py`: renderização dinâmica de campos, botão calcular, exibição de resultado e memória de cálculo
 - `calculadoras/`: nomes dos campos alinhados com `CONFIG_CAMPOS`
 - `main.py`: entry point do app refatorado
+- `calculadoras/inss_mensal.py`: criado esboço da calculadora (lógica de negócio pendente)
 
 ## Como testar
 ```bash
@@ -164,23 +188,24 @@ streamlit run main.py
 
 ## Pendências — Próximas etapas
 
-### 🔴 Imediato — Corrigir bugs e finalizar `ui/selecao_verba.py`
-- [ ] `ultimo_resultado` = `{}` → `None`
-- [ ] `_exibir_resultado()` fora do `if st.button` + proteção contra dict vazio
-- [ ] Remover linha 81 que anula o `disabled`
-- [ ] Implementar `_render_fallback()` para verbas sem calculadora
-- [ ] Adicionar campos de referência e botão "Adicionar à lista"
-- [ ] Adicionar seção "Lista de cálculos realizados" (tabela, totais, limpar)
-- [ ] Adicionar seção "Conferência" (comparação com valor da unidade)
+### 🔴 Imediato — Finalizar `ui/selecao_verba.py`
+- [ ] Passar nome da verba para `_render_calculadora()` e salvar no resultado
+- [ ] Botão "Adicionar à lista" (sem referência)
+- [ ] `_exibir_historico()` com tabela + totais (Vantagens/Descontos/Líquido) + Remover último + Limpar
+- [ ] `_exibir_conferencia()` com campo de valor da unidade
+- [ ] `_render_fallback()` para verbas sem calculadora
 
-### Etapa 1 — Implementar calculadoras restantes (18 verbas)
+### Etapa 1 — Implementar calculadoras de desconto (3 verbas)
+- [ ] `CalculadoraINSS` — lógica básica com tabela 2026 fixa
+- [ ] `CalculadoraIPSEMG` — `vencimento_basico * 0.032`
+- [ ] `CalculadoraCusteio` — `vencimento_basico * 0.04`
+- [ ] Registrar as 3 no `REGISTRO_CALCULADORAS` em `factory.py`
+
+### Etapa 2 — Implementar calculadoras restantes (~15 verbas)
 Criar classes no pacote `calculadoras/` para as verbas que ainda não têm implementação.
 
-### Etapa 2 — Expandir `utils/ui_config.py`
+### Etapa 3 — Expandir `utils/ui_config.py`
 Adicionar todos os campos necessários ao `CONFIG_CAMPOS`.
-
-### Etapa 3 — Atualizar `calculadoras/factory.py`
-Adicionar as novas calculadoras ao `REGISTRO_CALCULADORAS`.
 
 ### Etapa 4 — Implementar `utils/exportador_pdf.py`
 Migrar função `gerar_pdf()` do `app.py`.
