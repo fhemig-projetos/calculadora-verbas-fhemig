@@ -2,6 +2,7 @@ import streamlit as st
 from data import ProvedorDadosFhemig
 from calculadoras import CalculadoraVerba, REGISTRO_CALCULADORAS
 from utils import CONFIG_CAMPOS, FormatadorCampos
+from datetime import date 
 
 class SelecaoVerba:
 
@@ -46,7 +47,7 @@ class SelecaoVerba:
         )
 
         st.markdown(f'**Verba {verba_meta["codigo"]}** &nbsp; {tipo_tag}', unsafe_allow_html=True)
-        
+
         # Verifica se existe calculadora correspondente
         calculadora = REGISTRO_CALCULADORAS.get(verba_input)
         if calculadora: 
@@ -83,7 +84,7 @@ class SelecaoVerba:
             with cols[i % 2]:
                     valores[campo] = st.number_input(
                         config["label"],
-                        value=valor_default,
+                        value=100,
                         disabled=desabilitado,
                     )
 
@@ -98,9 +99,10 @@ class SelecaoVerba:
                 "memoria": resultado.memoria_calculo,
             }
 
-        self._exibir_resultado()
+        # Encadeia dentro do if para sumir o resultado e a competência quando trocar de verba
+        self._render_resultado()
 
-    def _exibir_resultado(self):
+    def _render_resultado(self):
         ur = st.session_state["ultimo_resultado"]
         if ur is None:
             return
@@ -113,6 +115,9 @@ class SelecaoVerba:
             texto_memoria = "\n".join(ur["memoria"])
             st.code(texto_memoria, language="text")
         
+        # Renderiza os campos correspondentes e retorna a competência
+        competencia = self._render_competencia()
+
         if st.button("➕ Adicionar à lista", type="secondary", use_container_width=True):
             st.session_state["historico"].append({
                 "nome_verba": ur["nome_verba"],
@@ -120,12 +125,33 @@ class SelecaoVerba:
                 "tipo": ur["tipo"],
                 "valor": ur["valor"],
                 "memoria": ur["memoria"],
+                "competencia": competencia
             })
             st.rerun()
 
-        self._exibir_historico()
+        self._render_historico()  # ← NOVO: sempre mostra o histórico
 
-    def _exibir_historico(self):
+    def _render_competencia(self):
+        st.divider()
+        st.markdown("#### 📅 Competência")
+        st.caption("Selecione o mês/ano de referência do cálculo")
+
+        # Lógica para buscar mês anterior e ano atual como default
+        hoje = date.today()
+        if hoje.month == 1:
+            mes_default, ano_default = 12, hoje.year - 1
+        else:
+            mes_default, ano_default = hoje.month - 1, hoje.year
+
+        # Competência do cálculo (mês/ano)
+        col_mes, col_ano = st.columns(2)
+        mes = col_mes.selectbox("Mês", options=range(1, 13), format_func=lambda m: f"{m:02d}", index=mes_default - 1)
+        ano = col_ano.selectbox("Ano", options=range(2000, 2031), index=ano_default - 2000)
+        competencia = f"{mes:02d}/{ano}"
+
+        return competencia
+
+    def _render_historico(self):
         historico = st.session_state.get("historico")
         if not historico:
             return
@@ -140,6 +166,7 @@ class SelecaoVerba:
                 "Verba": item.get("nome_verba"),
                 "Código": item.get("codigo"),
                 "Tipo": item.get("tipo"),
+                "Competência": item.get("competencia"),
                 "Valor (R$)": FormatadorCampos.brl(item["valor"]),
             })
 
