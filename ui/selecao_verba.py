@@ -13,6 +13,9 @@ class SelecaoVerba:
         if "ultimo_resultado" not in st.session_state:
             st.session_state["ultimo_resultado"] = None
 
+        if "ultima_verba_selecionada" not in st.session_state:
+            st.session_state["ultima_verba_selecionada"] = None
+
     def render(self):
         verbas_json = ProvedorDadosFhemig.obter_verbas()
         nomes_verbas = list(verbas_json.keys())
@@ -27,9 +30,16 @@ class SelecaoVerba:
 
         if verba_input == "— Selecione uma verba —":
             st.info("Selecione uma verba acima para exibir os campos de cálculo.")
+            # Persistir a tabela do histórico (mesmo quando não tiver verba selecionada)
+            self._render_historico()
             return
         
         st.divider()
+
+        # Limpa resultado se mudou de verba 
+        if st.session_state.get("ultima_verba_selecionada") != verba_input:
+            st.session_state["ultimo_resultado"] = None
+            st.session_state["ultima_verba_selecionada"] = verba_input
 
         # Seleciona a verba e passa os metadados correspondentes
         st.markdown("### 2. Preencha os dados")
@@ -52,6 +62,9 @@ class SelecaoVerba:
         calculadora = REGISTRO_CALCULADORAS.get(verba_input)
         if calculadora: 
             self._render_calculadora(calculadora, verba_meta, verba_input)
+
+        # Fica fora do if p/ persistir a tabela do histórico (mesmo se não encontrar calculadora ou quando trocar de verba)
+        self._render_historico()
 
     def _render_calculadora(self, calculadora: CalculadoraVerba, verba_meta: dict, nome_verba: str):
         # Exibe a fórmula
@@ -99,11 +112,13 @@ class SelecaoVerba:
                 "memoria": resultado.memoria_calculo,
             }
 
-        # Encadeia dentro do if para sumir o resultado e a competência quando trocar de verba
+        # Fica fora do if p/ persistir o resultado mesmo se clicar em outro campo (rerender do streamlit)
         self._render_resultado()
 
     def _render_resultado(self):
         ur = st.session_state["ultimo_resultado"]
+
+        # Limpa a renderização do resultado e tudo depois dele
         if ur is None:
             return
 
@@ -128,8 +143,6 @@ class SelecaoVerba:
                 "competencia": competencia
             })
             st.rerun()
-
-        self._render_historico()  # ← NOVO: sempre mostra o histórico
 
     def _render_competencia(self):
         st.divider()

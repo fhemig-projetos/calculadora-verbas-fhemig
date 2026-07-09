@@ -124,19 +124,22 @@ Cada calculadora implementa:
 ### ⬜ Módulo `ui/selecao_verba.py` — Em andamento
 
 #### ✅ Implementado
-- `__init__()` com `historico` (lista) e `ultimo_resultado` (`None`)
+- `__init__()` com `historico` (lista), `ultimo_resultado` (`None`) e `ultima_verba_selecionada` (`None`)
 - `render()` com selectbox de verbas, exibição de código + tag Vantagem/Desconto
+- **Detecção de mudança de verba**: quando o usuário troca o selectbox, `ultimo_resultado` é limpo automaticamente, fazendo resultado + competência sumirem
+- **Histórico sempre visível**: `_render_historico()` é chamado no final do `render()`, fora de qualquer condicional — a tabela persiste mesmo ao trocar de verba
 - Roteamento para `_render_calculadora()` passando `nome_verba`
 - `_render_calculadora()` com:
   - Exibição da fórmula via `st.caption()`
   - Geração dinâmica dos campos usando `CONFIG_CAMPOS`
   - Botão "Calcular" que chama `calculadora.calcular(**valores)` e salva em `ultimo_resultado`
-- `_exibir_resultado()` (fora do `if`, persiste entre rerenders) com:
+- `_render_resultado()` (fora do `if`, persiste entre rerenders) com:
   - `st.metric()` mostrando o valor calculado
   - `st.expander("Ver memória de cálculo", expanded=True)` com `st.code()`
-  - Botão "➕ Adicionar à lista" que insere no histórico e chama `st.rerun()`
-- `_exibir_historico()` com:
-  - `st.dataframe()` com colunas: Verba, Código, Tipo, Valor (R$)
+  - Campo **"📅 Competência"** (mês/ano) via `_render_competencia()` — default: mês anterior e ano corrente
+  - Botão "➕ Adicionar à lista" que insere no histórico (com competência) e chama `st.rerun()`
+- `_render_historico()` com:
+  - `st.dataframe()` com colunas: Verba, Código, Tipo, Competência, Valor (R$)
   - Totais separados: Total Vantagens, Total Descontos, Líquido
   - Botão "🗑️ Remover último" (usa `pop()` na lista)
   - Botão "🗑️ Limpar lista" (zera a lista)
@@ -148,15 +151,21 @@ Cada calculadora implementa:
 
 ## Decisões de design
 
-### Ano de referência
-- O ano **não** será implementado como campo de cálculo por enquanto
-- A calculadora de INSS usará a tabela de 2026 fixa (lógica básica)
-- As demais verbas não dependem de ano (percentuais fixos por lei)
-- O ano de referência como metadado da lista fica para uma etapa futura
+### Comportamento ao trocar de verba
+- `ultimo_resultado` é limpo → resultado + competência + botão "Adicionar" somem
+- `_render_historico()` está fora do `if calculadora:` → tabela do histórico **continua visível**
+- A detecção usa `ultima_verba_selecionada` no `session_state` para distinguir troca intencional de rerenderização normal
 
-### Funcionalidade "Adicionar à lista"
-- Sem campo de referência (mês/ano) por enquanto
-- Apenas botão "Adicionar" que insere o item no histórico
+### Competência (mês/ano)
+- Implementado como dois `selectbox` lado a lado (mês 1-12, ano 2000-2030)
+- Default: mês anterior ao corrente, ano corrente
+- Salvo no histórico junto com os demais dados da verba
+- Exibido como coluna na tabela do histórico
+
+### Ano de referência no INSS
+- A `CalculadoraINSS` terá `ano_referencia` como campo de input do usuário (selectbox com anos: 2024, 2025, 2026)
+- O ano selecionado define qual tabela do `tabelas.json` será usada no cálculo progressivo
+- As demais verbas não dependem de ano (percentuais fixos por lei)
 
 ### Total na lista
 - Exibidos 3 valores: Total Vantagens, Total Descontos, Líquido
@@ -167,7 +176,7 @@ Cada calculadora implementa:
 - `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int); `obter_verbas()` adicionado
 - `ui/form_servidor.py`: implementação completa com C.H. Mensal calculado automaticamente
 - `ui/cabecalho.py`: criado com classe `Cabecalho`
-- `ui/selecao_verba.py`: renderização dinâmica de campos, botão calcular, resultado persistente, adicionar à lista, histórico com totais, remover último e limpar lista
+- `ui/selecao_verba.py`: renderização dinâmica de campos, botão calcular, resultado persistente, competência mês/ano, detecção de mudança de verba, histórico sempre visível com totais, remover último e limpar lista
 - `calculadoras/`: 3 calculadoras implementadas (Hora Extra, Adicional Noturno, Gratificação de Final de Semana); `inss_mensal.py` como esboço
 - `main.py`: entry point do app refatorado
 
@@ -184,9 +193,15 @@ streamlit run main.py
 - [ ] Corrigir `desabilitado = False` na linha 81 (campos vinculados ao cabeçalho devem ficar disabled)
 
 ### Etapa 1 — Finalizar `CalculadoraINSS` e registrá-la
-- [ ] Completar lógica de cálculo do INSS com tabela progressiva 2026
-- [ ] Adicionar ao `REGISTRO_CALCULADORAS` em `factory.py`
-- [ ] Importar em `calculadoras/__init__.py`
+
+Arquivos envolvidos: `calculadoras/inss_mensal.py`, `utils/ui_config.py`, `ui/selecao_verba.py`, `calculadoras/factory.py`, `calculadoras/__init__.py`
+
+- [ ] `calculadoras/inss_mensal.py`: adicionar `ano_referencia` em `campos_necessarios` e nos parâmetros de `calcular()`
+- [ ] `calculadoras/inss_mensal.py`: implementar lógica progressiva com `ProvedorDadosFhemig.obter_tabela_inss(ano_referencia)`
+- [ ] `utils/ui_config.py`: adicionar `"ano_referencia": {"label": "Ano de Referência", "tipo": "ano"}` ao `CONFIG_CAMPOS`
+- [ ] `ui/selecao_verba.py`: adicionar tratamento para `config.get("tipo") == "ano"` no loop da `_render_calculadora()` — renderizar `st.selectbox` com `options=[2024, 2025, 2026]`, `index=2`
+- [ ] `calculadoras/factory.py`: adicionar `CalculadoraINSS()` ao `REGISTRO_CALCULADORAS`
+- [ ] `calculadoras/__init__.py`: importar `CalculadoraINSS`
 
 ### Etapa 2 — Implementar calculadoras de desconto simples
 - [ ] `CalculadoraIPSEMG` — `vencimento_basico * 0.032`
