@@ -33,10 +33,19 @@ class SelecaoVerba:
             # Persistir a tabela do histórico (mesmo quando não tiver verba selecionada)
             self._render_historico()
             return
-        
+
         st.divider()
 
-        # Limpa resultado se mudou de verba 
+        """
+        SE a última verba que eu calculei é DIFERENTE da verba que está no selectbox AGORA:
+            ENTÃO:
+                1. Apaga o resultado atual (some da tela) 
+                2. Anota que agora a "última verba" é esta nova
+        > 1. Apaga o resultado por conta de `if ur is None` em self._render_resultado().
+        > 2. Precisa anotar para ativar a lógica do if p/ limpar a tela só quando troca a verba (se fosse só ultimo_resultado = None, sem o if, por exemplo iria limpar a tela assim que clicasse em `Calcular` e nunca iria exibir o histórico).
+        > OBS: O histórico continua sendo renderizado, pq _render_historico() está fora do por conta de `if ur is None` em self._render_resultado() `if calculadora`.
+        """
+
         if st.session_state.get("ultima_verba_selecionada") != verba_input:
             st.session_state["ultimo_resultado"] = None
             st.session_state["ultima_verba_selecionada"] = verba_input
@@ -90,12 +99,12 @@ class SelecaoVerba:
                 valor_default = 0
             else:
                 valor_default = 0
-            
+
             desabilitado = campo in ("vencimento_basico", "carga_horaria_mensal")
             desabilitado = False
 
             with cols[i % 2]:
-                    valores[campo] = st.number_input(
+                valores[campo] = st.number_input(
                         config["label"],
                         value=100,
                         disabled=desabilitado,
@@ -111,7 +120,6 @@ class SelecaoVerba:
                 "valor": resultado.valor,
                 "memoria": resultado.memoria_calculo,
             }
-
         # Fica fora do if p/ persistir o resultado mesmo se clicar em outro campo (rerender do streamlit)
         self._render_resultado()
 
@@ -129,7 +137,7 @@ class SelecaoVerba:
         with st.expander("Ver memória de cálculo", expanded=True):
             texto_memoria = "\n".join(ur["memoria"])
             st.code(texto_memoria, language="text")
-        
+
         # Renderiza os campos correspondentes e retorna a competência
         competencia = self._render_competencia()
 
@@ -143,6 +151,8 @@ class SelecaoVerba:
                 "competencia": competencia
             })
             st.rerun()
+
+            print(f"historico: {st.session_state["historico"]}")
 
     def _render_competencia(self):
         st.divider()
@@ -166,9 +176,10 @@ class SelecaoVerba:
 
     def _render_historico(self):
         historico = st.session_state.get("historico")
+
         if not historico:
             return
-        
+
         st.divider()
         st.markdown("### Lista de cálculos realizados")
 
