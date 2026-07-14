@@ -145,8 +145,6 @@ Cada calculadora implementa:
   - Botão "🗑️ Limpar lista" (zera a lista)
 
 #### ⬜ Falta implementar
-- [ ] `_exibir_conferencia()` — campo para comparar valor calculado com valor informado pela unidade
-- [ ] `_render_fallback()` — para verbas sem calculadora registrada (mostrar campos manuais)
 - [ ] Corrigir linha 81: `desabilitado = False` sobrescreve `disabled` dos campos vinculados ao cabeçalho
 
 ## Decisões de design
@@ -188,8 +186,6 @@ streamlit run main.py
 ## Pendências — Próximas etapas
 
 ### 🔴 Imediato — Finalizar `ui/selecao_verba.py`
-- [ ] `_exibir_conferencia()` com campo de valor da unidade e comparação (calculado vs unidade vs diferença)
-- [ ] `_render_fallback()` para verbas sem calculadora registrada
 - [ ] Corrigir `desabilitado = False` na linha 81 (campos vinculados ao cabeçalho devem ficar disabled)
 
 ### Etapa 1 — Finalizar `CalculadoraINSS` e registrá-la

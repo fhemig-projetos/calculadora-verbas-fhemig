@@ -1,8 +1,9 @@
 import streamlit as st
 from data import ProvedorDadosFhemig
 from calculadoras import CalculadoraVerba, REGISTRO_CALCULADORAS
-from utils import CONFIG_CAMPOS, FormatadorCampos
+from utils import FormatadorCampos
 from datetime import date 
+from .config import CONFIG_CAMPOS
 
 class SelecaoVerba:
 
@@ -97,6 +98,8 @@ class SelecaoVerba:
                 valor_default = ds.get("ch_mensal")
             elif campo == "horas_realizadas":
                 valor_default = 0
+            elif campo == "ano_referencia":
+                valor_default = date.today().year
             else:
                 valor_default = 0
 
@@ -104,11 +107,19 @@ class SelecaoVerba:
             desabilitado = False
 
             with cols[i % 2]:
-                valores[campo] = st.number_input(
+                if campo == "ano_referencia":
+                    valores[campo] = st.selectbox(
                         config["label"],
-                        value=100,
-                        disabled=desabilitado,
+                        options=[2024, 2025, 2026],
+                        index=valor_default - 2024,
                     )
+                else:
+                    valores[campo] = st.number_input(
+                            config["label"],
+                            value=100,
+                            #value=valor_default,
+                            disabled=desabilitado,
+                        )
 
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = calculadora.calcular(**valores)
