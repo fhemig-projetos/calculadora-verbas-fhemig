@@ -12,6 +12,7 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 │  - cabecalho.py      → Cabeçalho            │
 │  - form_servidor.py  → Dados do servidor    │
 │  - selecao_verba.py  → Seleção e cálculo    │
+│  - config.py         → CONFIG_CAMPOS        │
 └──────────────────────┬──────────────────────┘
                        │ usa
 ┌──────────────────────▼──────────────────────┐
@@ -21,7 +22,7 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 │  - hora_extra.py     → CalculadoraHoraExtra │
 │  - adicional_noturno.py → ...               │
 │  - gratificacao_final_semana.py → ...       │
-│  - inss_mensal.py    → CalculadoraINSS (esboço)│
+│  - inss_mensal.py    → CalculadoraINSS      │
 │  - (demais verbas a implementar)            │
 └──────────────────────┬──────────────────────┘
                        │ usa
@@ -34,7 +35,6 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 ┌──────────────────────▼──────────────────────┐
 │  utils/ (Utilitários)                       │
 │  - formatador_campos.py → FormatadorCampos  │
-│  - ui_config.py         → CONFIG_CAMPOS     │
 │  - ui_callbacks.py      → callbacks         │
 │  - exportador_pdf.py    → PDF (pendente)    │
 └─────────────────────────────────────────────┘
@@ -52,7 +52,8 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 ## Arquivos envolvidos
 - `ui/form_servidor.py` → formulário de dados do servidor (✅ concluído)
 - `ui/cabecalho.py` → cabeçalho da calculadora (✅ concluído)
-- `ui/selecao_verba.py` → seleção e cálculo de verbas (⬜ em andamento)
+- `ui/selecao_verba.py` → seleção e cálculo de verbas (✅ concluído)
+- `ui/config.py` → `CONFIG_CAMPOS` com metadados dos campos (✅ concluído)
 - `main.py` → entry point do app refatorado (✅ integrado)
 - `app.py` → arquivo original (referência, será descontinuado)
 - `data/provedor_dados.py` → classe `ProvedorDadosFhemig` com acesso a dados
@@ -62,9 +63,8 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 - `calculadoras/hora_extra.py` → `CalculadoraHoraExtra` (✅ implementada)
 - `calculadoras/adicional_noturno.py` → `CalculadoraAdicionalNoturno` (✅ implementada)
 - `calculadoras/gratificacao_final_semana.py` → `CalculadoraGratificacaoFinalSemana` (✅ implementada)
-- `calculadoras/inss_mensal.py` → `CalculadoraINSS` (⬜ esboço, lógica de cálculo pendente)
+- `calculadoras/inss_mensal.py` → `CalculadoraINSS` (✅ implementada)
 - `utils/formatador_campos.py` → `FormatadorCampos` com `brl()` e `masp()`
-- `utils/ui_config.py` → `CONFIG_CAMPOS` com metadados dos campos (label, tipo)
 - `utils/ui_callbacks.py` → `on_change_masp` (callback opcional)
 - `utils/exportador_pdf.py` → exportação PDF (⬜ pendente)
 
@@ -107,23 +107,17 @@ Fórmula: `ch_semanal ÷ 5 × 30`. Campo exibido como `disabled` ao lado do sele
 - Se encontrado → preenche `vencimento_basico` e exibe `st.success()`
 - Se não encontrado → aviso + campo manual apenas para Vencimento Básico (C.H. Mensal já foi calculada)
 
-### ✅ Módulo `calculadoras/` — 3 calculadoras implementadas + 1 esboço
+### ✅ Módulo `ui/config.py` — Concluído
+Arquivo `CONFIG_CAMPOS` movido de `utils/` para `ui/` para melhor organização.
 
-| Verba | Classe | Arquivo | Status |
-|-------|--------|---------|--------|
-| Hora Extra | `CalculadoraHoraExtra` | `calculadoras/hora_extra.py` | ✅ |
-| Adicional Noturno | `CalculadoraAdicionalNoturno` | `calculadoras/adicional_noturno.py` | ✅ |
-| Gratificação de Final de Semana | `CalculadoraGratificacaoFinalSemana` | `calculadoras/gratificacao_final_semana.py` | ✅ |
-| INSS Mensal | `CalculadoraINSS` | `calculadoras/inss_mensal.py` | ⬜ esboço |
+Campos configurados:
+- `vencimento_basico`: {"label": "Vencimento Básico (R$)", "tipo": "moeda"}
+- `ad_desempenho`: {"label": "Adicional de Desempenho (R$)", "tipo": "moeda"}
+- `carga_horaria_mensal`: {"label": "Carga Horária Mensal (h/mês)", "tipo": "hora_mensal"}
+- `horas_realizadas`: {"label": "Horas Realizadas", "tipo": "horas_realizadas"}
+- `ano_referencia`: {"label": "Ano de Referência", "tipo": "ano"}
 
-Cada calculadora implementa:
-- `descricao_formula` → texto explicativo da fórmula
-- `campos_necessarios` → lista de nomes dos campos
-- `calcular(**kwargs)` → retorna `ResultadoCalculo(valor, memoria_calculo)`
-
-### ⬜ Módulo `ui/selecao_verba.py` — Em andamento
-
-#### ✅ Implementado
+### ✅ Módulo `ui/selecao_verba.py` — Concluído
 - `__init__()` com `historico` (lista), `ultimo_resultado` (`None`) e `ultima_verba_selecionada` (`None`)
 - `render()` com selectbox de verbas, exibição de código + tag Vantagem/Desconto
 - **Detecção de mudança de verba**: quando o usuário troca o selectbox, `ultimo_resultado` é limpo automaticamente, fazendo resultado + competência sumirem
@@ -132,6 +126,7 @@ Cada calculadora implementa:
 - `_render_calculadora()` com:
   - Exibição da fórmula via `st.caption()`
   - Geração dinâmica dos campos usando `CONFIG_CAMPOS`
+  - Tratamento especial para `ano_referencia` (selectbox com anos 2024-2026)
   - Botão "Calcular" que chama `calculadora.calcular(**valores)` e salva em `ultimo_resultado`
 - `_render_resultado()` (fora do `if`, persiste entre rerenders) com:
   - `st.metric()` mostrando o valor calculado
@@ -144,8 +139,26 @@ Cada calculadora implementa:
   - Botão "🗑️ Remover último" (usa `pop()` na lista)
   - Botão "🗑️ Limpar lista" (zera a lista)
 
-#### ⬜ Falta implementar
-- [ ] Corrigir linha 81: `desabilitado = False` sobrescreve `disabled` dos campos vinculados ao cabeçalho
+### ✅ Módulo `calculadoras/` — 4 calculadoras implementadas
+
+| Verba | Classe | Arquivo | Status |
+|-------|--------|---------|--------|
+| Hora Extra | `CalculadoraHoraExtra` | `calculadoras/hora_extra.py` | ✅ |
+| Adicional Noturno | `CalculadoraAdicionalNoturno` | `calculadoras/adicional_noturno.py` | ✅ |
+| Gratificação de Final de Semana | `CalculadoraGratificacaoFinalSemana` | `calculadoras/gratificacao_final_semana.py` | ✅ |
+| INSS Mensal | `CalculadoraINSS` | `calculadoras/inss_mensal.py` | ✅ |
+
+Cada calculadora implementa:
+- `descricao_formula` → texto explicativo da fórmula
+- `campos_necessarios` → lista de nomes dos campos
+- `calcular(**kwargs)` → retorna `ResultadoCalculo(valor, memoria_calculo)`
+
+#### CalculadoraINSS — Detalhes
+- **Campos:** `vencimento_basico` + `ano_referencia`
+- **Fórmula:** `INSS = Vencimento Básico × Alíquota da faixa − Dedução da faixa`
+- **Tabela progressiva:** Percorre faixas até encontrar o limite correspondente
+- **Ano de referência:** Input do usuário (selectbox 2024, 2025, 2026)
+- **Memória de cálculo:** Exibe vencimento, faixa, alíquota, dedução e resultado
 
 ## Decisões de design
 
@@ -161,7 +174,7 @@ Cada calculadora implementa:
 - Exibido como coluna na tabela do histórico
 
 ### Ano de referência no INSS
-- A `CalculadoraINSS` terá `ano_referencia` como campo de input do usuário (selectbox com anos: 2024, 2025, 2026)
+- A `CalculadoraINSS` tem `ano_referencia` como campo de input do usuário (selectbox com anos: 2024, 2025, 2026)
 - O ano selecionado define qual tabela do `tabelas.json` será usada no cálculo progressivo
 - As demais verbas não dependem de ano (percentuais fixos por lei)
 
@@ -170,12 +183,14 @@ Cada calculadora implementa:
 - Líquido = Vantagens − Descontos
 
 ## Mudanças já aplicadas
-- `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `ch_mensal` removido dos cargos (calculado por fórmula); `verbas_meta` renomeado para `verbas`; `grupos` removido
-- `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int); `obter_verbas()` adicionado
+- `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `ch_mensal` removido dos cargos (calculado por fórmula); `verbas_meta` renomeado para `verbas`; `grupos` removidos
+- `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int); `obter_verbas()` adicionado; `obter_tabela_inss(ano)` implementado
 - `ui/form_servidor.py`: implementação completa com C.H. Mensal calculado automaticamente
 - `ui/cabecalho.py`: criado com classe `Cabecalho`
+- `ui/config.py`: `CONFIG_CAMPOS` movido de `utils/` para `ui/` com `ano_referencia` adicionado
 - `ui/selecao_verba.py`: renderização dinâmica de campos, botão calcular, resultado persistente, competência mês/ano, detecção de mudança de verba, histórico sempre visível com totais, remover último e limpar lista
-- `calculadoras/`: 3 calculadoras implementadas (Hora Extra, Adicional Noturno, Gratificação de Final de Semana); `inss_mensal.py` como esboço
+- `calculadoras/inss_mensal.py`: implementado com lógica progressiva e campo `ano_referencia`
+- `calculadoras/`: 4 calculadoras implementadas (Hora Extra, Adicional Noturno, Gratificação de Final de Semana, INSS)
 - `main.py`: entry point do app refatorado
 
 ## Como testar
@@ -185,28 +200,27 @@ streamlit run main.py
 
 ## Pendências — Próximas etapas
 
-### 🔴 Imediato — Finalizar `ui/selecao_verba.py`
-- [ ] Corrigir `desabilitado = False` na linha 81 (campos vinculados ao cabeçalho devem ficar disabled)
-
-### Etapa 1 — Finalizar `CalculadoraINSS` e registrá-la
-
-Arquivos envolvidos: `calculadoras/inss_mensal.py`, `utils/ui_config.py`, `ui/selecao_verba.py`, `calculadoras/factory.py`, `calculadoras/__init__.py`
-
-- [ ] `calculadoras/inss_mensal.py`: adicionar `ano_referencia` em `campos_necessarios` e nos parâmetros de `calcular()`
-- [ ] `calculadoras/inss_mensal.py`: implementar lógica progressiva com `ProvedorDadosFhemig.obter_tabela_inss(ano_referencia)`
-- [ ] `utils/ui_config.py`: adicionar `"ano_referencia": {"label": "Ano de Referência", "tipo": "ano"}` ao `CONFIG_CAMPOS`
-- [ ] `ui/selecao_verba.py`: adicionar tratamento para `config.get("tipo") == "ano"` no loop da `_render_calculadora()` — renderizar `st.selectbox` com `options=[2024, 2025, 2026]`, `index=2`
-- [ ] `calculadoras/factory.py`: adicionar `CalculadoraINSS()` ao `REGISTRO_CALCULADORAS`
-- [ ] `calculadoras/__init__.py`: importar `CalculadoraINSS`
+### 🔴 Imediato — Correções pendentes
+- [ ] Corrigir `desabilitado = False` na linha 81 de `ui/selecao_verba.py` (campos vinculados ao cabeçalho devem ficar disabled)
 
 ### Etapa 2 — Implementar calculadoras de desconto simples
-- [ ] `CalculadoraIPSEMG` — `vencimento_basico * 0.032`
-- [ ] `CalculadoraCusteio` — `vencimento_basico * 0.04`
+
+Próximas calculadoras a implementar, baseado no `app.py`:
+
+| # | Verba | Código | Fórmula | Arquivo |
+|---|-------|--------|---------|---------|
+| 1 | Desconto de IPSEMG (3,2%) | 7700 | `vencimento_basico * 0.032` | `calculadoras/ipsemg.py` |
+| 2 | Desconto de Custeio (4%) | 9018 | `vencimento_basico * 0.04` | `calculadoras/custeio.py` |
+
+São calculadoras de **percentual fixo**, sem tabelas progressivas. Cada uma terá:
+- `descricao_formula`: texto da fórmula
+- `campos_necessarios`: `["vencimento_basico"]`
+- `calcular(vencimento_basico)`: multiplicação + memória de cálculo
 
 ### Etapa 3 — Implementar calculadoras restantes (~15 verbas)
 Criar classes para as demais verbas (13º Salário, GIEFS, GRS, Férias, Faltas, etc.)
 
-### Etapa 4 — Expandir `utils/ui_config.py`
+### Etapa 4 — Expandir `ui/config.py`
 Adicionar todos os campos necessários ao `CONFIG_CAMPOS`.
 
 ### Etapa 5 — Implementar `utils/exportador_pdf.py`
