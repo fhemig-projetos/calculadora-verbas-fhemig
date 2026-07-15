@@ -23,13 +23,15 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 │  - adicional_noturno.py → ...               │
 │  - gratificacao_final_semana.py → ...       │
 │  - inss_mensal.py    → CalculadoraINSS      │
+│  - grs_dias.py       → CalculadoraGRSDias   │
+│  - decimo_terceiro.py → CalculadoraDecimoTerceiro │
 │  - (demais verbas a implementar)            │
 └──────────────────────┬──────────────────────┘
                        │ usa
 ┌──────────────────────▼──────────────────────┐
 │  data/ (Dados)                              │
 │  - provedor_dados.py → ProvedorDadosFhemig  │
-│  - tabelas.json      → Cargos, INSS, verbas │
+│  - tabelas.json      → Cargos, INSS, verbas, tabela_grs │
 └──────────────────────┬──────────────────────┘
                        │ usa
 ┌──────────────────────▼──────────────────────┐
@@ -57,13 +59,15 @@ cada seção da interface em classes próprias dentro do pacote `ui/`.
 - `main.py` → entry point do app refatorado (✅ integrado)
 - `app.py` → arquivo original (referência, será descontinuado)
 - `data/provedor_dados.py` → classe `ProvedorDadosFhemig` com acesso a dados
-- `data/tabelas.json` → base de cargos, INSS e metadados das verbas
+- `data/tabelas.json` → base de cargos, INSS, metadados das verbas e tabela GRS
 - `calculadoras/base.py` → classe abstrata `CalculadoraVerba` e dataclass `ResultadoCalculo`
 - `calculadoras/factory.py` → `REGISTRO_CALCULADORAS` mapeando nome da verba → instância
 - `calculadoras/hora_extra.py` → `CalculadoraHoraExtra` (✅ implementada)
 - `calculadoras/adicional_noturno.py` → `CalculadoraAdicionalNoturno` (✅ implementada)
 - `calculadoras/gratificacao_final_semana.py` → `CalculadoraGratificacaoFinalSemana` (✅ implementada)
 - `calculadoras/inss_mensal.py` → `CalculadoraINSS` (✅ implementada)
+- `calculadoras/grs_dias.py` → `CalculadoraGRSDias` (✅ implementada)
+- `calculadoras/decimo_terceiro.py` → `CalculadoraDecimoTerceiro` (✅ implementada)
 - `utils/formatador_campos.py` → `FormatadorCampos` com `brl()` e `masp()`
 - `utils/ui_callbacks.py` → `on_change_masp` (callback opcional)
 - `utils/exportador_pdf.py` → exportação PDF (⬜ pendente)
@@ -110,12 +114,20 @@ Fórmula: `ch_semanal ÷ 5 × 30`. Campo exibido como `disabled` ao lado do sele
 ### ✅ Módulo `ui/config.py` — Concluído
 Arquivo `CONFIG_CAMPOS` movido de `utils/` para `ui/` para melhor organização.
 
-Campos configurados:
-- `vencimento_basico`: {"label": "Vencimento Básico (R$)", "tipo": "moeda"}
-- `ad_desempenho`: {"label": "Adicional de Desempenho (R$)", "tipo": "moeda"}
-- `carga_horaria_mensal`: {"label": "Carga Horária Mensal (h/mês)", "tipo": "hora_mensal"}
-- `horas_realizadas`: {"label": "Horas Realizadas", "tipo": "horas_realizadas"}
-- `ano_referencia`: {"label": "Ano de Referência", "tipo": "ano"}
+Campos configurados (13 campos):
+- `vencimento_basico`: `{"label": "Vencimento Básico (R$)", "tipo": "moeda"}`
+- `ad_desempenho`: `{"label": "Adicional de Desempenho (R$)", "tipo": "moeda"}`
+- `carga_horaria_mensal`: `{"label": "Carga Horária Mensal (h/mês)", "tipo": "hora_mensal"}`
+- `horas_realizadas`: `{"label": "Horas Realizadas", "tipo": "horas_realizadas"}`
+- `ano_referencia`: `{"label": "Ano de Referência", "tipo": "ano"}`
+- `grs_risco`: `{"label": "Nível de Risco", "tipo": "select_risco"}`
+- `dias_trabalhados`: `{"label": "Nº de Dias Trabalhados no Mês", "tipo": "dias"}`
+- `abono_emergencia`: `{"label": "Abono de Emergência (R$)", "tipo": "moeda"}`
+- `grat_final_semana`: `{"label": "Grat. Final de Semana (R$)", "tipo": "moeda"}`
+- `adicional_noturno`: `{"label": "Adicional Noturno (R$)", "tipo": "moeda"}`
+- `numero_meses`: `{"label": "Nº de Meses de Direito", "tipo": "meses"}`
+
+**Nota:** Os campos `grat_final_semana` e `adicional_noturno` são preenchidos automaticamente com o último valor calculado no histórico (caso exista), servindo como dependências para a Calculadora de 13º Salário.
 
 ### ✅ Módulo `ui/selecao_verba.py` — Concluído
 - `__init__()` com `historico` (lista), `ultimo_resultado` (`None`) e `ultima_verba_selecionada` (`None`)
@@ -126,7 +138,19 @@ Campos configurados:
 - `_render_calculadora()` com:
   - Exibição da fórmula via `st.caption()`
   - Geração dinâmica dos campos usando `CONFIG_CAMPOS`
-  - Tratamento especial para `ano_referencia` (selectbox com anos 2024-2026)
+  - Valores default especiais para cada campo:
+    - `vencimento_basico` → busca do cabeçalho (`dados_servidor`)
+    - `carga_horaria_mensal` → busca do cabeçalho (`ch_mensal`)
+    - `ano_referencia` → ano atual como default (selectbox com 2024, 2025, 2026)
+    - `grs_risco` → selectbox com opções "Risco Médio (R$ 160,20)" / "Risco Alto (R$ 320,40)"
+    - `dias_trabalhados` → default 1, min 1, max 30
+    - `numero_meses` → default 12, min 1, max 12
+    - `grat_final_semana` → último valor de GFS no histórico (ou 0.0)
+    - `adicional_noturno` → último valor de Adicional Noturno no histórico (ou 0.0)
+    - `ad_desempenho` → 0.0
+    - `abono_emergencia` → 0.0
+    - demais → 0
+  - Bug conhecido: `desabilitado = False` sobrescreve a lógica que desabilitaria `vencimento_basico` e `carga_horaria_mensal` (linhas 132-133)
   - Botão "Calcular" que chama `calculadora.calcular(**valores)` e salva em `ultimo_resultado`
 - `_render_resultado()` (fora do `if`, persiste entre rerenders) com:
   - `st.metric()` mostrando o valor calculado
@@ -139,7 +163,7 @@ Campos configurados:
   - Botão "🗑️ Remover último" (usa `pop()` na lista)
   - Botão "🗑️ Limpar lista" (zera a lista)
 
-### ✅ Módulo `calculadoras/` — 4 calculadoras implementadas
+### ✅ Módulo `calculadoras/` — 6 calculadoras implementadas
 
 | Verba | Classe | Arquivo | Status |
 |-------|--------|---------|--------|
@@ -147,6 +171,8 @@ Campos configurados:
 | Adicional Noturno | `CalculadoraAdicionalNoturno` | `calculadoras/adicional_noturno.py` | ✅ |
 | Gratificação de Final de Semana | `CalculadoraGratificacaoFinalSemana` | `calculadoras/gratificacao_final_semana.py` | ✅ |
 | INSS Mensal | `CalculadoraINSS` | `calculadoras/inss_mensal.py` | ✅ |
+| GRS — Dias | `CalculadoraGRSDias` | `calculadoras/grs_dias.py` | ✅ |
+| 13º Salário | `CalculadoraDecimoTerceiro` | `calculadoras/decimo_terceiro.py` | ✅ |
 
 Cada calculadora implementa:
 - `descricao_formula` → texto explicativo da fórmula
@@ -159,6 +185,21 @@ Cada calculadora implementa:
 - **Tabela progressiva:** Percorre faixas até encontrar o limite correspondente
 - **Ano de referência:** Input do usuário (selectbox 2024, 2025, 2026)
 - **Memória de cálculo:** Exibe vencimento, faixa, alíquota, dedução e resultado
+
+#### CalculadoraGRSDias — Detalhes
+- **Campos:** `grs_risco` (selectbox) + `dias_trabalhados` (1-30)
+- **Fórmula:** `GRS Proporcional = Valor GRS ÷ 30 × Dias Trabalhados no Mês`
+- **Valor GRS:** Buscado de `tabelas.json` → `tabela_grs`:
+  - `risco_medio`: R$ 160,20
+  - `risco_alto`: R$ 320,40
+- **Memória de cálculo:** Exibe valor GRS, valor diário, dias trabalhados e resultado
+
+#### CalculadoraDecimoTerceiro — Detalhes
+- **Campos:** `vencimento_basico`, `ad_desempenho`, `abono_emergencia`, `grat_final_semana`, `adicional_noturno`, `grs_risco`, `numero_meses`
+- **Fórmula:** `13º = (Venc + Ad.Desemp + Ab.Emerg + GFS + Ad.Noturno + GRS) ÷ 12 × Nº Meses`
+- **GRS:** Busca valor de `tabelas.json` conforme nível selecionado (Médio/Alto)
+- **Dependências:** Os campos `grat_final_semana` e `adicional_noturno` são preenchidos automaticamente com o último valor calculado no histórico (se existir)
+- **Memória de cálculo:** Exibe cada parcela somada, a base total, divisão por 12 e multiplicação pelos meses
 
 ## Decisões de design
 
@@ -178,19 +219,33 @@ Cada calculadora implementa:
 - O ano selecionado define qual tabela do `tabelas.json` será usada no cálculo progressivo
 - As demais verbas não dependem de ano (percentuais fixos por lei)
 
+### Campos com dependência do histórico (13º Salário)
+- `grat_final_semana` e `adicional_noturno` são campos do tipo moeda que buscam automaticamente o último valor calculado no histórico para a respectiva verba
+- Isso permite que o 13º Salário some valores já calculados de GFS e Adicional Noturno sem que o usuário precise redigitar
+- Se não houver histórico, o default é 0.0
+
+### GRS — Valor por nível de risco
+- Armazenado em `data/tabelas.json` na seção `tabela_grs`
+- Acessado via `ProvedorDadosFhemig.obter_valor_grs(nivel)`
+- Dois níveis: risco_medio (R$ 160,20) e risco_alto (R$ 320,40)
+- Usado tanto pela `CalculadoraGRSDias` quanto pela `CalculadoraDecimoTerceiro`
+
 ### Total na lista
 - Exibidos 3 valores: Total Vantagens, Total Descontos, Líquido
 - Líquido = Vantagens − Descontos
 
 ## Mudanças já aplicadas
-- `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `ch_mensal` removido dos cargos (calculado por fórmula); `verbas_meta` renomeado para `verbas`; `grupos` removidos
-- `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int); `obter_verbas()` adicionado; `obter_tabela_inss(ano)` implementado
+- `data/tabelas.json`: `ch_semanal` alterado de string para int; `vencimento` renomeado para `vencimento_basico`; `ch_mensal` removido dos cargos (calculado por fórmula); `verbas_meta` renomeado para `verbas`; `grupos` removidos; `tabela_grs` adicionado com `risco_medio` e `risco_alto`
+- `data/provedor_dados.py`: `buscar_cargo()` aceita 4º parâmetro `ch_semanal` (int); `obter_verbas()` adicionado; `obter_tabela_inss(ano)` implementado; `obter_valor_grs(nivel)` implementado
 - `ui/form_servidor.py`: implementação completa com C.H. Mensal calculado automaticamente
 - `ui/cabecalho.py`: criado com classe `Cabecalho`
-- `ui/config.py`: `CONFIG_CAMPOS` movido de `utils/` para `ui/` com `ano_referencia` adicionado
-- `ui/selecao_verba.py`: renderização dinâmica de campos, botão calcular, resultado persistente, competência mês/ano, detecção de mudança de verba, histórico sempre visível com totais, remover último e limpar lista
+- `ui/config.py`: `CONFIG_CAMPOS` movido de `utils/` para `ui/`; adicionados campos `ano_referencia`, `grs_risco`, `dias_trabalhados`, `abono_emergencia`, `grat_final_semana`, `adicional_noturno`, `numero_meses`
+- `ui/selecao_verba.py`: renderização dinâmica de campos, botão calcular, resultado persistente, competência mês/ano, detecção de mudança de verba, histórico sempre visível com totais, remover último e limpar lista; valores default especiais para GRS, dias trabalhados, meses, dependências do histórico (GFS, Ad.Noturno)
 - `calculadoras/inss_mensal.py`: implementado com lógica progressiva e campo `ano_referencia`
-- `calculadoras/`: 4 calculadoras implementadas (Hora Extra, Adicional Noturno, Gratificação de Final de Semana, INSS)
+- `calculadoras/grs_dias.py`: implementada com lógica proporcional aos dias trabalhados
+- `calculadoras/decimo_terceiro.py`: implementada com soma de múltiplas verbas e dependência do histórico
+- `calculadoras/factory.py`: registradas 6 calculadoras (Hora Extra, Adicional Noturno, GFS, INSS, GRS Dias, 13º Salário)
+- `calculadoras/__init__.py`: imports atualizados para incluir todas as calculadoras
 - `main.py`: entry point do app refatorado
 
 ## Como testar
@@ -201,7 +256,7 @@ streamlit run main.py
 ## Pendências — Próximas etapas
 
 ### 🔴 Imediato — Correções pendentes
-- [ ] Corrigir `desabilitado = False` na linha 81 de `ui/selecao_verba.py` (campos vinculados ao cabeçalho devem ficar disabled)
+- [ ] Corrigir `desabilitado = False` na linha 133 de `ui/selecao_verba.py` (campos vinculados ao cabeçalho — `vencimento_basico`, `carga_horaria_mensal` — devem ficar disabled)
 
 ### Etapa 2 — Implementar calculadoras de desconto simples
 
@@ -217,11 +272,11 @@ São calculadoras de **percentual fixo**, sem tabelas progressivas. Cada uma ter
 - `campos_necessarios`: `["vencimento_basico"]`
 - `calcular(vencimento_basico)`: multiplicação + memória de cálculo
 
-### Etapa 3 — Implementar calculadoras restantes (~15 verbas)
-Criar classes para as demais verbas (13º Salário, GIEFS, GRS, Férias, Faltas, etc.)
+### Etapa 3 — Implementar calculadoras restantes (~13 verbas)
+Criar classes para as demais verbas (GIEFS, GRS, Férias, Faltas, etc.) — estimativa de 13 verbas restantes com base no `app.py`.
 
 ### Etapa 4 — Expandir `ui/config.py`
-Adicionar todos os campos necessários ao `CONFIG_CAMPOS`.
+Adicionar todos os campos necessários ao `CONFIG_CAMPOS` conforme novas calculadoras forem implementadas.
 
 ### Etapa 5 — Implementar `utils/exportador_pdf.py`
 Migrar função `gerar_pdf()` do `app.py`.

@@ -47,5 +47,9 @@
     "Aumento Salarial (4,62%)":        {"codigo": "----", "tipo": "Vantagem"},
     "Desconto de IPSEMG (3,2%)":       {"codigo": "7700", "tipo": "Desconto"},
     "INSS Mensal (tabela progressiva)":{"codigo": "7808", "tipo": "Desconto"}
+  },
+  "tabela_grs": {
+      "risco_medio": 160.20,
+      "risco_alto": 320.40
   }
 }

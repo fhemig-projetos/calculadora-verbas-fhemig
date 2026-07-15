@@ -91,15 +91,41 @@ class SelecaoVerba:
             config = CONFIG_CAMPOS.get(campo)
 
             if campo == "vencimento_basico":
-                valor_default = ds.get("vencimento_basico")
+                valor_default = ds.get("vencimento_basico") # busca do preenchimento do cabeçalho
             elif campo == "ad_desempenho":
                 valor_default = 0.0
             elif campo == "carga_horaria_mensal":
-                valor_default = ds.get("ch_mensal")
+                valor_default = ds.get("ch_mensal") # busca do preenchimento do cabeçalho
             elif campo == "horas_realizadas":
                 valor_default = 0
             elif campo == "ano_referencia":
-                valor_default = date.today().year
+                valor_default = date.today().year # preenche o ano atual como default
+            elif campo == "grs_risco":
+                valor_default = 0 # índice do selectbox
+            elif campo == "dias_trabalhados":
+                valor_default = 1
+            elif campo == "grat_final_semana":
+                # Busca no histórico o último cálculo de GFS
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") == "Gratificação de Final de Semana":
+                        valor_default = item["valor"]
+                        break
+                else: # executa só se o loop terminou sem encontrar nada (s/ esse else o valor_default sempre seria sobrescrito)
+                    valor_default = 0.0
+            elif campo == "adicional_noturno":
+                # Busca no histórico o último cálculo de Adicional Noturno
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") == "Adicional Noturno":
+                        valor_default = item["valor"]
+                        break
+                else:
+                    valor_default = 0.0
+            elif campo == "numero_meses":
+                valor_default = 12
+            elif campo == "abono_emergencia":
+                valor_default = 0.0
             else:
                 valor_default = 0
 
@@ -113,11 +139,29 @@ class SelecaoVerba:
                         options=[2024, 2025, 2026],
                         index=valor_default - 2024,
                     )
-                else:
+                elif campo == "grs_risco":
+                    valores[campo] = st.selectbox(
+                        config["label"],
+                        options=["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"],
+                    )
+                elif campo == "dias_trabalhados":
+                    valores[campo] = st.number_input(
+                        config["label"],
+                        value=valor_default,
+                        min_value=1,
+                        max_value=30,
+                    )
+                elif campo == "numero_meses":
+                    valores[campo] = st.number_input(
+                        config["label"],
+                        value=valor_default,
+                        min_value=1,
+                        max_value=12,
+                    )
+                else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(
                             config["label"],
-                            value=100,
-                            #value=valor_default,
+                            value=valor_default,
                             disabled=desabilitado,
                         )
 

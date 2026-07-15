@@ -43,3 +43,12 @@ class ProvedorDadosFhemig:
         """Retorna o dicionário com os metadados das verbas."""
         dados = cls._carregar_dados_globais()
         return dados["verbas"]
+    
+    @classmethod
+    def obter_valor_grs(cls, nivel: str) -> float:
+        """Retorna o valor da GRS conforme o nível de risco."""
+        dados = cls._carregar_dados_globais()
+        return dados["tabela_grs"][nivel]
+
+    
+
