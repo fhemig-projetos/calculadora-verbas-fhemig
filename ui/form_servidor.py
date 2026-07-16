@@ -49,12 +49,12 @@ class FormularioServidor:
             c9, c10 = st.columns(2)
             ds["ch_semanal"]   = c9.selectbox(
                 "C.H. Semanal",
-                options=["- Selecione -", 20, 30, 40, 44],
+                options=[20, 30, 40, 44],
+                index=2
             )
 
-            if ds["ch_semanal"] != "- Selecione -":
-                ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
-                c10.number_input("C.H. Mensal (h)", value=ds["ch_mensal"], disabled=True)
+            ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
+            c10.number_input("C.H. Mensal (h)", value=ds["ch_mensal"], disabled=True)
 
             cargo_encontrado = None
             # Se campos preenchidos

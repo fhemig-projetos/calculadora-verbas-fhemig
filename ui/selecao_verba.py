@@ -96,6 +96,8 @@ class SelecaoVerba:
                 valor_default = 0.0
             elif campo == "carga_horaria_mensal":
                 valor_default = ds.get("ch_mensal") # busca do preenchimento do cabeçalho
+                opcoes_ch = [120, 180, 240, 264]
+                indice_default = opcoes_ch.index(valor_default)
             elif campo == "horas_realizadas":
                 valor_default = 0
             elif campo == "ano_referencia":
@@ -139,9 +141,13 @@ class SelecaoVerba:
                         index=valor_default - 2024,
                     )
                 elif campo == "grs_risco":
+                    if nome_verba == "GRS — Dias":
+                        opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
+                    else:
+                        opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
                     valores[campo] = st.selectbox(
                         config["label"],
-                        options=["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"],
+                        options=opcoes_grs,
                     )
                 elif campo == "dias_trabalhados":
                     valores[campo] = st.number_input(
@@ -156,6 +162,12 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=12,
+                    )
+                elif campo == "carga_horaria_mensal":
+                    valores[campo] = st.selectbox(
+                        config["label"],
+                        options=opcoes_ch, # [120, 180, 240, 264]
+                        index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
                     )
                 else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(

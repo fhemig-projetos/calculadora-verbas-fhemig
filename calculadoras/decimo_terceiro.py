@@ -12,10 +12,18 @@ class CalculadoraDecimoTerceiro(CalculadoraVerba):
         return ["vencimento_basico", "ad_desempenho", "abono_emergencia",
                 "grat_final_semana", "adicional_noturno", "grs_risco", "numero_meses"]
     
-    def calcular(self, vencimento_basico, ad_desempenho, abono_emergencia,
-                 grat_final_semana, adicional_noturno, grs_risco, numero_meses) -> ResultadoCalculo:
+    def _parser_nivel_grs(self, grs_risco: str):
+        if "Médio" in grs_risco:
+            nivel = "risco_medio"
+        elif "Alto" in grs_risco:
+            nivel = "risco_alto"
+        else:
+            nivel = "nao_faz_jus"
+        return nivel
+
+    def calcular(self, vencimento_basico: float, ad_desempenho: float, abono_emergencia: float, grat_final_semana: float, adicional_noturno: float, grs_risco: str, numero_meses: int) -> ResultadoCalculo:
         # Determina o valor conforme seleção
-        nivel = "risco_medio" if "Médio" in grs_risco else "risco_alto"
+        nivel = self._parser_nivel_grs(grs_risco)
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(nivel)
 
         # Fórmula

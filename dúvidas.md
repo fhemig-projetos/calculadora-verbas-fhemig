@@ -1,2 +1,2 @@
 - Abono Emergência é valor fixo (150r)? 
-- 
+- GIEFS 13o: valor a sofrer incidência é o próprio valor da giefs? 

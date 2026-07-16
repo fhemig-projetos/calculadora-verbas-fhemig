@@ -49,6 +49,7 @@
     "INSS Mensal (tabela progressiva)":{"codigo": "7808", "tipo": "Desconto"}
   },
   "tabela_grs": {
+      "nao_faz_jus": 0.0,
       "risco_medio": 160.20,
       "risco_alto": 320.40
   }
