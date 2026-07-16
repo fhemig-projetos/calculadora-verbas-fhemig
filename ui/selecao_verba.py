@@ -123,14 +123,13 @@ class SelecaoVerba:
                 else:
                     valor_default = 0.0
             elif campo == "numero_meses":
-                valor_default = 12
+                valor_default = 1
             elif campo == "abono_emergencia":
                 valor_default = 0.0
             else:
                 valor_default = 0
 
-            desabilitado = campo in ("vencimento_basico", "carga_horaria_mensal")
-            desabilitado = False
+            desabilitado = campo in ("ad_desempenho")
 
             with cols[i % 2]:
                 if campo == "ano_referencia":
@@ -142,7 +141,7 @@ class SelecaoVerba:
                 elif campo == "grs_risco":
                     valores[campo] = st.selectbox(
                         config["label"],
-                        options=["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"],
+                        options=["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"],
                     )
                 elif campo == "dias_trabalhados":
                     valores[campo] = st.number_input(
@@ -193,8 +192,9 @@ class SelecaoVerba:
             texto_memoria = "\n".join(ur["memoria"])
             st.code(texto_memoria, language="text")
 
-        # Renderiza os campos correspondentes e retorna a competência
-        competencia = self._render_competencia()
+        # Renderiza os campos correspondentes e retorna a competência e a observação
+        competencia = self._render_competencia(ur["nome_verba"])
+        observacao = self._render_observacao()
 
         if st.button("➕ Adicionar à lista", type="secondary", use_container_width=True):
             st.session_state["historico"].append({
@@ -203,31 +203,53 @@ class SelecaoVerba:
                 "tipo": ur["tipo"],
                 "valor": ur["valor"],
                 "memoria": ur["memoria"],
-                "competencia": competencia
+                "competencia": competencia,
+                "observacao": observacao
             })
             st.rerun()
 
             print(f"historico: {st.session_state["historico"]}")
 
-    def _render_competencia(self):
+    def _render_competencia(self, nome_verba: str):
         st.divider()
         st.markdown("#### 📅 Competência")
-        st.caption("Selecione o mês/ano de referência do cálculo")
 
-        # Lógica para buscar mês anterior e ano atual como default
-        hoje = date.today()
-        if hoje.month == 1:
-            mes_default, ano_default = 12, hoje.year - 1
-        else:
-            mes_default, ano_default = hoje.month - 1, hoje.year
+        if nome_verba == "13º Salário":
+            # Apenas ano
+            st.caption("Selecione o ano de referência do cálculo")
+            hoje = date.today()
+            ano = st.selectbox("Ano", options=range(2000, 2031), index=hoje.year - 2000)
+            competencia = str(ano)
+            return competencia
+        else: 
+            st.caption("Selecione o mês/ano de referência do cálculo")
 
-        # Competência do cálculo (mês/ano)
-        col_mes, col_ano = st.columns(2)
-        mes = col_mes.selectbox("Mês", options=range(1, 13), format_func=lambda m: f"{m:02d}", index=mes_default - 1)
-        ano = col_ano.selectbox("Ano", options=range(2000, 2031), index=ano_default - 2000)
-        competencia = f"{mes:02d}/{ano}"
+            # Lógica para buscar mês anterior e ano atual como default
+            hoje = date.today()
+            if hoje.month == 1:
+                mes_default, ano_default = 12, hoje.year - 1
+            else:
+                mes_default, ano_default = hoje.month - 1, hoje.year
 
-        return competencia
+            # Competência do cálculo (mês/ano)
+            col_mes, col_ano = st.columns(2)
+            mes = col_mes.selectbox("Mês", options=range(1, 13), format_func=lambda m: f"{m:02d}", index=mes_default - 1)
+            ano = col_ano.selectbox("Ano", options=range(2000, 2031), index=ano_default - 2000)
+            competencia = f"{mes:02d}/{ano}"
+
+            return competencia
+
+    def _render_observacao(self): 
+        st.divider()
+        st.markdown("#### 📝 Observação")
+        observacao = st.text_area(
+            "Observação (opcional)",
+            max_chars=200,
+            placeholder="Ex: Verba calculada com base no mês de competência...",
+            label_visibility="collapsed",
+        )
+        st.caption(f"{len(observacao)}/200 caracteres")
+        return observacao
 
     def _render_historico(self):
         historico = st.session_state.get("historico")
@@ -246,6 +268,7 @@ class SelecaoVerba:
                 "Código": item.get("codigo"),
                 "Tipo": item.get("tipo"),
                 "Competência": item.get("competencia"),
+                "Observação": item.get("observacao"), 
                 "Valor (R$)": FormatadorCampos.brl(item["valor"]),
             })
 
