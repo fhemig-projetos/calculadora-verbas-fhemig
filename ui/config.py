@@ -10,4 +10,6 @@ CONFIG_CAMPOS = {
     "grat_final_semana": {"label": "Grat. Final de Semana (R$)", "tipo": "moeda"},
     "adicional_noturno": {"label": "Adicional Noturno (R$)", "tipo": "moeda"},
     "numero_meses": {"label": "Nº de Meses de Direito", "tipo": "meses"},
+    "valor_giefs": {"label": "Valor da GIEFS (R$)", "tipo": "moeda"},
+    "valor_piso": {"label": "Valor do Piso (R$)", "tipo": "moeda"},
 }

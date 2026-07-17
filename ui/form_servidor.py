@@ -53,6 +53,7 @@ class FormularioServidor:
                 index=2
             )
 
+            # Calcula a ch mensal com base na ch semanal selecionada (por default ch_semanal == 40h) 
             ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
             c10.number_input("C.H. Mensal (h)", value=ds["ch_mensal"], disabled=True)
 

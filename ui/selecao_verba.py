@@ -90,6 +90,7 @@ class SelecaoVerba:
         for i, campo in enumerate(calculadora.campos_necessarios):
             config = CONFIG_CAMPOS.get(campo)
 
+            # Define os valores default para cada campo
             if campo == "vencimento_basico":
                 valor_default = ds.get("vencimento_basico") # busca do preenchimento do cabeçalho
             elif campo == "ad_desempenho":
@@ -128,9 +129,14 @@ class SelecaoVerba:
                 valor_default = 1
             elif campo == "abono_emergencia":
                 valor_default = 0.0
+            elif campo == "valor_giefs":
+                valor_default = 0.0
+            elif campo == "valor_piso":
+                valor_default = 0.0
             else:
                 valor_default = 0
 
+            # Renderiza os campos
             desabilitado = campo in ("ad_desempenho")
 
             with cols[i % 2]:

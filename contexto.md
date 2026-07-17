@@ -22,10 +22,12 @@ calculadora-verbas-fhemig/
 │   ├── factory.py             # REGISTRO_CALCULADORAS (conecta UI às classes)
 │   ├── hora_extra.py          # ✅ Implementada
 │   ├── adicional_noturno.py   # ✅ Implementada
-│   ├── gratificacao_final_semana.py  # ✅ Implementada (⚠️ fator 0,5 — ver pendências)
+│   ├── gratificacao_final_semana.py  # ✅ Implementada
 │   ├── grs_dias.py            # ✅ Implementada
 │   ├── inss_mensal.py         # ✅ Implementada
-│   └── decimo_terceiro.py     # ✅ Implementada (com _parser_nivel_grs)
+│   ├── decimo_terceiro.py     # ✅ Implementada (com _parser_nivel_grs)
+│   ├── giefs_13.py            # ✅ Implementada
+│   └── piso_enfermagem_13.py  # ✅ Implementada
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
@@ -50,7 +52,7 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (6 de 21)
+### 2.1 Calculadoras (8 de 21 — 13 restantes)
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -59,6 +61,8 @@ calculadora-verbas-fhemig/
 | Gratificação de Final de Semana | `calculadoras/gratificacao_final_semana.py` | ✅ |
 | GRS — Dias | `calculadoras/grs_dias.py` | ✅ |
 | 13º Salário | `calculadoras/decimo_terceiro.py` | ✅ |
+| GIEFS — 13º Salário | `calculadoras/giefs_13.py` | ✅ |
+| Piso Enfermagem — 13º Salário | `calculadoras/piso_enfermagem_13.py` | ✅ |
 | INSS Mensal (tabela progressiva) | `calculadoras/inss_mensal.py` | ✅ |
 
 ### 2.2 Interface
@@ -97,89 +101,76 @@ calculadora-verbas-fhemig/
 
 ---
 
-## 3. Próximo passo: GIEFS — 13º Salário
+## 3. Próximas implementações planejadas
 
-### Fórmula
+### 3.1 ✅ GIEFS — 13º Salário (implementada)
+
+**Arquivo:** `calculadoras/giefs_13.py` — classe `CalculadoraGIEFS13`
+
+**Fórmula:** `Valor GIEFS ÷ 12 × Nº de Meses`
+
+**Campos:** `valor_giefs` (moeda), `numero_meses` (reaproveitado)
+
+**Detalhes:**
+- `valor_giefs` → campo de input do tipo moeda, default 0.0
+- `numero_meses` → reutiliza campo já existente, default 1, min 1, max 12
+- Registrada na factory como `"GIEFS — 13º Salário"` (código 3171, Vantagem)
+
+### 3.2 ✅ Piso Enfermagem — 13º Salário (implementada)
+
+**Arquivo:** `calculadoras/piso_enfermagem_13.py` — classe `CalculadoraPisoEnfermagem13`
+
+**Fórmula:** `Valor do Piso ÷ 12 × Nº de Meses`
+
+**Campos:** `valor_piso` (moeda), `numero_meses` (reaproveitado)
+
+**Detalhes:**
+- `valor_piso` → campo de input do tipo moeda, default 0.0
+- `numero_meses` → reutiliza campo já existente
+- Registrada na factory como `"Piso Enfermagem — 13º Salário"` (código 1164, Vantagem)
+
+### 3.3 🔄 INSS sobre 13º Salário (próxima implementação)
+
+**Arquivo:** `calculadoras/inss_decimo_terceiro.py` — classe `CalculadoraINSSDecimoTerceiro`
+
+**Fórmula:** `INSS s/ 13º = (13º + GIEFS 13º) × Alíquota − Dedução (tabela progressiva)`
+
+**Entradas:**
+| Campo | Origem |
+|-------|--------|
+| `valor_13_salario` | Busca automática do último valor de "13º Salário" no histórico |
+| `giefs_13_salario` | Busca automática do último valor de "GIEFS — 13º Salário" no histórico |
+| `ano_referencia` | Selectbox do usuário (2024, 2025, 2026) |
+
+**Base de cálculo:** `valor_13_salario + giefs_13_salario`
+
+**Regra de negócio (confirmada):** A base é a **soma** do 13º Salário com a GIEFS do 13º. Exemplo:
 ```
-Valor base ÷ 12 × Nº de Parcelas
-```
-
-### Arquivos a criar/modificar
-
-#### 3.1 Criar `calculadoras/giefs_13.py`
-
-```python
-from calculadoras import CalculadoraVerba, ResultadoCalculo
-from utils import FormatadorCampos
-
-class CalculadoraGIEFS13(CalculadoraVerba):
-    @property
-    def descricao_formula(self) -> str:
-        return "Fórmula: Valor base ÷ 12 × Nº de Parcelas"
-
-    @property
-    def campos_necessarios(self) -> list[str]:
-        return ["valor_base", "numero_parcelas"]
-
-    def calcular(self, valor_base: float, numero_parcelas: int) -> ResultadoCalculo:
-        valor = (valor_base / 12) * numero_parcelas
-        memoria = [
-            f"{FormatadorCampos.brl(valor_base)} ÷ 12 = {FormatadorCampos.brl(valor_base/12)}/parcela",
-            f"× {numero_parcelas} parcelas",
-            f"= {FormatadorCampos.brl(valor)}",
-        ]
-        return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)
-```
-
-#### 3.2 Modificar `calculadoras/__init__.py`
-Adicionar: `from .giefs_13 import CalculadoraGIEFS13`
-
-#### 3.3 Modificar `calculadoras/factory.py`
-Adicionar ao `REGISTRO_CALCULADORAS`:
-```python
-"GIEFS — 13º Salário": CalculadoraGIEFS13(),
-```
-
-#### 3.4 Modificar `ui/config.py`
-Adicionar:
-```python
-"valor_base": {"label": "Valor base (R$)", "tipo": "moeda"},
-"numero_parcelas": {"label": "Nº de Parcelas", "tipo": "parcelas"},
+1010,95 (13º) + 64,04 (GIEFS 13º) = 1074,99 → alíq 7,5% → 80,62
 ```
 
-#### 3.5 Modificar `ui/selecao_verba.py`
-No `_render_calculadora()`, adicionar antes do `else`:
-```python
-elif campo == "valor_base":
-    valor_default = 0.0
-elif campo == "numero_parcelas":
-    valor_default = 12
-```
+**Lógica:** Reaproveita `ProvedorDadosFhemig.obter_tabela_inss(ano)` — mesma tabela progressiva do INSS Mensal.
 
-No bloco de renderização, adicionar:
-```python
-elif campo == "numero_parcelas":
-    valores[campo] = st.number_input(
-        config["label"],
-        value=valor_default,
-        min_value=1,
-        max_value=12,
-    )
-```
+**Arquivos a modificar:**
 
-`valor_base` cai no `else` como `number_input` normal.
+| Arquivo | Ação |
+|---------|------|
+| `calculadoras/inss_decimo_terceiro.py` | Criar |
+| `calculadoras/__init__.py` | +1 import |
+| `calculadoras/factory.py` | +1 import + 1 registro |
+| `ui/config.py` | +2 campos: `valor_13_salario`, `giefs_13_salario` |
+| `ui/selecao_verba.py` | +2 defaults com busca no histórico (mesmo padrão de `grat_final_semana` e `adicional_noturno`) |
 
 ---
 
 ## 4. Pendências (a fazer)
 
-### 4.1 Calculadoras faltantes (15 restantes do `app.py`)
+### 4.1 Calculadoras faltantes (13 restantes do `app.py`)
 
 Seguir o mesmo padrão das já implementadas.
 
 | Verba | Código | Tipo | Fórmula (app.py) |
 |---|---|---|---|
-| GIEFS — 13º Salário | 3171 | Vantagem | valor_base ÷ 12 × parcelas |
 | INSS sobre 13º Salário | 7708 | Desconto | Tabela progressiva INSS sobre (13º + GIEFS 13º) |
 | GIEFS — Dias | 2417 | Vantagem | valor_base ÷ 30 × dias |
 | GIEFS — Meses (parcelas) | 2417 | Vantagem | valor_base ÷ 6 × parcelas |
@@ -201,17 +192,7 @@ Seguir o mesmo padrão das já implementadas.
 - A função `gerar_pdf()` completa existe no `app.py` (linhas 141-273)
 - Precisa ser extraída para o módulo e integrada à UI modular
 
-### 4.3 Funcionalidade de "Conferência"
-
-- No `app.py` (linhas 670-683): compara valor calculado com valor informado pela unidade
-- Não implementada na versão modular
-
-### 4.4 Agrupamento de verbas em categorias
-
-- No `app.py` (linhas 343-353): GRUPOS organizam as verbas (Gratificações, 13º, GIEFS, GRS, Férias, Descontos)
-- Na versão modular, as verbas são listadas em ordem alfabética do JSON
-
-### 4.5 Remover duplicação de dados
+### 4.3 Remover duplicação de dados
 
 - `app.py` tem `TABELA_CARGOS`, `TABELA_INSS`, `VERBAS_META` duplicados
 - Versão modular usa `data/tabelas.json`
@@ -219,24 +200,20 @@ Seguir o mesmo padrão das já implementadas.
 
 ---
 
-## 5. Bugs conhecidos
+## 5. Observações sobre regras de negócio
 
-### 5.1 Fator da Gratificação de Final de Semana
-
-- `app.py` (linha 386): fator **1,0833 (13/12)** ✅
-- `calculadoras/gratificacao_final_semana.py` (linha 24): fator **0,5** ❌
-- **Suspeita:** o valor correto é 13/12 (1,0833). O fator 0,5 parece ser um erro de implementação.
-
-### 5.2 Condição obsoleta no form_servidor.py
-
-- Linha 56: `if ds["ch_semanal"] != "- Selecione -":` — a opção "- Selecione -" foi removida, então a condição é sempre True. Pode ser removida.
+- **Gratificação de Final de Semana**: fator de cálculo é **0,5** (confirmado como correto)
+- **Condição obsoleta no form_servidor.py**: já corrigida — a condição `!= "- Selecione -"` foi removida junto com a opção obsoleta
+- **INSS sobre 13º**: a base de cálculo é a **soma** do 13º Salário com a GIEFS do 13º (confirmado com exemplo: 1010,95 + 64,04 = 1074,99)
+- **GIEFS 13º**: campo renomeado de `valor_base` para `valor_giefs` (mais semântico), reutiliza `numero_meses` existente
+- **Piso Enfermagem 13º**: novo campo `valor_piso`, reutiliza `numero_meses` existente
 
 ---
 
 ## 6. Dúvidas em aberto (ver `dúvidas.md`)
 
 - Abono Emergência é valor fixo (R$ 150)?
-- GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?
+- ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
 
 ---
 
@@ -259,7 +236,10 @@ Dependências: `streamlit`, `reportlab`, `pandas` (ver `requirements.txt`)
 Os commits mais recentes mostram a evolução da refatoração:
 - `d4c6674` — Refatoração inicial para arquitetura modular
 - `7a2e329` a `ee184f0` — Implementação incremental das calculadoras, formulário, histórico, competência, observação
-- Último commit: `ee184f0` — "feat: implementa competencia por ano para cálculo de 13o e campo de observação"
+- `3a48aa9` — "feat: implementa GRS dinâmico, CH Mensal como selectbox e contexto.md"
+- `ee184f0` — "feat: implementa competencia por ano para cálculo de 13o e campo de observação"
+- `9bc2c2d` — "feat: implementa calculadoras de GRS Dias e 13º Salário"
+- Pendentes de commit: GIEFS 13º, Piso Enfermagem 13º, INSS sobre 13º
 
 ---
 
