@@ -34,7 +34,7 @@ class FormularioServidor:
 
             ds["nome"] = c1.text_input("Nome Completo do Servidor", value=ds["nome"])
             ds["masp"]     = c2.text_input("MASP", value=ds["masp"])
-            ds["admissao"] = c3.text_input("Admissão", value=ds["admissao"], help="Ex: 1, 2")
+            ds["admissao"] = c3.text_input("Nº de Admissão", value=ds["admissao"], help="Ex: 1, 2")
             ds["dt_admissao"] = c4.date_input("Data de Admissão", value=ds["dt_admissao"], format="DD/MM/YYYY")
             ds["dt_fim_efetiva"] = c5.date_input("Data Fim Efetiva", value=ds["dt_fim_efetiva"], format="DD/MM/YYYY")
 
@@ -42,20 +42,20 @@ class FormularioServidor:
 
             st.caption("**Cargo** — preencha para busca automática do vencimento básico e carga horária mensal")
             c6, c7, c8 = st.columns(3)
-            ds["cargo_classe"] = c6.text_input("Cargo / Classe", value=ds["cargo_classe"], placeholder="Ex: PENF").upper().strip()
+            ds["cargo_classe"] = c6.text_input("Cargo", value=ds["cargo_classe"], placeholder="Ex: PENF").upper().strip()
             ds["cargo_nivel"]  = c7.text_input("Nível",          value=ds["cargo_nivel"],  placeholder="Ex: 2").strip()
             ds["cargo_grau"]   = c8.text_input("Grau",           value=ds["cargo_grau"],   placeholder="Ex: A").upper().strip()
             
             c9, c10 = st.columns(2)
             ds["ch_semanal"]   = c9.selectbox(
-                "C.H. Semanal",
+                "Carga Horária Semanal",
                 options=[20, 30, 40, 44],
                 index=2
             )
 
             # Calcula a ch mensal com base na ch semanal selecionada (por default ch_semanal == 40h) 
             ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
-            c10.number_input("C.H. Mensal (h)", value=ds["ch_mensal"], disabled=True)
+            c10.number_input("Carga Horária Mensal", value=ds["ch_mensal"], disabled=True)
 
             cargo_encontrado = None
             # Se campos preenchidos

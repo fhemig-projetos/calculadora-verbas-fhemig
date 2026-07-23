@@ -175,11 +175,11 @@ def gerar_pdf(historico, ds) -> bytes:
 
     dados_tabela = [
         ["Nome do Servidor", ds["nome"] or "—",           "MASP",            ds["masp"] or "—"],
-        ["Admissão",         ds["admissao"] or "—",        "Data Admissão",   ds["dt_admissao"] or "—"],
+        ["Nº de Admissão",         ds["admissao"] or "—",        "Data de Admissão",   ds["dt_admissao"] or "—"],
         ["Data Fim Efetiva", ds["dt_fim_efetiva"] or "—", "",                ""],
-        ["Cargo / Classe",   ds["cargo_classe"] or "—",   "Nível",           ds["cargo_nivel"] or "—"],
-        ["Grau",             ds["cargo_grau"] or "—",     "C.H. Semanal",    ds["ch_semanal"] or "—"],
-        ["C.H. Mensal (h)",  f'{ds["ch_mensal"]:.0f}h' if ds["ch_mensal"] else "—",
+        ["Cargo",   ds["cargo_classe"] or "—",   "Nível",           ds["cargo_nivel"] or "—"],
+        ["Grau",             ds["cargo_grau"] or "—",     "Carga Horária Semanal",    ds["ch_semanal"] or "—"],
+        ["Carga Horária Mensal",  f'{ds["ch_mensal"]:.0f}h' if ds["ch_mensal"] else "—",
          "Vencimento Básico", brl(ds["vencimento"]) if ds["vencimento"] else "—"],
     ]
 
@@ -288,7 +288,7 @@ with st.expander("📋 Dados do Servidor (cabeçalho do PDF)", expanded=True):
     c1, c2, c3 = st.columns(3)
     ds["nome"]           = c1.text_input("Nome Completo do Servidor", value=ds["nome"])
     ds["masp"]           = c2.text_input("MASP", value=ds["masp"])
-    ds["admissao"]       = c3.text_input("Admissão", value=ds["admissao"], help="Ex: 1, 2")
+    ds["admissao"]       = c3.text_input("Nº de Admissão", value=ds["admissao"], help="Ex: 1, 2")
 
     c4, c5 = st.columns(2)
     ds["dt_admissao"]    = c4.text_input("Data de Admissão", value=ds["dt_admissao"], placeholder="DD/MM/AAAA")
@@ -310,8 +310,8 @@ with st.expander("📋 Dados do Servidor (cabeçalho do PDF)", expanded=True):
     if cargo_encontrado:
         st.success(
             f"✅ Cargo encontrado · Vencimento: **{brl(cargo_encontrado['vencimento'])}** · "
-            f"C.H. Semanal: **{cargo_encontrado['ch_semanal']}** · "
-            f"C.H. Mensal: **{cargo_encontrado['ch_mensal']}h** · "
+            f"Carga Horária Semanal: **{cargo_encontrado['ch_semanal']}** · "
+            f"Carga Horária Mensal: **{cargo_encontrado['ch_mensal']}h** · "
             f"Vigência: **{cargo_encontrado['dt_inicio']}**"
         )
         ds["cargo_classe"] = cargo_classe
@@ -328,8 +328,8 @@ with st.expander("📋 Dados do Servidor (cabeçalho do PDF)", expanded=True):
         ds["cargo_grau"]   = cargo_grau
 
         c9, c10, c11 = st.columns(3)
-        ds["ch_semanal"]  = c9.text_input("C.H. Semanal",    value=ds.get("ch_semanal",""), placeholder="Ex: 40 Horas Semanais")
-        ds["ch_mensal"]   = c10.number_input("C.H. Mensal (h)", value=ds.get("ch_mensal", 0.0), min_value=0.0, step=1.0, format="%.0f")
+        ds["ch_semanal"]  = c9.text_input("Carga Horária Semanal",    value=ds.get("ch_semanal",""), placeholder="Ex: 40 Horas Semanais")
+        ds["ch_mensal"]   = c10.number_input("Carga Horária Mensal", value=ds.get("ch_mensal", 0.0), min_value=0.0, step=1.0, format="%.0f")
         ds["vencimento"]  = c11.number_input("Vencimento Básico (R$)", value=ds.get("vencimento", 0.0), min_value=0.0, step=0.01, format="%.2f")
 
 # Atalhos para uso nos campos de verba

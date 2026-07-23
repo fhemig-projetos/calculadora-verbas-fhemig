@@ -133,6 +133,34 @@ class SelecaoVerba:
                 valor_default = 0.0
             elif campo == "valor_piso":
                 valor_default = 0.0
+            elif campo == "valor_13_salario":
+                # Busca no histórico o último cálculo de 13º Salário
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") == "13º Salário":
+                        valor_default = item["valor"]
+                        break
+                else:
+                    valor_default = 0.0
+            elif campo == "giefs_13_salario":
+                # Busca no histórico o último cálculo de GIEFS — 13º Salário
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") == "GIEFS — 13º Salário":
+                        valor_default = item["valor"]
+                        break
+                else:
+                    valor_default = 0.0
+            elif campo == "valor_base":
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") in ("GIEFS — Dias", "GIEFS — 13º Salário"):
+                        valor_default = item["valor"]
+                        break
+                else:
+                    valor_default = 0
+            elif campo == "numero_parcelas":
+                valor_default = 1            
             else:
                 valor_default = 0
 
@@ -174,6 +202,13 @@ class SelecaoVerba:
                         config["label"],
                         options=opcoes_ch, # [120, 180, 240, 264]
                         index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
+                    )
+                elif campo == "numero_parcelas":
+                    valores[campo] = st.number_input(
+                        config["label"],
+                        value=valor_default,
+                        min_value=1,
+                        max_value=12,
                     )
                 else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(

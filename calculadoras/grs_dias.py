@@ -8,7 +8,7 @@ class CalculadoraGRSDias(CalculadoraVerba):
         return "GRS Proporcional aos Dias Trabalhados = Valor GRS ÷ 30 × Dias Trabalhados no Mês"
     
     @property
-    def campos_necessarios(self):
+    def campos_necessarios(self) -> list[str]:
         return ["grs_risco", "dias_trabalhados"]
     
     def calcular(self, grs_risco: str, dias_trabalhados: int) -> ResultadoCalculo:

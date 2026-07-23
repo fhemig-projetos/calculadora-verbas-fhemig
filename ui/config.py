@@ -12,4 +12,6 @@ CONFIG_CAMPOS = {
     "numero_meses": {"label": "Nº de Meses de Direito", "tipo": "meses"},
     "valor_giefs": {"label": "Valor da GIEFS (R$)", "tipo": "moeda"},
     "valor_piso": {"label": "Valor do Piso (R$)", "tipo": "moeda"},
+    "valor_base": {"label": "Valor da GIEFS (R$)", "tipo": "moeda"},
+    "numero_parcelas": {"label": "Nº de Parcelas", "tipo": "parcelas"},
 }

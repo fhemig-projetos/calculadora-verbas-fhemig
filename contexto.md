@@ -27,7 +27,14 @@ calculadora-verbas-fhemig/
 │   ├── inss_mensal.py         # ✅ Implementada
 │   ├── decimo_terceiro.py     # ✅ Implementada (com _parser_nivel_grs)
 │   ├── giefs_13.py            # ✅ Implementada
-│   └── piso_enfermagem_13.py  # ✅ Implementada
+│   ├── piso_enfermagem_13.py  # ✅ Implementada
+│   ├── giefs_dias.py          # ✅ Implementada
+│   ├── giefs_meses.py         # ✅ Implementada
+│   ├── giefs_ferias.py        # ✅ Implementada
+│   ├── inss_decimo_terceiro.py# ✅ Implementada
+│   ├── grs_meses.py           # ✅ Implementada
+│   ├── grs_desconto_horas.py  # ✅ Implementada
+│   └── terco_ferias.py        # ✅ Implementada
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
@@ -52,7 +59,7 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (8 de 21 — 13 restantes)
+### 2.1 Calculadoras (15 de 21 — 6 restantes)
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -64,6 +71,13 @@ calculadora-verbas-fhemig/
 | GIEFS — 13º Salário | `calculadoras/giefs_13.py` | ✅ |
 | Piso Enfermagem — 13º Salário | `calculadoras/piso_enfermagem_13.py` | ✅ |
 | INSS Mensal (tabela progressiva) | `calculadoras/inss_mensal.py` | ✅ |
+| INSS sobre 13º Salário | `calculadoras/inss_decimo_terceiro.py` | ✅ |
+| GIEFS — Dias | `calculadoras/giefs_dias.py` | ✅ |
+| GIEFS — Meses (parcelas) | `calculadoras/giefs_meses.py` | ✅ |
+| GIEFS — 1/3 de Férias | `calculadoras/giefs_ferias.py` | ✅ |
+| GRS — Meses | `calculadoras/grs_meses.py` | ✅ |
+| GRS — Desconto de Horas | `calculadoras/grs_desconto_horas.py` | ✅ |
+| 1/3 de Férias | `calculadoras/terco_ferias.py` | ✅ |
 
 ### 2.2 Interface
 
@@ -101,83 +115,102 @@ calculadora-verbas-fhemig/
 
 ---
 
-## 3. Próximas implementações planejadas
+## 3. Novas calculadoras implementadas
 
-### 3.1 ✅ GIEFS — 13º Salário (implementada)
-
-**Arquivo:** `calculadoras/giefs_13.py` — classe `CalculadoraGIEFS13`
-
-**Fórmula:** `Valor GIEFS ÷ 12 × Nº de Meses`
-
-**Campos:** `valor_giefs` (moeda), `numero_meses` (reaproveitado)
-
-**Detalhes:**
-- `valor_giefs` → campo de input do tipo moeda, default 0.0
-- `numero_meses` → reutiliza campo já existente, default 1, min 1, max 12
-- Registrada na factory como `"GIEFS — 13º Salário"` (código 3171, Vantagem)
-
-### 3.2 ✅ Piso Enfermagem — 13º Salário (implementada)
-
-**Arquivo:** `calculadoras/piso_enfermagem_13.py` — classe `CalculadoraPisoEnfermagem13`
-
-**Fórmula:** `Valor do Piso ÷ 12 × Nº de Meses`
-
-**Campos:** `valor_piso` (moeda), `numero_meses` (reaproveitado)
-
-**Detalhes:**
-- `valor_piso` → campo de input do tipo moeda, default 0.0
-- `numero_meses` → reutiliza campo já existente
-- Registrada na factory como `"Piso Enfermagem — 13º Salário"` (código 1164, Vantagem)
-
-### 3.3 🔄 INSS sobre 13º Salário (próxima implementação)
+### 3.1 ✅ INSS sobre 13º Salário
 
 **Arquivo:** `calculadoras/inss_decimo_terceiro.py` — classe `CalculadoraINSSDecimoTerceiro`
 
 **Fórmula:** `INSS s/ 13º = (13º + GIEFS 13º) × Alíquota − Dedução (tabela progressiva)`
 
-**Entradas:**
-| Campo | Origem |
-|-------|--------|
-| `valor_13_salario` | Busca automática do último valor de "13º Salário" no histórico |
-| `giefs_13_salario` | Busca automática do último valor de "GIEFS — 13º Salário" no histórico |
-| `ano_referencia` | Selectbox do usuário (2024, 2025, 2026) |
+**Campos:** `valor_13_salario` (moeda, busca no histórico), `giefs_13_salario` (moeda, busca no histórico), `ano_referencia` (selectbox 2024-2026)
 
-**Base de cálculo:** `valor_13_salario + giefs_13_salario`
+**Detalhes:**
+- Reaproveita `ProvedorDadosFhemig.obter_tabela_inss(ano)` — mesma tabela progressiva do INSS Mensal
+- Base é a **soma** do 13º Salário com a GIEFS do 13º
+- Registrada como `"INSS sobre 13º Salário"` (código 7708, Desconto)
 
-**Regra de negócio (confirmada):** A base é a **soma** do 13º Salário com a GIEFS do 13º. Exemplo:
-```
-1010,95 (13º) + 64,04 (GIEFS 13º) = 1074,99 → alíq 7,5% → 80,62
-```
+### 3.2 ✅ GIEFS — Dias
 
-**Lógica:** Reaproveita `ProvedorDadosFhemig.obter_tabela_inss(ano)` — mesma tabela progressiva do INSS Mensal.
+**Arquivo:** `calculadoras/giefs_dias.py` — classe `CalculadoraGIEFSDias`
 
-**Arquivos a modificar:**
+**Fórmula:** `Valor Base ÷ 30 × Dias`
 
-| Arquivo | Ação |
-|---------|------|
-| `calculadoras/inss_decimo_terceiro.py` | Criar |
-| `calculadoras/__init__.py` | +1 import |
-| `calculadoras/factory.py` | +1 import + 1 registro |
-| `ui/config.py` | +2 campos: `valor_13_salario`, `giefs_13_salario` |
-| `ui/selecao_verba.py` | +2 defaults com busca no histórico (mesmo padrão de `grat_final_semana` e `adicional_noturno`) |
+**Campos:** `valor_base` (moeda, busca no histórico), `dias_trabalhados` (reaproveitado, 1-30)
+
+**Detalhes:**
+- Registrada como `"GIEFS — Dias"` (código 2417, Vantagem)
+
+### 3.3 ✅ GIEFS — Meses (parcelas)
+
+**Arquivo:** `calculadoras/giefs_meses.py` — classe `CalculadoraGIEFSMeses`
+
+**Fórmula:** `Valor Base ÷ 6 × Parcelas`
+
+**Campos:** `valor_base` (moeda, busca no histórico), `numero_parcelas` (novo, 1-12)
+
+**Detalhes:**
+- Registrada como `"GIEFS — Meses"` (código 2417, Vantagem)
+
+### 3.4 ✅ GIEFS — 1/3 de Férias
+
+**Arquivo:** `calculadoras/giefs_ferias.py` — classe `CalculadoraGIEFSFerias`
+
+**Fórmula:** `Valor GIEFS ÷ 3`
+
+**Campos:** `valor_giefs` (moeda, default 0.0)
+
+**Detalhes:**
+- Registrada como `"GIEFS — 1/3 de Férias"` (código 3242, Vantagem)
+
+### 3.5 ✅ GRS — Meses
+
+**Arquivo:** `calculadoras/grs_meses.py` — classe `CalculadoraGRSMeses`
+
+**Fórmula:** `GRS × Meses`
+
+**Campos:** `grs_risco` (select), `numero_meses` (1-12)
+
+**Detalhes:**
+- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Registrada como `"GRS — Meses"` (código 2420, Vantagem)
+
+### 3.6 ✅ GRS — Desconto de Horas
+
+**Arquivo:** `calculadoras/grs_desconto_horas.py` — classe `CalculadoraGRSDescontoHoras`
+
+**Fórmula:** `GRS ÷ CH × horas_falta`
+
+**Campos:** `grs_risco` (select), `carga_horaria_mensal` (selectbox 120-264), `horas_realizadas` (inteiro)
+
+**Detalhes:**
+- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Possui proteção contra divisão por zero (CH = 0 → fallback 1)
+- Registrada como `"GRS — Desconto de Horas"` (código 7820, Desconto)
+
+### 3.7 ✅ 1/3 de Férias
+
+**Arquivo:** `calculadoras/terco_ferias.py` — classe `CalculadoraTercoFerias`
+
+**Fórmula:** `(Venc + Ad.Desemp + Ab.Emerg + Ad.Noturno + GRS) ÷ 3`
+
+**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (default 0), `abono_emergencia` (default 0), `adicional_noturno` (busca no histórico), `grs_risco` (select)
+
+**Detalhes:**
+- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Registrada como `"1/3 de Férias"` (código 2431, Vantagem)
 
 ---
 
+
 ## 4. Pendências (a fazer)
 
-### 4.1 Calculadoras faltantes (13 restantes do `app.py`)
+### 4.1 Calculadoras faltantes (6 restantes do `app.py`)
 
 Seguir o mesmo padrão das já implementadas.
 
 | Verba | Código | Tipo | Fórmula (app.py) |
 |---|---|---|---|
-| INSS sobre 13º Salário | 7708 | Desconto | Tabela progressiva INSS sobre (13º + GIEFS 13º) |
-| GIEFS — Dias | 2417 | Vantagem | valor_base ÷ 30 × dias |
-| GIEFS — Meses (parcelas) | 2417 | Vantagem | valor_base ÷ 6 × parcelas |
-| GIEFS — 1/3 de Férias | 3242 | Vantagem | valor_base ÷ 3 |
-| GRS — Meses | 2420 | Vantagem | GRS × meses |
-| GRS — Desconto de Horas | 7820 | Desconto | GRS ÷ CH × horas_falta |
-| 1/3 de Férias | 2431 | Vantagem | (salário + ab_emerg + ad_desempenho + ad_noturno + GRS) ÷ 3 |
 | Férias Indenizadas | 2432 | Vantagem | (salário + GIEFS + ab_emerg + GRS + ad_noturno) ÷ 30 × dias |
 | Faltas — Horas (desconto) | 7810 | Desconto | (venc + ad_desem + ab_emerg + GRS) ÷ CH × horas_falta |
 | Faltas — Dias (desconto) | 7811 | Desconto | (venc + ad_desem + ab_emerg + GRS) ÷ 30 × dias_falta |
@@ -207,6 +240,10 @@ Seguir o mesmo padrão das já implementadas.
 - **INSS sobre 13º**: a base de cálculo é a **soma** do 13º Salário com a GIEFS do 13º (confirmado com exemplo: 1010,95 + 64,04 = 1074,99)
 - **GIEFS 13º**: campo renomeado de `valor_base` para `valor_giefs` (mais semântico), reutiliza `numero_meses` existente
 - **Piso Enfermagem 13º**: novo campo `valor_piso`, reutiliza `numero_meses` existente
+- **GIEFS — Dias e GIEFS — Meses**: compartilham o mesmo campo `valor_base` com busca no histórico
+- **GIEFS — 1/3 de Férias**: usa `valor_giefs` (campo separado de `valor_base`)
+- **Campo `numero_parcelas`**: novo campo inteiro (1-12) para GIEFS — Meses (parcelas)
+- **INSS sobre 13º**: `valor_13_salario` e `giefs_13_salario` são preenchidos automaticamente via busca no histórico
 
 ---
 
@@ -239,7 +276,7 @@ Os commits mais recentes mostram a evolução da refatoração:
 - `3a48aa9` — "feat: implementa GRS dinâmico, CH Mensal como selectbox e contexto.md"
 - `ee184f0` — "feat: implementa competencia por ano para cálculo de 13o e campo de observação"
 - `9bc2c2d` — "feat: implementa calculadoras de GRS Dias e 13º Salário"
-- Pendentes de commit: GIEFS 13º, Piso Enfermagem 13º, INSS sobre 13º
+- Últimas implementações: INSS sobre 13º, GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias, GRS — Meses, GRS — Desconto de Horas, 1/3 de Férias
 
 ---
 

@@ -7,7 +7,7 @@ class CalculadoraHoraExtra(CalculadoraVerba):
         return "Fórmula: (Venc. Básico + Ad. Desempenho) ÷ Carga Horária Mensal × Horas Realizadas × 1,50"
 
     @property
-    def campos_necessarios(self):
+    def campos_necessarios(self) -> list[str]:
         return ["vencimento_basico", "ad_desempenho", "carga_horaria_mensal", "horas_realizadas"]
 
     def calcular(self, vencimento_basico: float, ad_desempenho: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
