@@ -34,7 +34,13 @@ calculadora-verbas-fhemig/
 │   ├── inss_decimo_terceiro.py# ✅ Implementada
 │   ├── grs_meses.py           # ✅ Implementada
 │   ├── grs_desconto_horas.py  # ✅ Implementada
-│   └── terco_ferias.py        # ✅ Implementada
+│   ├── terco_ferias.py        # ✅ Implementada
+│   ├── ferias_indenizadas.py  # ✅ Implementada
+│   ├── faltas_horas.py        # ✅ Implementada
+│   ├── faltas_dias.py         # ✅ Implementada
+│   ├── ajuda_custo.py         # ✅ Implementada
+│   ├── desconto_custeio.py    # ✅ Implementada
+│   └── aumento_salarial.py    # ✅ Implementada
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
@@ -59,7 +65,7 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (15 de 21 — 6 restantes)
+### 2.1 Calculadoras (21 de 22 — 1 restante)
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -78,6 +84,12 @@ calculadora-verbas-fhemig/
 | GRS — Meses | `calculadoras/grs_meses.py` | ✅ |
 | GRS — Desconto de Horas | `calculadoras/grs_desconto_horas.py` | ✅ |
 | 1/3 de Férias | `calculadoras/terco_ferias.py` | ✅ |
+| Férias Indenizadas | `calculadoras/ferias_indenizadas.py` | ✅ |
+| Faltas — Horas (desconto) | `calculadoras/faltas_horas.py` | ✅ |
+| Faltas — Dias (desconto) | `calculadoras/faltas_dias.py` | ✅ |
+| Ajuda de Custo Mensal | `calculadoras/ajuda_custo.py` | ✅ |
+| Desconto de Custeio (4%) | `calculadoras/desconto_custeio.py` | ✅ |
+| Aumento Salarial (4,62%) | `calculadoras/aumento_salarial.py` | ✅ |
 
 ### 2.2 Interface
 
@@ -200,23 +212,88 @@ calculadora-verbas-fhemig/
 - Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
 - Registrada como `"1/3 de Férias"` (código 2431, Vantagem)
 
+### 3.8 ✅ Férias Indenizadas
+
+**Arquivo:** `calculadoras/ferias_indenizadas.py` — classe `CalculadoraFeriasIndenizadas`
+
+**Fórmula:** `(Salário + GIEFS + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Nº de Dias`
+
+**Campos:** `vencimento_basico` (do cabeçalho), `valor_giefs` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `adicional_noturno` (busca no histórico), `dias_ferias_indenizadas` (1-30, default 30)
+
+**Detalhes:**
+- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Registrada como `"Férias Indenizadas"` (código 2432, Vantagem)
+
+### 3.9 ✅ Faltas — Horas (desconto)
+
+**Arquivo:** `calculadoras/faltas_horas.py` — classe `CalculadoraFaltasHoras`
+
+**Fórmula:** `(Venc + Ad. Desempenho + Ab. Emergência + GRS) ÷ CH × Horas de Falta`
+
+**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `carga_horaria_mensal` (selectbox 120-264), `faltas_horas` (inteiro)
+
+**Detalhes:**
+- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Possui proteção contra divisão por zero (CH = 0 → fallback 1)
+- Registrada como `"Faltas — Horas (desconto)"` (código 7810, Desconto)
+
+### 3.10 ✅ Faltas — Dias (desconto)
+
+**Arquivo:** `calculadoras/faltas_dias.py` — classe `CalculadoraFaltasDias`
+
+**Fórmula:** `(Venc + Ad. Desempenho + Ab. Emergência + GRS) ÷ 30 × Dias de Falta`
+
+**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `faltas_dias` (1-30)
+
+**Detalhes:**
+- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Registrada como `"Faltas — Dias (desconto)"` (código 7811, Desconto)
+
+### 3.11 ✅ Ajuda de Custo Mensal
+
+**Arquivo:** `calculadoras/ajuda_custo.py` — classe `CalculadoraAjudaCusto`
+
+**Fórmula:** `Valor Diário × Dias Trabalhados`
+
+**Campos:** `ajuda_custo_diario` (moeda, 0-75), `dias_trabalhados` (1-30)
+
+**Detalhes:**
+- Registrada como `"Ajuda de Custo Mensal"` (código 2070, Vantagem)
+
+### 3.12 ✅ Desconto de Custeio (4%)
+
+**Arquivo:** `calculadoras/desconto_custeio.py` — classe `CalculadoraDescontoCusteio`
+
+**Fórmula:** `Valor base × 4%`
+
+**Campos:** `valor_base_desconto` (moeda)
+
+**Detalhes:**
+- Registrada como `"Desconto de Custeio (4%)"` (código 9018, Desconto)
+
+### 3.13 ✅ Aumento Salarial (4,62%)
+
+**Arquivo:** `calculadoras/aumento_salarial.py` — classe `CalculadoraAumentoSalarial`
+
+**Fórmula:** `Valor atual × 4,62%`
+
+**Campos:** `valor_base_aumento` (moeda, default vencimento básico do cabeçalho)
+
+**Detalhes:**
+- Exibe na memória de cálculo: valor atual, aumento e novo valor
+- Registrada como `"Aumento Salarial (4,62%)"` (código ----, Vantagem)
+
 ---
 
 
 ## 4. Pendências (a fazer)
 
-### 4.1 Calculadoras faltantes (6 restantes do `app.py`)
+### 4.1 Calculadoras faltantes (1 restante do `app.py`)
 
 Seguir o mesmo padrão das já implementadas.
 
 | Verba | Código | Tipo | Fórmula (app.py) |
 |---|---|---|---|
-| Férias Indenizadas | 2432 | Vantagem | (salário + GIEFS + ab_emerg + GRS + ad_noturno) ÷ 30 × dias |
-| Faltas — Horas (desconto) | 7810 | Desconto | (venc + ad_desem + ab_emerg + GRS) ÷ CH × horas_falta |
-| Faltas — Dias (desconto) | 7811 | Desconto | (venc + ad_desem + ab_emerg + GRS) ÷ 30 × dias_falta |
-| Ajuda de Custo Mensal | 2070 | Vantagem | valor_diário × dias |
-| Desconto de Custeio (4%) | 9018 | Desconto | base × 4% |
-| Aumento Salarial (4,62%) | ---- | Vantagem | base × 4,62% |
 | Desconto de IPSEMG (3,2%) | 7700 | Desconto | base × 3,2% |
 
 ### 4.2 Exportação PDF
@@ -277,6 +354,7 @@ Os commits mais recentes mostram a evolução da refatoração:
 - `ee184f0` — "feat: implementa competencia por ano para cálculo de 13o e campo de observação"
 - `9bc2c2d` — "feat: implementa calculadoras de GRS Dias e 13º Salário"
 - Últimas implementações: INSS sobre 13º, GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias, GRS — Meses, GRS — Desconto de Horas, 1/3 de Férias
+- Implementações recentes: Férias Indenizadas, Faltas — Horas (desconto), Faltas — Dias (desconto), Ajuda de Custo Mensal, Desconto de Custeio (4%), Aumento Salarial (4,62%)
 
 ---
 

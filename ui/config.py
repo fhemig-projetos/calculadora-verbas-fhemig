@@ -14,4 +14,9 @@ CONFIG_CAMPOS = {
     "valor_piso": {"label": "Valor do Piso (R$)", "tipo": "moeda"},
     "valor_base": {"label": "Valor da GIEFS (R$)", "tipo": "moeda"},
     "numero_parcelas": {"label": "Nº de Parcelas", "tipo": "parcelas"},
+    "dias_ferias_indenizadas": {"label": "Nº de Dias de Férias Indenizadas", "tipo": "dias"},
+    "faltas_horas": {"label": "Nº de Horas de Faltas", "tipo": "horas"},
+    "faltas_dias": {"label": "Nº de Dias de Faltas", "tipo": "dias"},
+    "ajuda_custo_diario": {"label": "Valor Diário da Ajuda de Custo (R$)", "tipo": "moeda"},
+    "valor_base_desconto": {"label": "Valor que gerou o desconto (R$)", "tipo": "moeda"},
 }

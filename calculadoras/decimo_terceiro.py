@@ -5,7 +5,7 @@ from data import ProvedorDadosFhemig
 class CalculadoraDecimoTerceiro(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "13º = (Venc + Ad.Desemp + Ab.Emerg + GFS + Ad.Noturno + GRS) ÷ 12 × Nº Meses"
+        return "Fórmula: (Venc. Básico + Ad. Desempenho + Ab. Emergência + Grat. Fim Semana + Ad. Noturno + GRS) ÷ 12 × Nº de Meses"
     
     @property
     def campos_necessarios(self):

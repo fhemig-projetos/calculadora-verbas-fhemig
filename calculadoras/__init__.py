@@ -15,5 +15,11 @@ from .giefs_ferias import CalculadoraGIEFSFerias
 from .grs_meses import CalculadoraGRSMeses
 from .grs_desconto_horas import CalculadoraGRSDescontoHoras
 from .terco_ferias import CalculadoraTercoFerias
+from .ferias_indenizadas import CalculadoraFeriasIndenizadas
+from .faltas_horas import CalculadoraFaltasHoras
+from .faltas_dias import CalculadoraFaltasDias
+from .ajuda_custo import CalculadoraAjudaCusto
+from .desconto_custeio import CalculadoraDescontoCusteio
+from .aumento_salarial import CalculadoraAumentoSalarial
 
 from .factory import REGISTRO_CALCULADORAS

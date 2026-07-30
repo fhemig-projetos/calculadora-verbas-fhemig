@@ -5,7 +5,7 @@ from utils import FormatadorCampos
 class CalculadoraINSS(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "INSS = Vencimento Básico × Alíquota - Dedução (tabela progressiva)"
+        return "Fórmula: Venc. Básico × Alíquota - Dedução (Tabela Progressiva)"
 
     @property
     def campos_necessarios(self):

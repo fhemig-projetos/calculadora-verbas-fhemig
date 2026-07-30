@@ -5,7 +5,7 @@ from data import ProvedorDadosFhemig
 class CalculadoraGRSDias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "GRS Proporcional aos Dias Trabalhados = Valor GRS ÷ 30 × Dias Trabalhados no Mês"
+        return "Fórmula: Valor GRS ÷ 30 × Dias Trabalhados no Mês"
     
     @property
     def campos_necessarios(self) -> list[str]:

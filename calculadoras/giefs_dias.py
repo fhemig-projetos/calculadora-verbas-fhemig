@@ -4,7 +4,7 @@ from utils import FormatadorCampos
 class CalculadoraGIEFSDias(CalculadoraVerba):
     @property
     def descricao_formula(self):
-        return "Fórmula: GIEFS Dias = (Valor Base ÷ 30) × Dias"
+        return "Fórmula: (Valor Base ÷ 30) × Dias"
 
     @property
     def campos_necessarios(self) -> list[str]:

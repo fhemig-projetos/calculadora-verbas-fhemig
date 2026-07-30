@@ -5,7 +5,7 @@ from data import ProvedorDadosFhemig
 class CalculadoraGRSDescontoHoras(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: GRS ÷ CH × horas_falta"
+        return "Fórmula: GRS ÷ Carga Horária × horas_falta"
 
     @property
     def campos_necessarios(self) -> list[str]:

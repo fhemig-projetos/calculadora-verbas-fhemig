@@ -5,7 +5,7 @@ from data import ProvedorDadosFhemig
 class CalculadoraTercoFerias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "1/3 de Férias = (Venc + Ad.Desemp + Ab.Emerg + Ad.Noturno + GRS) ÷ 3"
+        return "Fórmula: (Venc. Básico + Ad. Desempenho + Ab. Emergência + Ad. Noturno + GRS) ÷ 3"
 
     @property
     def campos_necessarios(self):

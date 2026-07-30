@@ -4,7 +4,7 @@ from utils import FormatadorCampos
 class CalculadoraGIEFSMeses(CalculadoraVerba):
     @property
     def descricao_formula(self):
-        return "Fórmula: GIEFS Meses = (Valor Base ÷ 6) × Parcelas"
+        return "Fórmula: (Valor Base ÷ 6) × Parcelas"
     
     @property
     def campos_necessarios(self) -> list[str]:

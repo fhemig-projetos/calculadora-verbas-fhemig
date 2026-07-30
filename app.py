@@ -329,8 +329,8 @@ with st.expander("📋 Dados do Servidor (cabeçalho do PDF)", expanded=True):
 
         c9, c10, c11 = st.columns(3)
         ds["ch_semanal"]  = c9.text_input("Carga Horária Semanal",    value=ds.get("ch_semanal",""), placeholder="Ex: 40 Horas Semanais")
-        ds["ch_mensal"]   = c10.number_input("Carga Horária Mensal", value=ds.get("ch_mensal", 0.0), min_value=0.0, step=1.0, format="%.0f")
-        ds["vencimento"]  = c11.number_input("Vencimento Básico (R$)", value=ds.get("vencimento", 0.0), min_value=0.0, step=0.01, format="%.2f")
+        ds["ch_mensal"]   = c10.number_input("Carga Horária Mensal", value=ds.get("ch_mensal", 0.0), min_value=0.0, step=1.0, format="%.0f", key="servidor_ch_mensal")
+        ds["vencimento"]  = c11.number_input("Vencimento Básico (R$)", value=ds.get("vencimento", 0.0), min_value=0.0, step=0.01, format="%.2f", key="servidor_vencimento")
 
 # Atalhos para uso nos campos de verba
 _vb_default = float(ds["vencimento"])
@@ -376,11 +376,11 @@ else:
     if verba == "Gratificação de Final de Semana":
         st.markdown('<div class="descricao-verba">Fórmula: (Venc. Básico + Ad. Desempenho) ÷ Carga Horária × Horas Realizadas × 1,0833</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        vb = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ad = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f")
+        vb = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="gfs_vb")
+        ad = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f", key="gfs_ad")
         c3, c4 = st.columns(2)
-        ch = c3.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f")
-        hr = c4.number_input("Horas de Final de Semana Realizadas", min_value=0.0, step=1.0, format="%.0f")
+        ch = c3.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f", key="gfs_ch")
+        hr = c4.number_input("Horas de Final de Semana Realizadas", min_value=0.0, step=1.0, format="%.0f", key="gfs_hr")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = vb + ad
             resultado = (base / ch) * hr * (13/12)
@@ -392,9 +392,9 @@ else:
     elif verba == "Adicional Noturno":
         st.markdown('<div class="descricao-verba">Fórmula: Venc. Básico ÷ Carga Horária × Horas Noturnas × 0,20</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        vb = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ch = c2.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f")
-        hr = c3.number_input("Horas Noturnas (22h–5h)", min_value=0.0, step=1.0, format="%.0f")
+        vb = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="an_vb")
+        ch = c2.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f", key="an_ch")
+        hr = c3.number_input("Horas Noturnas (22h–5h)", min_value=0.0, step=1.0, format="%.0f", key="an_hr")
         if st.button("Calcular", type="primary", use_container_width=True):
             vh = vb / ch
             resultado = vh * hr * 0.20
@@ -404,11 +404,11 @@ else:
     elif verba == "Hora Extra":
         st.markdown('<div class="descricao-verba">Fórmula: (Venc. Básico + Ad. Desempenho) ÷ Carga Horária × Horas × 1,50</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        vb = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ad = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f")
+        vb = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="he_vb")
+        ad = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f", key="he_ad")
         c3, c4 = st.columns(2)
-        ch = c3.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f")
-        hr = c4.number_input("Quantidade de Horas Extras", min_value=0.0, step=1.0, format="%.0f")
+        ch = c3.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f", key="he_ch")
+        hr = c4.number_input("Quantidade de Horas Extras", min_value=0.0, step=1.0, format="%.0f", key="he_hr")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = vb + ad
             resultado = (base / ch) * hr * 1.5
@@ -418,14 +418,14 @@ else:
     elif verba == "13º Salário":
         st.markdown('<div class="descricao-verba">Fórmula: (Venc + Ad. Desempenho + Ab. Emergência + Grat. Fim Semana + Ad. Noturno + GRS) ÷ 12 × Nº Meses</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        vb  = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ad  = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ae  = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f")
+        vb  = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="13_vb")
+        ad  = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f", key="13_ad")
+        ae  = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f", key="13_ae")
         c4, c5, c6 = st.columns(3)
-        gfs = c4.number_input("Grat. Final de Semana (R$)", min_value=0.0, step=0.01, format="%.2f")
-        an  = c5.number_input("Adicional Noturno (R$)", min_value=0.0, step=0.01, format="%.2f")
-        grs = c6.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        mm  = st.number_input("Nº de Meses de Direito (1–12)", min_value=1, max_value=12, value=12, step=1)
+        gfs = c4.number_input("Grat. Final de Semana (R$)", min_value=0.0, step=0.01, format="%.2f", key="13_gfs")
+        an  = c5.number_input("Adicional Noturno (R$)", min_value=0.0, step=0.01, format="%.2f", key="13_an")
+        grs = c6.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="13_grs")
+        mm  = st.number_input("Nº de Meses de Direito (1–12)", min_value=1, max_value=12, value=12, step=1, key="13_mm")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = vb + ad + ae + gfs + an + grs
             resultado = (base / 12) * mm
@@ -438,8 +438,8 @@ else:
     elif verba == "GIEFS — 13º Salário":
         st.markdown('<div class="descricao-verba">Fórmula: Valor base ÷ 12 × Nº de Parcelas</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        base = c1.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f")
-        parc = c2.number_input("Nº de Parcelas", min_value=1, max_value=12, value=12, step=1)
+        base = c1.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f", key="giefs13_base")
+        parc = c2.number_input("Nº de Parcelas", min_value=1, max_value=12, value=12, step=1, key="giefs13_parc")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = (base / 12) * parc
             memoria = [f"{brl(base)} ÷ 12 = {brl(base/12)}/parcela",
@@ -448,9 +448,9 @@ else:
     elif verba == "INSS sobre 13º Salário":
         st.markdown('<div class="descricao-verba">Tabela progressiva INSS sobre (13º Salário + GIEFS do 13º)</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        dec   = c1.number_input("Valor do 13º (R$)", min_value=0.0, step=0.01, format="%.2f")
-        giefs = c2.number_input("GIEFS do 13º (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ano   = c3.selectbox("Ano de Referência", [2026, 2025, 2024])
+        dec   = c1.number_input("Valor do 13º (R$)", min_value=0.0, step=0.01, format="%.2f", key="inss13_dec")
+        giefs = c2.number_input("GIEFS do 13º (R$)", min_value=0.0, step=0.01, format="%.2f", key="inss13_giefs")
+        ano   = c3.selectbox("Ano de Referência", [2026, 2025, 2024], key="inss13_ano")
         if st.button("Calcular", type="primary", use_container_width=True):
             base_c = dec + giefs
             resultado, aliq = calc_inss(base_c, ano)
@@ -461,8 +461,8 @@ else:
     elif verba == "GIEFS — Dias":
         st.markdown('<div class="descricao-verba">Fórmula: Valor base ÷ 30 × Nº de Dias</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        base = c1.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f")
-        dias = c2.number_input("Nº de Dias", min_value=1, max_value=30, value=1, step=1)
+        base = c1.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f", key="giefs_dias_base")
+        dias = c2.number_input("Nº de Dias", min_value=1, max_value=30, value=1, step=1, key="giefs_dias_dias")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = (base / 30) * dias
             memoria = [f"{brl(base)} ÷ 30 = {brl(base/30)}/dia",
@@ -471,8 +471,8 @@ else:
     elif verba == "GIEFS — Meses (parcelas)":
         st.markdown('<div class="descricao-verba">Fórmula: Valor base ÷ 6 × Nº de Parcelas</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        base = c1.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f")
-        parc = c2.number_input("Nº de Parcelas", min_value=1, max_value=6, value=1, step=1)
+        base = c1.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f", key="giefs_meses_base")
+        parc = c2.number_input("Nº de Parcelas", min_value=1, max_value=6, value=1, step=1, key="giefs_meses_parc")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = (base / 6) * parc
             memoria = [f"{brl(base)} ÷ 6 = {brl(base/6)}/parcela",
@@ -480,7 +480,7 @@ else:
 
     elif verba == "GIEFS — 1/3 de Férias":
         st.markdown('<div class="descricao-verba">Fórmula: Valor base ÷ 3</div>', unsafe_allow_html=True)
-        base = st.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f")
+        base = st.number_input("Valor base (R$)", min_value=0.0, step=0.01, format="%.2f", key="giefs_ferias_base")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = base / 3
             memoria = [f"{brl(base)} ÷ 3", f"= {brl(resultado)}"]
@@ -488,8 +488,8 @@ else:
     elif verba == "GRS — Dias":
         st.markdown('<div class="descricao-verba">Fórmula: GRS ÷ 30 × Nº de Dias</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        grs  = c1.number_input("Valor da GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        dias = c2.number_input("Nº de Dias", min_value=1, max_value=30, value=1, step=1)
+        grs  = c1.number_input("Valor da GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="grs_dias_grs")
+        dias = c2.number_input("Nº de Dias", min_value=1, max_value=30, value=1, step=1, key="grs_dias_dias")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = (grs / 30) * dias
             memoria = [f"GRS/dia: {brl(grs/30)}", f"× {dias} dias", f"= {brl(resultado)}"]
@@ -497,8 +497,8 @@ else:
     elif verba == "GRS — Meses":
         st.markdown('<div class="descricao-verba">Fórmula: GRS × Nº de Meses</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        grs   = c1.number_input("Valor da GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        meses = c2.number_input("Nº de Meses", min_value=1, max_value=12, value=1, step=1)
+        grs   = c1.number_input("Valor da GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="grs_meses_grs")
+        meses = c2.number_input("Nº de Meses", min_value=1, max_value=12, value=1, step=1, key="grs_meses_meses")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = grs * meses
             memoria = [f"{brl(grs)} × {meses} meses", f"= {brl(resultado)}"]
@@ -506,9 +506,9 @@ else:
     elif verba == "GRS — Desconto de Horas":
         st.markdown('<div class="descricao-verba">Fórmula: GRS ÷ Carga Horária × Horas de Falta</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        grs = c1.number_input("Valor da GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ch  = c2.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f")
-        hf  = c3.number_input("Horas de Falta", min_value=0.0, step=1.0, format="%.0f")
+        grs = c1.number_input("Valor da GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="grs_desc_grs")
+        ch  = c2.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f", key="grs_desc_ch")
+        hf  = c3.number_input("Horas de Falta", min_value=0.0, step=1.0, format="%.0f", key="grs_desc_hf")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = (grs / ch) * hf
             memoria = [f"GRS/hora: {brl(grs/ch)}", f"× {hf:.0f} horas", f"= {brl(resultado)}"]
@@ -516,12 +516,12 @@ else:
     elif verba == "1/3 de Férias":
         st.markdown('<div class="descricao-verba">Fórmula: (Salário + Ab. Emergência + Ad. Desempenho + Ad. Noturno + GRS) ÷ 3</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        sal = c1.number_input("Salário (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ae  = c2.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ad  = c3.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f")
+        sal = c1.number_input("Salário (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="terco_sal")
+        ae  = c2.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f", key="terco_ae")
+        ad  = c3.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f", key="terco_ad")
         c4, c5 = st.columns(2)
-        an  = c4.number_input("Adicional Noturno (R$)", min_value=0.0, step=0.01, format="%.2f")
-        grs = c5.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
+        an  = c4.number_input("Adicional Noturno (R$)", min_value=0.0, step=0.01, format="%.2f", key="terco_an")
+        grs = c5.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="terco_grs")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = sal + ae + ad + an + grs
             resultado = base / 3
@@ -533,13 +533,13 @@ else:
     elif verba == "Férias Indenizadas":
         st.markdown('<div class="descricao-verba">Fórmula: (Salário + GIEFS + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Nº de Dias</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        sal  = c1.number_input("Salário (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        gie  = c2.number_input("GIEFS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ae   = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f")
+        sal  = c1.number_input("Salário (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="ferias_ind_sal")
+        gie  = c2.number_input("GIEFS (R$)", min_value=0.0, step=0.01, format="%.2f", key="ferias_ind_gie")
+        ae   = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f", key="ferias_ind_ae")
         c4, c5, c6 = st.columns(3)
-        grs  = c4.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        an   = c5.number_input("Adicional Noturno (R$)", min_value=0.0, step=0.01, format="%.2f")
-        dias = c6.number_input("Nº de Dias de Férias", min_value=1, max_value=30, value=30, step=1)
+        grs  = c4.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="ferias_ind_grs")
+        an   = c5.number_input("Adicional Noturno (R$)", min_value=0.0, step=0.01, format="%.2f", key="ferias_ind_an")
+        dias = c6.number_input("Nº de Dias de Férias", min_value=1, max_value=30, value=30, step=1, key="ferias_ind_dias")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = sal + gie + ae + grs + an
             resultado = (base / 30) * dias
@@ -551,13 +551,13 @@ else:
     elif verba == "Faltas — Horas (desconto)":
         st.markdown('<div class="descricao-verba">Fórmula: (Venc + Ad. Desempenho + Ab. Emergência + GRS) ÷ Carga Horária × Horas de Falta</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        vb  = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ad  = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ae  = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f")
+        vb  = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="faltas_h_vb")
+        ad  = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f", key="faltas_h_ad")
+        ae  = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f", key="faltas_h_ae")
         c4, c5, c6 = st.columns(3)
-        grs = c4.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ch  = c5.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f")
-        hf  = c6.number_input("Horas de Falta", min_value=0.0, step=1.0, format="%.0f")
+        grs = c4.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="faltas_h_grs")
+        ch  = c5.number_input("Carga Horária Mensal (h)", value=_ch_default, min_value=1.0, step=1.0, format="%.0f", key="faltas_h_ch")
+        hf  = c6.number_input("Horas de Falta", min_value=0.0, step=1.0, format="%.0f", key="faltas_h_hf")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = vb + ad + ae + grs
             resultado = (base / ch) * hf
@@ -567,12 +567,12 @@ else:
     elif verba == "Faltas — Dias (desconto)":
         st.markdown('<div class="descricao-verba">Fórmula: (Venc + Ad. Desempenho + Ab. Emergência + GRS) ÷ 30 × Dias de Falta</div>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
-        vb   = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f")
-        ad   = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ae   = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f")
+        vb   = c1.number_input("Vencimento Básico (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="faltas_d_vb")
+        ad   = c2.number_input("Adicional de Desempenho (R$)", min_value=0.0, step=0.01, format="%.2f", key="faltas_d_ad")
+        ae   = c3.number_input("Abono de Emergência (R$)", min_value=0.0, step=0.01, format="%.2f", key="faltas_d_ae")
         c4, c5 = st.columns(2)
-        grs  = c4.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f")
-        dias = c5.number_input("Dias de Falta", min_value=1, max_value=30, value=1, step=1)
+        grs  = c4.number_input("GRS (R$)", min_value=0.0, step=0.01, format="%.2f", key="faltas_d_grs")
+        dias = c5.number_input("Dias de Falta", min_value=1, max_value=30, value=1, step=1, key="faltas_d_dias")
         if st.button("Calcular", type="primary", use_container_width=True):
             base = vb + ad + ae + grs
             resultado = (base / 30) * dias
@@ -581,22 +581,22 @@ else:
     elif verba == "Ajuda de Custo Mensal":
         st.markdown('<div class="descricao-verba">Fórmula: Valor Diário × Quantidade de Dias ou Plantões</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        vd   = c1.number_input("Valor Diário (R$)", min_value=0.0, step=0.01, format="%.2f")
-        dias = c2.number_input("Quantidade de Dias ou Plantões", min_value=1, value=1, step=1)
+        vd   = c1.number_input("Valor Diário (R$)", min_value=0.0, step=0.01, format="%.2f", key="ajuda_vd")
+        dias = c2.number_input("Quantidade de Dias ou Plantões", min_value=1, value=1, step=1, key="ajuda_dias")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = vd * dias
             memoria = [f"{brl(vd)} × {dias} dias/plantões", f"= {brl(resultado)}"]
 
     elif verba == "Desconto de Custeio (4%)":
         st.markdown('<div class="descricao-verba">Fórmula: Valor que gerou o desconto × 4%</div>', unsafe_allow_html=True)
-        base = st.number_input("Valor que gerou o desconto (R$)", min_value=0.0, step=0.01, format="%.2f")
+        base = st.number_input("Valor que gerou o desconto (R$)", min_value=0.0, step=0.01, format="%.2f", key="custeio_base")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = base * 0.04
             memoria = [f"{brl(base)} × 4%", f"= {brl(resultado)}"]
 
     elif verba == "Aumento Salarial (4,62%)":
         st.markdown('<div class="descricao-verba">Fórmula: Valor atual × 4,62%</div>', unsafe_allow_html=True)
-        base = st.number_input("Valor que sofrerá o aumento (R$)", min_value=0.0, step=0.01, format="%.2f")
+        base = st.number_input("Valor que sofrerá o aumento (R$)", value=_vb_default, min_value=0.0, step=0.01, format="%.2f", key="aumento_base")
         if st.button("Calcular", type="primary", use_container_width=True):
             aumento = base * 0.0462
             resultado = aumento
@@ -605,7 +605,7 @@ else:
 
     elif verba == "Desconto de IPSEMG (3,2%)":
         st.markdown('<div class="descricao-verba">Fórmula: Base de incidência × 3,2%</div>', unsafe_allow_html=True)
-        base = st.number_input("Valor a sofrer incidência de IPSEMG (R$)", min_value=0.0, step=0.01, format="%.2f")
+        base = st.number_input("Valor a sofrer incidência de IPSEMG (R$)", min_value=0.0, step=0.01, format="%.2f", key="ipsemg_base")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = base * 0.032
             memoria = [f"{brl(base)} × 3,2%", f"= {brl(resultado)}"]
@@ -613,8 +613,8 @@ else:
     elif verba == "INSS Mensal (tabela progressiva)":
         st.markdown('<div class="descricao-verba">Cálculo progressivo conforme tabela INSS do ano de referência</div>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        base = c1.number_input("Base de cálculo (R$)", min_value=0.0, step=0.01, format="%.2f")
-        ano  = c2.selectbox("Ano de Referência", [2026, 2025, 2024])
+        base = c1.number_input("Base de cálculo (R$)", min_value=0.0, step=0.01, format="%.2f", key="inss_mensal_base")
+        ano  = c2.selectbox("Ano de Referência", [2026, 2025, 2024], key="inss_mensal_ano")
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado, aliq = calc_inss(base, ano)
             tab = TABELA_INSS[ano]

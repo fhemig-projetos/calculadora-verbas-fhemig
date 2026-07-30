@@ -5,7 +5,7 @@ from utils import FormatadorCampos
 class CalculadoraINSSDecimoTerceiro(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "INSS s/ 13º = (13º + GIEFS 13º) × Alíquota − Dedução (tabela progressiva)"
+        return "Fórmula: (13º + GIEFS 13º) × Alíquota − Dedução (Tabela Progressiva)"
 
     @property
     def campos_necessarios(self) -> list[str]:
