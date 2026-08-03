@@ -366,3 +366,97 @@ Os commits mais recentes mostram a evolução da refatoração:
 4. Registrar em `calculadoras/factory.py`
 5. Adicionar campos em `ui/config.py` (se forem novos)
 6. Adicionar defaults e renderização em `ui/selecao_verba.py`
+
+---
+
+## 10. Plano de desenvolvimento — próxima sessão
+
+> **Data:** 04/03/2026 (amanhã)
+> **Objetivo:** Corrigir bug da Ajuda de Custo Mensal e adaptar o Aumento Salarial para múltiplas alíquotas.
+
+### 10.1 🔴 Bug — Ajuda de Custo Mensal (erro ao abrir a aba)
+
+**Sintoma:** `StreamlitMixedNumericTypesError: All numerical arguments must be of the same type. value has int type. min_value has float type. max_value has float type. step has float type.`
+
+**Causa raiz:** Em `ui/selecao_verba.py`, o campo `ajuda_custo_diario` **não tem** um `elif` próprio na cadeia de defaults. O bloco que seria dele está **comentado** (linhas 175–181), então o fluxo cai no `else` final que define `valor_default = 0` (**int**). Porém o `st.number_input` desse campo usa `min_value=0.0`, `max_value=75.0`, `step=0.01` (**float**). O Streamlit exige que `value`, `min_value`, `max_value` e `step` tenham o **mesmo tipo**.
+
+**Correção (em `ui/selecao_verba.py`):** Substituir o bloco comentado por um `elif` ativo:
+
+```python
+elif campo == "ajuda_custo_diario":
+    valor_default = 0.0   # float, compatível com min_value/max_value/step
+```
+
+> **Decisão:** NÃO buscar no histórico. Confirmado que nenhuma outra verba depende do valor de ajuda de custo — o campo é usado exclusivamente pela `CalculadoraAjudaCusto` (verba "Ajuda de Custo Mensal"). O bloco comentado era apenas intenção não implementada.
+
+**Arquivo `calculadoras/ajuda_custo.py`:** NÃO precisa de alterações (erro é puramente de interface).
+
+### 10.2 🟡 Adaptação — Aumento Salarial com múltiplas alíquotas
+
+**Contexto:** Reajustes salariais em momentos diferentes:
+- **2024** → alíquota **4,62%**
+- **2026** → alíquota **5,4%**
+- Caso de **dois reajustes em sequência** (2024 + 2026)
+
+**Decisão de design:** Uma única classe com campo de seleção `ano_reajuste` (em vez de classes separadas). Escalável para futuros reajustes e evita duplicação de lógica.
+
+**Alterações:**
+
+**1. `calculadoras/aumento_salarial.py`** — Modificar a classe:
+
+```python
+ALIQUOTAS_POR_ANO = {
+    "2024": [0.0462],
+    "2026": [0.054],
+    "2024 + 2026": [0.0462, 0.054],
+}
+
+class CalculadoraAumentoSalarial(CalculadoraVerba):
+    @property
+    def descricao_formula(self) -> str:
+        return "Fórmula: Venc. Básico × alíquota do reajuste"
+
+    @property
+    def campos_necessarios(self) -> list[str]:
+        return ["ano_reajuste", "vencimento_basico"]
+
+    def calcular(self, ano_reajuste: str, vencimento_basico: float) -> ResultadoCalculo:
+        aliquotas = ALIQUOTAS_POR_ANO[ano_reajuste]
+
+        valor_atual = vencimento_basico
+        memoria = [f"Valor atual: {FormatadorCampos.brl(vencimento_basico)}"]
+        for aliquota in aliquotas:
+            aumento = valor_atual * aliquota
+            valor_atual += aumento
+            memoria.append(f"× {aliquota*100:.2f}% = {FormatadorCampos.brl(aumento)}")
+        memoria.append(f"Novo valor: {FormatadorCampos.brl(valor_atual)}")
+
+        aumento_total = valor_atual - vencimento_basico
+        return ResultadoCalculo(valor=round(aumento_total, 2), memoria_calculo=memoria)
+```
+
+> **Nota sobre cálculo em sequência:** Aplicar 4,62% e depois 5,4% **não** é somar (9,02%). É **composto**: `base × 1,0462 × 1,054`. A memória de cálculo deixa cada etapa transparente.
+
+**2. `ui/config.py`** — Adicionar:
+
+```python
+"ano_reajuste": {"label": "Ano do Reajuste", "tipo": "select_ano_reajuste"},
+```
+
+**3. `ui/selecao_verba.py`** — Adicionar o tratamento do campo `ano_reajuste` na renderização (padrão de `grs_risco`/`carga_horaria_mensal`):
+
+```python
+elif campo == "ano_reajuste":
+    valores[campo] = st.selectbox(
+        config["label"],
+        options=["2024", "2026", "2024 + 2026"],
+    )
+```
+
+**4. `calculadoras/factory.py`** — Renomear a verba no registro:
+
+```python
+"Aumento Salarial": CalculadoraAumentoSalarial(),
+```
+
+> **Pendência de confirmação:** O cálculo "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`), prática usual de reajustes salariais. Confirmar antes de implementar.

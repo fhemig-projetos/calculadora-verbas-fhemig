@@ -171,14 +171,8 @@ class SelecaoVerba:
                 valor_default = 0.0
             elif campo == "valor_base_aumento":
                 valor_default = ds.get("vencimento_basico")  # busca do preenchimento do cabeçalho
-
-            #elif campo == "ajuda_custo_diario":
-                # Busca no histórico o último cálculo de Ajuda de Custo Mensal
-                #historico = st.session_state.get#("historico", [])
-                #for item in reversed(historico):
-                #    if item.get("nome_verba") == "Ajuda de Custo Mensal":
-                #        valor_default = item["valor"]
-                #        break
+            elif campo == "ajuda_custo_diario":
+                valor_default = 75.0
             else:
                 valor_default = 0
 
@@ -248,15 +242,6 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=30, # o máximo é 30?
-                    )
-                elif campo == "ajuda_custo_diario":
-                    valores[campo] = st.number_input(
-                        config["label"],
-                        value=valor_default,
-                        min_value=0.0,
-                        max_value=75.0,
-                        step=0.01,
-                        format="%.2f",
                     )
                 else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(

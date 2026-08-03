@@ -4,7 +4,7 @@ from utils import FormatadorCampos
 class CalculadoraAumentoSalarial(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: Venc. Básico × 4,62%"
+        return "Fórmula: Venc. Básico × alíquota de reajuste"
 
     @property
     def campos_necessarios(self) -> list[str]:
