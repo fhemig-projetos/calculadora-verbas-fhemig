@@ -25,7 +25,7 @@ calculadora-verbas-fhemig/
 │   ├── gratificacao_final_semana.py  # ✅ Implementada
 │   ├── grs_dias.py            # ✅ Implementada
 │   ├── inss_mensal.py         # ✅ Implementada
-│   ├── decimo_terceiro.py     # ✅ Implementada (com _parser_nivel_grs)
+│   ├── decimo_terceiro.py     # ✅ Implementada
 │   ├── giefs_13.py            # ✅ Implementada
 │   ├── piso_enfermagem_13.py  # ✅ Implementada
 │   ├── giefs_dias.py          # ✅ Implementada
@@ -39,13 +39,13 @@ calculadora-verbas-fhemig/
 │   ├── faltas_horas.py        # ✅ Implementada
 │   ├── faltas_dias.py         # ✅ Implementada
 │   ├── ajuda_custo.py         # ✅ Implementada
-│   ├── desconto_custeio.py    # ✅ Implementada
+│   ├── ajuda_custo_desconto.py# ✅ Implementada
 │   └── aumento_salarial.py    # ✅ Implementada
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
 │   ├── provedor_dados.py      # ProvedorDadosFhemig (cache + acesso JSON)
-│   └── tabelas.json           # Cargos, INSS, verbas, GRS
+│   └── tabelas.json           # Cargos, INSS, verbas, GRS, reajustes
 │
 ├── ui/                        # Componentes de interface Streamlit
 │   ├── __init__.py
@@ -85,11 +85,11 @@ calculadora-verbas-fhemig/
 | GRS — Desconto de Horas | `calculadoras/grs_desconto_horas.py` | ✅ |
 | 1/3 de Férias | `calculadoras/terco_ferias.py` | ✅ |
 | Férias Indenizadas | `calculadoras/ferias_indenizadas.py` | ✅ |
-| Faltas — Horas (desconto) | `calculadoras/faltas_horas.py` | ✅ |
-| Faltas — Dias (desconto) | `calculadoras/faltas_dias.py` | ✅ |
+| Faltas — Horas | `calculadoras/faltas_horas.py` | ✅ |
+| Faltas — Dias | `calculadoras/faltas_dias.py` | ✅ |
 | Ajuda de Custo Mensal | `calculadoras/ajuda_custo.py` | ✅ |
-| Desconto de Custeio (4%) | `calculadoras/desconto_custeio.py` | ✅ |
-| Aumento Salarial (4,62%) | `calculadoras/aumento_salarial.py` | ✅ |
+| Desconto de Ajuda de Custo | `calculadoras/ajuda_custo_desconto.py` | ✅ |
+| Aumento Salarial | `calculadoras/aumento_salarial.py` | ✅ |
 
 ### 2.2 Interface
 
@@ -116,14 +116,17 @@ calculadora-verbas-fhemig/
 - `data/tabelas.json` com:
   - `tabela_cargos`: 4 registros (PENF, TOS, AGAS)
   - `tabela_inss`: 2024, 2025, 2026
-  - `verbas`: 21 metadados (código + tipo)
+  - `verbas`: 22 metadados (código + tipo)
   - `tabela_grs`: `nao_faz_jus: 0.0`, `risco_medio: 160.20`, `risco_alto: 320.40`
+  - `tabela_reajustes`: `2024: 0.0462`, `2026: 0.0540`
 
 ### 2.4 Decisões de implementação recentes
 
-- **GRS**: Adicionada chave `"nao_faz_jus": 0.0` no JSON. UI dinâmica: se verba = "GRS — Dias", exibe apenas "Risco Médio" e "Risco Alto"; senão, exibe as 3 opções. Calculadoras usam `_parser_nivel_grs()` ou parser inline para mapear string → chave do JSON.
+- **GRS**: Parser **centralizado** em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` — recebe a string da UI e mapeia para a chave do JSON (`risco_medio`, `risco_alto`, `nao_faz_jus`). Eliminou os `_parser_nivel_grs` locais e parsers inline. UI dinâmica: se verba = "GRS — Dias", exibe apenas "Risco Médio" e "Risco Alto"; senão, exibe as 3 opções.
 - **CH Mensal**: Mudou de `number_input` para `selectbox` com opções [120, 180, 240, 264]. Default vem do formulário do servidor (CH Semanal ÷ 5 × 30). Se valor default não estiver nas opções, fallback para índice 2 (240).
 - **CH Semanal**: Selectbox sem opção "Selecione", default = 40 (index 2).
+- **Aumento Salarial**: Multi-alíquotas via `tabela_reajustes` no JSON. Campo `ano_reajuste` (selectbox 2024/2026). No histórico, o nome vira "Aumento Salarial (2024)" / "Aumento Salarial (2026)" para diferenciar.
+- **Faltas — Dias e Faltas — Horas**: Fórmulas revisadas para incluir **Piso Enfermagem** na base. Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
 
 ---
 
@@ -184,7 +187,7 @@ calculadora-verbas-fhemig/
 **Campos:** `grs_risco` (select), `numero_meses` (1-12)
 
 **Detalhes:**
-- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
 - Registrada como `"GRS — Meses"` (código 2420, Vantagem)
 
 ### 3.6 ✅ GRS — Desconto de Horas
@@ -196,7 +199,7 @@ calculadora-verbas-fhemig/
 **Campos:** `grs_risco` (select), `carga_horaria_mensal` (selectbox 120-264), `horas_realizadas` (inteiro)
 
 **Detalhes:**
-- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
 - Possui proteção contra divisão por zero (CH = 0 → fallback 1)
 - Registrada como `"GRS — Desconto de Horas"` (código 7820, Desconto)
 
@@ -209,7 +212,7 @@ calculadora-verbas-fhemig/
 **Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (default 0), `abono_emergencia` (default 0), `adicional_noturno` (busca no histórico), `grs_risco` (select)
 
 **Detalhes:**
-- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
 - Registrada como `"1/3 de Férias"` (código 2431, Vantagem)
 
 ### 3.8 ✅ Férias Indenizadas
@@ -221,33 +224,35 @@ calculadora-verbas-fhemig/
 **Campos:** `vencimento_basico` (do cabeçalho), `valor_giefs` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `adicional_noturno` (busca no histórico), `dias_ferias_indenizadas` (1-30, default 30)
 
 **Detalhes:**
-- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
 - Registrada como `"Férias Indenizadas"` (código 2432, Vantagem)
 
-### 3.9 ✅ Faltas — Horas (desconto)
+### 3.9 ✅ Faltas — Horas
 
 **Arquivo:** `calculadoras/faltas_horas.py` — classe `CalculadoraFaltasHoras`
 
-**Fórmula:** `(Venc + Ad. Desempenho + Ab. Emergência + GRS) ÷ CH × Horas de Falta`
+**Fórmula:** `(Venc + Ad. Desempenho + Ab. Emergência + GRS + Piso Enf.) ÷ CH × Horas de Falta`
 
-**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `carga_horaria_mensal` (selectbox 120-264), `faltas_horas` (inteiro)
+**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `valor_piso` (moeda), `carga_horaria_mensal` (selectbox 120-264), `faltas_horas` (inteiro)
 
 **Detalhes:**
-- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
-- Possui proteção contra divisão por zero (CH = 0 → fallback 1)
-- Registrada como `"Faltas — Horas (desconto)"` (código 7810, Desconto)
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
+- Inclui **Piso Enfermagem** na base (default 0.0, editável)
+- Registrada como `"Faltas — Horas"` (código 7810, Desconto)
 
-### 3.10 ✅ Faltas — Dias (desconto)
+### 3.10 ✅ Faltas — Dias
 
 **Arquivo:** `calculadoras/faltas_dias.py` — classe `CalculadoraFaltasDias`
 
-**Fórmula:** `(Venc + Ad. Desempenho + Ab. Emergência + GRS) ÷ 30 × Dias de Falta`
+**Fórmula:** `(Venc + Ad. Desempenho + Ab. Emergência + GRS + Piso Enf.) ÷ 30 × Dias de Falta`
 
-**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `faltas_dias` (1-30)
+**Campos:** `vencimento_basico` (do cabeçalho), `ad_desempenho` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `valor_piso` (moeda), `faltas_dias` (1-30)
 
 **Detalhes:**
-- Reaproveita `_parser_nivel_grs()` e `ProvedorDadosFhemig.obter_valor_grs()`
-- Registrada como `"Faltas — Dias (desconto)"` (código 7811, Desconto)
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
+- Inclui **Piso Enfermagem** na base (default 0.0, editável)
+- Divisor é **30** (dias)
+- Registrada como `"Faltas — Dias"` (código 7811, Desconto)
 
 ### 3.11 ✅ Ajuda de Custo Mensal
 
@@ -260,31 +265,33 @@ calculadora-verbas-fhemig/
 **Detalhes:**
 - Registrada como `"Ajuda de Custo Mensal"` (código 2070, Vantagem)
 
-### 3.12 ✅ Desconto de Custeio (4%)
+### 3.12 ✅ Desconto de Ajuda de Custo
 
-**Arquivo:** `calculadoras/desconto_custeio.py` — classe `CalculadoraDescontoCusteio`
+**Arquivo:** `calculadoras/ajuda_custo_desconto.py` — classe `CalculadoraDescontoAjudaCusto`
 
 **Fórmula:** `Valor base × 4%`
 
 **Campos:** `valor_base_desconto` (moeda)
 
 **Detalhes:**
-- Registrada como `"Desconto de Custeio (4%)"` (código 9018, Desconto)
+- Registrada como `"Desconto de Ajuda de Custo"` (código 9018, Desconto)
+- **Pendência:** pré-preencher `valor_base_desconto` com a última "Ajuda de Custo Mensal" do histórico
 
-### 3.13 ✅ Aumento Salarial (4,62%)
+### 3.13 ✅ Aumento Salarial (multi-alíquotas)
 
 **Arquivo:** `calculadoras/aumento_salarial.py` — classe `CalculadoraAumentoSalarial`
 
-**Fórmula:** `Valor atual × 4,62%`
+**Fórmula:** `Venc. Básico × alíquota do reajuste`
 
-**Campos:** `valor_base_aumento` (moeda, default vencimento básico do cabeçalho)
+**Campos:** `ano_reajuste` (selectbox 2024/2026), `vencimento_basico` (do cabeçalho)
 
 **Detalhes:**
-- Exibe na memória de cálculo: valor atual, aumento e novo valor
-- Registrada como `"Aumento Salarial (4,62%)"` (código ----, Vantagem)
+- Alíquotas vêm de `tabela_reajustes` no JSON (2024: 4,62%, 2026: 5,4%)
+- No histórico, o nome vira "Aumento Salarial (2024)" / "Aumento Salarial (2026)"
+- Registrada como `"Aumento Salarial"` (código ----, Vantagem)
+- **Pendência:** cálculo combinado "2024 + 2026" (composto) aguardando confirmação da área
 
 ---
-
 
 ## 4. Pendências (a fazer)
 
@@ -308,6 +315,24 @@ Seguir o mesmo padrão das já implementadas.
 - Versão modular usa `data/tabelas.json`
 - Quando `app.py` for descontinuado, remover as duplicatas
 
+### 4.4 Revisar parsers GRS nas calculadoras restantes
+
+Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` nas calculadoras que ainda usam `_parser_nivel_grs` local ou parser inline:
+
+| Arquivo | Padrão atual | Ação |
+|---|---|---|
+| `grs_meses.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `grs_desconto_horas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `ferias_indenizadas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `terco_ferias.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `grs_dias.py` | Parser inline | Chamada direta (corrige "Não faz jus") |
+
+### 4.5 Commit pendente — renomeação Desconto de Ajuda de Custo
+
+- `desconto_ajuda_custo.py` → `ajuda_custo_desconto.py` (não commitado)
+- `calculadora_modelo.py` deletado (confirmar se intencional)
+- `ui/selecao_verba.py` modificado (renomeação "Aumento Salarial (ano)" no histórico)
+
 ---
 
 ## 5. Observações sobre regras de negócio
@@ -321,6 +346,7 @@ Seguir o mesmo padrão das já implementadas.
 - **GIEFS — 1/3 de Férias**: usa `valor_giefs` (campo separado de `valor_base`)
 - **Campo `numero_parcelas`**: novo campo inteiro (1-12) para GIEFS — Meses (parcelas)
 - **INSS sobre 13º**: `valor_13_salario` e `giefs_13_salario` são preenchidos automaticamente via busca no histórico
+- **Faltas — Dias e Faltas — Horas**: base inclui **Piso Enfermagem** (CPE — Lei 14434/22). Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
 
 ---
 
@@ -328,6 +354,7 @@ Seguir o mesmo padrão das já implementadas.
 
 - Abono Emergência é valor fixo (R$ 150)?
 - ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
+- Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área.
 
 ---
 
@@ -353,8 +380,8 @@ Os commits mais recentes mostram a evolução da refatoração:
 - `3a48aa9` — "feat: implementa GRS dinâmico, CH Mensal como selectbox e contexto.md"
 - `ee184f0` — "feat: implementa competencia por ano para cálculo de 13o e campo de observação"
 - `9bc2c2d` — "feat: implementa calculadoras de GRS Dias e 13º Salário"
-- Últimas implementações: INSS sobre 13º, GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias, GRS — Meses, GRS — Desconto de Horas, 1/3 de Férias
-- Implementações recentes: Férias Indenizadas, Faltas — Horas (desconto), Faltas — Dias (desconto), Ajuda de Custo Mensal, Desconto de Custeio (4%), Aumento Salarial (4,62%)
+- `f955347` — "feat: implementa aumento salarial com diferentes alíquotas e revisa cálculo de faltas de dias e horas"
+- Implementações recentes: Férias Indenizadas, Faltas — Horas, Faltas — Dias, Ajuda de Custo Mensal, Desconto de Ajuda de Custo, Aumento Salarial (multi-alíquotas)
 
 ---
 
@@ -371,92 +398,51 @@ Os commits mais recentes mostram a evolução da refatoração:
 
 ## 10. Plano de desenvolvimento — próxima sessão
 
-> **Data:** 04/03/2026 (amanhã)
-> **Objetivo:** Corrigir bug da Ajuda de Custo Mensal e adaptar o Aumento Salarial para múltiplas alíquotas.
+> **Data:** 04/03/2026
+> **Objetivo:** Revisar lógica de cálculo e parsers GRS nas calculadoras restantes + commitar pendências.
 
-### 10.1 🔴 Bug — Ajuda de Custo Mensal (erro ao abrir a aba)
+### 10.1 🔴 Commit pendente — renomeação Desconto de Ajuda de Custo
 
-**Sintoma:** `StreamlitMixedNumericTypesError: All numerical arguments must be of the same type. value has int type. min_value has float type. max_value has float type. step has float type.`
+- `desconto_ajuda_custo.py` → `ajuda_custo_desconto.py` (não commitado)
+- `calculadora_modelo.py` deletado (confirmar se intencional)
+- `ui/selecao_verba.py` modificado (renomeação "Aumento Salarial (ano)" no histórico)
 
-**Causa raiz:** Em `ui/selecao_verba.py`, o campo `ajuda_custo_diario` **não tem** um `elif` próprio na cadeia de defaults. O bloco que seria dele está **comentado** (linhas 175–181), então o fluxo cai no `else` final que define `valor_default = 0` (**int**). Porém o `st.number_input` desse campo usa `min_value=0.0`, `max_value=75.0`, `step=0.01` (**float**). O Streamlit exige que `value`, `min_value`, `max_value` e `step` tenham o **mesmo tipo**.
+### 10.2 🟡 Revisar parsers GRS nas calculadoras restantes
 
-**Correção (em `ui/selecao_verba.py`):** Substituir o bloco comentado por um `elif` ativo:
+Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)`:
 
+| Arquivo | Padrão atual | Ação |
+|---|---|---|
+| `grs_meses.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `grs_desconto_horas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `ferias_indenizadas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `terco_ferias.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
+| `grs_dias.py` | Parser inline | Chamada direta (corrige "Não faz jus") |
+
+**Padrão de alteração em cada uma:**
+
+**Antes:**
 ```python
-elif campo == "ajuda_custo_diario":
-    valor_default = 0.0   # float, compatível com min_value/max_value/step
+nivel = self._parser_nivel_grs(grs_risco)   # ou parser inline
+valor_grs = ProvedorDadosFhemig.obter_valor_grs(nivel)
 ```
 
-> **Decisão:** NÃO buscar no histórico. Confirmado que nenhuma outra verba depende do valor de ajuda de custo — o campo é usado exclusivamente pela `CalculadoraAjudaCusto` (verba "Ajuda de Custo Mensal"). O bloco comentado era apenas intenção não implementada.
-
-**Arquivo `calculadoras/ajuda_custo.py`:** NÃO precisa de alterações (erro é puramente de interface).
-
-### 10.2 🟡 Adaptação — Aumento Salarial com múltiplas alíquotas
-
-**Contexto:** Reajustes salariais em momentos diferentes:
-- **2024** → alíquota **4,62%**
-- **2026** → alíquota **5,4%**
-- Caso de **dois reajustes em sequência** (2024 + 2026)
-
-**Decisão de design:** Uma única classe com campo de seleção `ano_reajuste` (em vez de classes separadas). Escalável para futuros reajustes e evita duplicação de lógica.
-
-**Alterações:**
-
-**1. `calculadoras/aumento_salarial.py`** — Modificar a classe:
-
+**Depois:**
 ```python
-ALIQUOTAS_POR_ANO = {
-    "2024": [0.0462],
-    "2026": [0.054],
-    "2024 + 2026": [0.0462, 0.054],
-}
-
-class CalculadoraAumentoSalarial(CalculadoraVerba):
-    @property
-    def descricao_formula(self) -> str:
-        return "Fórmula: Venc. Básico × alíquota do reajuste"
-
-    @property
-    def campos_necessarios(self) -> list[str]:
-        return ["ano_reajuste", "vencimento_basico"]
-
-    def calcular(self, ano_reajuste: str, vencimento_basico: float) -> ResultadoCalculo:
-        aliquotas = ALIQUOTAS_POR_ANO[ano_reajuste]
-
-        valor_atual = vencimento_basico
-        memoria = [f"Valor atual: {FormatadorCampos.brl(vencimento_basico)}"]
-        for aliquota in aliquotas:
-            aumento = valor_atual * aliquota
-            valor_atual += aumento
-            memoria.append(f"× {aliquota*100:.2f}% = {FormatadorCampos.brl(aumento)}")
-        memoria.append(f"Novo valor: {FormatadorCampos.brl(valor_atual)}")
-
-        aumento_total = valor_atual - vencimento_basico
-        return ResultadoCalculo(valor=round(aumento_total, 2), memoria_calculo=memoria)
+valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 ```
 
-> **Nota sobre cálculo em sequência:** Aplicar 4,62% e depois 5,4% **não** é somar (9,02%). É **composto**: `base × 1,0462 × 1,054`. A memória de cálculo deixa cada etapa transparente.
+### 10.3 🟡 Pré-preencher `valor_base_desconto` (Desconto de Ajuda de Custo)
 
-**2. `ui/config.py`** — Adicionar:
+Buscar no histórico a última "Ajuda de Custo Mensal" e pré-preencher o campo `valor_base_desconto` (padrão de `grat_final_semana`/`adicional_noturno`).
 
-```python
-"ano_reajuste": {"label": "Ano do Reajuste", "tipo": "select_ano_reajuste"},
-```
+### 10.4 🟡 Aumento Salarial — cálculo combinado "2024 + 2026"
 
-**3. `ui/selecao_verba.py`** — Adicionar o tratamento do campo `ano_reajuste` na renderização (padrão de `grs_risco`/`carga_horaria_mensal`):
+- Aguardando confirmação da área se será **composto** (`base × 1,0462 × 1,054`)
+- Se confirmado, adicionar opção "2024 + 2026" no selectbox e lógica de múltiplas alíquotas
 
-```python
-elif campo == "ano_reajuste":
-    valores[campo] = st.selectbox(
-        config["label"],
-        options=["2024", "2026", "2024 + 2026"],
-    )
-```
+### 10.5 🟢 Calculadora restante — Desconto de IPSEMG (3,2%)
 
-**4. `calculadoras/factory.py`** — Renomear a verba no registro:
-
-```python
-"Aumento Salarial": CalculadoraAumentoSalarial(),
-```
-
-> **Pendência de confirmação:** O cálculo "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`), prática usual de reajustes salariais. Confirmar antes de implementar.
+| Verba | Código | Tipo | Fórmula |
+|---|---|---|---|
+| Desconto de IPSEMG (3,2%) | 7700 | Desconto | base × 3,2% |

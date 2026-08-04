@@ -235,8 +235,6 @@ class SelecaoVerba:
                     valores[campo] = st.number_input(
                         config["label"],
                         value=valor_default,
-                        min_value=1,
-                        max_value=240, # o máximo é 240?
                     )
                 elif campo == "faltas_dias":
                     valores[campo] = st.number_input(

@@ -17,7 +17,7 @@ from .ferias_indenizadas import CalculadoraFeriasIndenizadas
 from .faltas_horas import CalculadoraFaltasHoras
 from .faltas_dias import CalculadoraFaltasDias
 from .ajuda_custo import CalculadoraAjudaCusto
-from .desconto_ajuda_custo import CalculadoraDescontoAjudaCusto
+from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
 
 # Registro (Factory) para conectar a UI às Classes
