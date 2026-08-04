@@ -19,4 +19,5 @@ CONFIG_CAMPOS = {
     "faltas_dias": {"label": "Nº de Dias de Faltas", "tipo": "dias"},
     "ajuda_custo_diario": {"label": "Valor Diário da Ajuda de Custo (R$)", "tipo": "moeda"},
     "valor_base_desconto": {"label": "Valor que gerou o desconto (R$)", "tipo": "moeda"},
+    "ano_reajuste": {"label": "Ano do Reajuste", "tipo": "select_ano_reajuste"},
 }

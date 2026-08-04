@@ -1,10 +1,10 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 
-class CalculadoraDescontoCusteio(CalculadoraVerba):
+class CalculadoraDescontoAjudaCusto(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: Valor que gerou o desconto × 4%" # essa calculadora é do CUSTEIO ALIMENTAÇÃO?
+        return "Fórmula: Valor que gerou o desconto × 4%"
 
     @property
     def campos_necessarios(self) -> list[str]:

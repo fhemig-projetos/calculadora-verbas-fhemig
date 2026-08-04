@@ -173,6 +173,8 @@ class SelecaoVerba:
                 valor_default = ds.get("vencimento_basico")  # busca do preenchimento do cabeçalho
             elif campo == "ajuda_custo_diario":
                 valor_default = 75.0
+            elif campo == "ano_reajuste":
+                valor_default = 0 # índice do selectbox
             else:
                 valor_default = 0
 
@@ -240,8 +242,11 @@ class SelecaoVerba:
                     valores[campo] = st.number_input(
                         config["label"],
                         value=valor_default,
-                        min_value=1,
-                        max_value=30, # o máximo é 30?
+                    )
+                elif campo == "ano_reajuste":
+                    valores[campo] = st.selectbox(
+                        config["label"],
+                        options=["2024", "2026"],
                     )
                 else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(
@@ -253,8 +258,13 @@ class SelecaoVerba:
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = calculadora.calcular(**valores)
 
+            # Se for Aumento Salarial, inclui o ano no nome p/ diferenciar no histórico
+            nome_verba_historico = nome_verba
+            if nome_verba == "Aumento Salarial":
+                nome_verba_historico = f"{nome_verba} ({valores['ano_reajuste']})"
+
             st.session_state["ultimo_resultado"] = {
-                "nome_verba": nome_verba,
+                "nome_verba": nome_verba_historico,
                 "codigo": verba_meta["codigo"],
                 "tipo": verba_meta["tipo"],
                 "valor": resultado.valor,

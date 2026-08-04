@@ -45,10 +45,23 @@ class ProvedorDadosFhemig:
         return dados["verbas"]
     
     @classmethod
-    def obter_valor_grs(cls, nivel: str) -> float:
-        """Retorna o valor da GRS conforme o nível de risco."""
+    def obter_valor_grs(cls, grs_risco: str) -> float:
+        """Retorna o valor da GRS conforme a seleção da UI.
+        Mapeia a string do selectbox para a chave do JSON."""
+        if "Médio" in grs_risco:
+            nivel = "risco_medio"
+        elif "Alto" in grs_risco:
+            nivel = "risco_alto"
+        else:
+            nivel = "nao_faz_jus"
         dados = cls._carregar_dados_globais()
         return dados["tabela_grs"][nivel]
+
+    @classmethod
+    def obter_aliquota_reajuste(cls, ano: str) -> float:
+        """Retorna a alíquota de reajuste salarial para o ano solicitado."""
+        dados = cls._carregar_dados_globais()
+        return dados["tabela_reajustes"][ano]
 
     
 

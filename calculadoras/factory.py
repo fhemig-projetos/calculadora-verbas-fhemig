@@ -17,7 +17,7 @@ from .ferias_indenizadas import CalculadoraFeriasIndenizadas
 from .faltas_horas import CalculadoraFaltasHoras
 from .faltas_dias import CalculadoraFaltasDias
 from .ajuda_custo import CalculadoraAjudaCusto
-from .desconto_custeio import CalculadoraDescontoCusteio
+from .desconto_ajuda_custo import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
 
 # Registro (Factory) para conectar a UI às Classes
@@ -38,9 +38,9 @@ REGISTRO_CALCULADORAS = {
     "GRS — Desconto de Horas": CalculadoraGRSDescontoHoras(),
     "1/3 de Férias": CalculadoraTercoFerias(),
     "Férias Indenizadas": CalculadoraFeriasIndenizadas(),
-    "Faltas — Horas (desconto)": CalculadoraFaltasHoras(),
-    "Faltas — Dias (desconto)": CalculadoraFaltasDias(),
+    "Faltas — Horas": CalculadoraFaltasHoras(),
+    "Faltas — Dias": CalculadoraFaltasDias(),
     "Ajuda de Custo Mensal": CalculadoraAjudaCusto(),
-    "Desconto de Custeio (4%)": CalculadoraDescontoCusteio(),
-    "Aumento Salarial (4,62%)": CalculadoraAumentoSalarial(),
+    "Desconto de Ajuda de Custo": CalculadoraDescontoAjudaCusto(),
+    "Aumento Salarial": CalculadoraAumentoSalarial(),
 }
