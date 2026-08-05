@@ -4,17 +4,17 @@ from utils import FormatadorCampos
 class CalculadoraGIEFSMeses(CalculadoraVerba):
     @property
     def descricao_formula(self):
-        return "Fórmula: (Valor Base ÷ 6) × Parcelas"
-    
+        return "Fórmula: (Valor GIEFS ÷ 6) × Parcelas"
+
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["valor_base", "numero_parcelas"]
+        return ["valor_giefs", "numero_parcelas"]
 
-    def calcular(self, valor_base: float, numero_parcelas: int) -> ResultadoCalculo:
-        valor = (valor_base/6) * numero_parcelas
+    def calcular(self, valor_giefs: float, numero_parcelas: int) -> ResultadoCalculo:
+        valor = (valor_giefs/6) * numero_parcelas
         memoria = [
-            f"Valor GIEFS: {FormatadorCampos.brl(valor_base)}",
-            f"÷ 6 = {FormatadorCampos.brl(valor_base/6)}",
+            f"Valor GIEFS: {FormatadorCampos.brl(valor_giefs)}",
+            f"÷ 6 = {FormatadorCampos.brl(valor_giefs/6)}",
             f"x {numero_parcelas} parcelas",
             f"= {FormatadorCampos.brl(valor)}",
         ]

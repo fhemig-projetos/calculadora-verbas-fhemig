@@ -74,6 +74,10 @@
       "codigo": "2420",
       "tipo": "Vantagem"
     },
+    "GRS — 13º Salário": {
+      "codigo": "3171",
+      "tipo": "Vantagem"
+    },
     "GRS — Desconto de Horas": {
       "codigo": "7820",
       "tipo": "Desconto"

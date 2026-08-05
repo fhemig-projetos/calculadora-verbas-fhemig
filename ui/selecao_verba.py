@@ -151,24 +151,23 @@ class SelecaoVerba:
                         break
                 else:
                     valor_default = 0.0
-            elif campo == "valor_base":
-                historico = st.session_state.get("historico", [])
-                for item in reversed(historico):
-                    if item.get("nome_verba") in ("GIEFS — Dias", "GIEFS — 13º Salário"):
-                        valor_default = item["valor"]
-                        break
-                else:
-                    valor_default = 0
             elif campo == "numero_parcelas":
                 valor_default = 1
             elif campo == "dias_ferias_indenizadas":
-                valor_default = 30 # o valor padrao seria 30 mesmo ou 1?
+                valor_default = 1
             elif campo == "faltas_horas":
                 valor_default = 1
             elif campo == "faltas_dias":
                 valor_default = 1
-            elif campo == "valor_base_desconto":
-                valor_default = 0.0
+            elif campo == "valor_ajuda_custo":
+                # Busca no histórico o último cálculo de Ajuda de Custo Mensal
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") == "Ajuda de Custo Mensal":
+                        valor_default = item["valor"]
+                        break
+                else:
+                    valor_default = 0.0
             elif campo == "valor_base_aumento":
                 valor_default = ds.get("vencimento_basico")  # busca do preenchimento do cabeçalho
             elif campo == "ajuda_custo_diario":
@@ -189,7 +188,7 @@ class SelecaoVerba:
                         index=valor_default - 2024,
                     )
                 elif campo == "grs_risco":
-                    if nome_verba == "GRS — Dias":
+                    if nome_verba in ["GRS — Dias", "GRS — Meses", "GRS — 13º Salário", "GRS — Desconto de Horas"]:
                         opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
                     else:
                         opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
@@ -229,7 +228,7 @@ class SelecaoVerba:
                         config["label"],
                         value=valor_default,
                         min_value=1,
-                        max_value=30, # o máximo é 30?
+                        max_value=30,
                     )
                 elif campo == "faltas_horas":
                     valores[campo] = st.number_input(
@@ -240,6 +239,8 @@ class SelecaoVerba:
                     valores[campo] = st.number_input(
                         config["label"],
                         value=valor_default,
+                        min_value=1,
+                        max_value=30,
                     )
                 elif campo == "ano_reajuste":
                     valores[campo] = st.selectbox(
@@ -308,7 +309,7 @@ class SelecaoVerba:
         st.divider()
         st.markdown("#### 📅 Competência")
 
-        if nome_verba == "13º Salário":
+        if nome_verba in ("13º Salário", "GRS — 13º Salário"):
             # Apenas ano
             st.caption("Selecione o ano de referência do cálculo")
             hoje = date.today()

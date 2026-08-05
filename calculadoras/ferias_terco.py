@@ -8,23 +8,12 @@ class CalculadoraTercoFerias(CalculadoraVerba):
         return "Fórmula: (Venc. Básico + Ad. Desempenho + Ab. Emergência + Ad. Noturno + GRS) ÷ 3"
 
     @property
-    def campos_necessarios(self):
+    def campos_necessarios(self) -> list[str]:
         return ["vencimento_basico", "ad_desempenho", "abono_emergencia",
                 "adicional_noturno", "grs_risco"]
-    
-    def _parser_nivel_grs(self, grs_risco: str):
-        if "Médio" in grs_risco:
-            nivel = "risco_medio"
-        elif "Alto" in grs_risco:
-            nivel = "risco_alto"
-        else:
-            nivel = "nao_faz_jus"
-        return nivel
 
     def calcular(self, vencimento_basico: float, ad_desempenho: float, abono_emergencia: float, adicional_noturno: float, grs_risco: str) -> ResultadoCalculo:
-        # Determina o valor GRS conforme seleção
-        nivel = self._parser_nivel_grs(grs_risco)
-        valor_grs = ProvedorDadosFhemig.obter_valor_grs(nivel)
+        valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 
         # Fórmula
         base = (vencimento_basico + ad_desempenho + abono_emergencia +

@@ -65,7 +65,7 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (21 de 22 — 1 restante)
+### 2.1 Calculadoras (22 de 23 — 1 restante)
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -82,8 +82,9 @@ calculadora-verbas-fhemig/
 | GIEFS — Meses (parcelas) | `calculadoras/giefs_meses.py` | ✅ |
 | GIEFS — 1/3 de Férias | `calculadoras/giefs_ferias.py` | ✅ |
 | GRS — Meses | `calculadoras/grs_meses.py` | ✅ |
+| GRS — 13º Salário | `calculadoras/grs_13.py` | ✅ |
 | GRS — Desconto de Horas | `calculadoras/grs_desconto_horas.py` | ✅ |
-| 1/3 de Férias | `calculadoras/terco_ferias.py` | ✅ |
+| 1/3 de Férias | `calculadoras/ferias_terco.py` | ✅ |
 | Férias Indenizadas | `calculadoras/ferias_indenizadas.py` | ✅ |
 | Faltas — Horas | `calculadoras/faltas_horas.py` | ✅ |
 | Faltas — Dias | `calculadoras/faltas_dias.py` | ✅ |
@@ -116,17 +117,24 @@ calculadora-verbas-fhemig/
 - `data/tabelas.json` com:
   - `tabela_cargos`: 4 registros (PENF, TOS, AGAS)
   - `tabela_inss`: 2024, 2025, 2026
-  - `verbas`: 22 metadados (código + tipo)
+  - `verbas`: 23 metadados (código + tipo)
   - `tabela_grs`: `nao_faz_jus: 0.0`, `risco_medio: 160.20`, `risco_alto: 320.40`
   - `tabela_reajustes`: `2024: 0.0462`, `2026: 0.0540`
 
 ### 2.4 Decisões de implementação recentes
 
-- **GRS**: Parser **centralizado** em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` — recebe a string da UI e mapeia para a chave do JSON (`risco_medio`, `risco_alto`, `nao_faz_jus`). Eliminou os `_parser_nivel_grs` locais e parsers inline. UI dinâmica: se verba = "GRS — Dias", exibe apenas "Risco Médio" e "Risco Alto"; senão, exibe as 3 opções.
+- **GRS**: Parser **centralizado** em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` — recebe a string da UI e mapeia para a chave do JSON (`risco_medio`, `risco_alto`, `nao_faz_jus`). Eliminou os `_parser_nivel_grs` locais e parsers inline. UI dinâmica: verbas GRS (Dias, Meses, 13º, Desconto de Horas) exibem apenas "Risco Médio" e "Risco Alto"; demais verbas exibem as 3 opções.
 - **CH Mensal**: Mudou de `number_input` para `selectbox` com opções [120, 180, 240, 264]. Default vem do formulário do servidor (CH Semanal ÷ 5 × 30). Se valor default não estiver nas opções, fallback para índice 2 (240).
 - **CH Semanal**: Selectbox sem opção "Selecione", default = 40 (index 2).
 - **Aumento Salarial**: Multi-alíquotas via `tabela_reajustes` no JSON. Campo `ano_reajuste` (selectbox 2024/2026). No histórico, o nome vira "Aumento Salarial (2024)" / "Aumento Salarial (2026)" para diferenciar.
 - **Faltas — Dias e Faltas — Horas**: Fórmulas revisadas para incluir **Piso Enfermagem** na base. Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
+- **GRS — 13º Salário**: Nova verba (código 3171, Vantagem). Fórmula `Valor GRS ÷ 12 × Nº de Meses`. Usa `grs_risco` (selectbox) + `numero_meses`. Competência exibe apenas **ano** (como 13º Salário).
+- **Parser GRS migrado**: `grs_desconto_horas.py`, `ferias_indenizadas.py` e `ferias_terco.py` tiveram o `_parser_nivel_grs` local removido, passando a chamar `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` diretamente. Isso corrigiu um bug onde o valor da GRS sempre resultava em 0.0.
+- **GRS — Desconto de Horas**: Campo `horas_realizadas` → `faltas_horas` (semântica correta para desconto por faltas). `descricao_formula` atualizada.
+- **Férias Indenizadas**: **GIEFS removida** da regra de cálculo (confirmado que não entra). Fórmula agora `(Venc + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Dias`.
+- **Campo `valor_base` → `valor_giefs`**: Renomeado em `giefs_dias.py` e `giefs_meses.py` para clareza. **Removida a busca no histórico** — o valor da GIEFS é informado manualmente pelo usuário (default 0.0).
+- **Campo `valor_base_desconto` → `valor_ajuda_custo`**: Renomeado no Desconto de Ajuda de Custo. **Adicionado pré-preenchimento** do histórico (última "Ajuda de Custo Mensal").
+- **Arquivo `terco_ferias.py` → `ferias_terco.py`**: Renomeado (classe `CalculadoraTercoFerias` mantida).
 
 ---
 
@@ -149,9 +157,9 @@ calculadora-verbas-fhemig/
 
 **Arquivo:** `calculadoras/giefs_dias.py` — classe `CalculadoraGIEFSDias`
 
-**Fórmula:** `Valor Base ÷ 30 × Dias`
+**Fórmula:** `Valor GIEFS ÷ 30 × Dias`
 
-**Campos:** `valor_base` (moeda, busca no histórico), `dias_trabalhados` (reaproveitado, 1-30)
+**Campos:** `valor_giefs` (moeda, default 0.0 — informado manualmente), `dias_trabalhados` (reaproveitado, 1-30)
 
 **Detalhes:**
 - Registrada como `"GIEFS — Dias"` (código 2417, Vantagem)
@@ -160,9 +168,9 @@ calculadora-verbas-fhemig/
 
 **Arquivo:** `calculadoras/giefs_meses.py` — classe `CalculadoraGIEFSMeses`
 
-**Fórmula:** `Valor Base ÷ 6 × Parcelas`
+**Fórmula:** `Valor GIEFS ÷ 6 × Parcelas`
 
-**Campos:** `valor_base` (moeda, busca no histórico), `numero_parcelas` (novo, 1-12)
+**Campos:** `valor_giefs` (moeda, default 0.0 — informado manualmente), `numero_parcelas` (novo, 1-12)
 
 **Detalhes:**
 - Registrada como `"GIEFS — Meses"` (código 2417, Vantagem)
@@ -194,18 +202,19 @@ calculadora-verbas-fhemig/
 
 **Arquivo:** `calculadoras/grs_desconto_horas.py` — classe `CalculadoraGRSDescontoHoras`
 
-**Fórmula:** `GRS ÷ CH × horas_falta`
+**Fórmula:** `GRS ÷ CH × Horas de Falta`
 
-**Campos:** `grs_risco` (select), `carga_horaria_mensal` (selectbox 120-264), `horas_realizadas` (inteiro)
+**Campos:** `grs_risco` (select), `carga_horaria_mensal` (selectbox 120-264), `faltas_horas` (inteiro)
 
 **Detalhes:**
 - Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
 - Possui proteção contra divisão por zero (CH = 0 → fallback 1)
+- Campo `faltas_horas` (semântica correta para desconto por faltas)
 - Registrada como `"GRS — Desconto de Horas"` (código 7820, Desconto)
 
 ### 3.7 ✅ 1/3 de Férias
 
-**Arquivo:** `calculadoras/terco_ferias.py` — classe `CalculadoraTercoFerias`
+**Arquivo:** `calculadoras/ferias_terco.py` — classe `CalculadoraTercoFerias`
 
 **Fórmula:** `(Venc + Ad.Desemp + Ab.Emerg + Ad.Noturno + GRS) ÷ 3`
 
@@ -219,12 +228,13 @@ calculadora-verbas-fhemig/
 
 **Arquivo:** `calculadoras/ferias_indenizadas.py` — classe `CalculadoraFeriasIndenizadas`
 
-**Fórmula:** `(Salário + GIEFS + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Nº de Dias`
+**Fórmula:** `(Venc. Básico + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Nº de Dias`
 
-**Campos:** `vencimento_basico` (do cabeçalho), `valor_giefs` (moeda), `abono_emergencia` (moeda), `grs_risco` (select), `adicional_noturno` (busca no histórico), `dias_ferias_indenizadas` (1-30, default 30)
+**Campos:** `vencimento_basico` (do cabeçalho), `abono_emergencia` (moeda), `grs_risco` (select), `adicional_noturno` (busca no histórico), `dias_ferias_indenizadas` (1-30, default 30)
 
 **Detalhes:**
 - Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
+- **GIEFS NÃO entra** na regra de cálculo (confirmado)
 - Registrada como `"Férias Indenizadas"` (código 2432, Vantagem)
 
 ### 3.9 ✅ Faltas — Horas
@@ -269,13 +279,13 @@ calculadora-verbas-fhemig/
 
 **Arquivo:** `calculadoras/ajuda_custo_desconto.py` — classe `CalculadoraDescontoAjudaCusto`
 
-**Fórmula:** `Valor base × 4%`
+**Fórmula:** `Valor da Ajuda de Custo × 4%`
 
-**Campos:** `valor_base_desconto` (moeda)
+**Campos:** `valor_ajuda_custo` (moeda, busca no histórico — última "Ajuda de Custo Mensal")
 
 **Detalhes:**
 - Registrada como `"Desconto de Ajuda de Custo"` (código 9018, Desconto)
-- **Pendência:** pré-preencher `valor_base_desconto` com a última "Ajuda de Custo Mensal" do histórico
+- Campo `valor_ajuda_custo` pré-preenchido com a última "Ajuda de Custo Mensal" do histórico
 
 ### 3.13 ✅ Aumento Salarial (multi-alíquotas)
 
@@ -290,6 +300,21 @@ calculadora-verbas-fhemig/
 - No histórico, o nome vira "Aumento Salarial (2024)" / "Aumento Salarial (2026)"
 - Registrada como `"Aumento Salarial"` (código ----, Vantagem)
 - **Pendência:** cálculo combinado "2024 + 2026" (composto) aguardando confirmação da área
+
+### 3.14 ✅ GRS — 13º Salário
+
+**Arquivo:** `calculadoras/grs_13.py` — classe `CalculadoraGRS13`
+
+**Fórmula:** `Valor GRS ÷ 12 × Nº de Meses` (confirmado: 151,99 ÷ 12 × 6 = 75,99)
+
+**Campos:** `grs_risco` (selectbox, 2 opções — sem "Não faz jus"), `numero_meses` (1-12)
+
+**Detalhes:**
+- Usa `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` (parser centralizado)
+- Registrada como `"GRS — 13º Salário"` (código 3171, Vantagem) em `data/tabelas.json`
+- Registrada no `factory.py` como `"GRS — 13º Salário"`
+- **Competência** exibe apenas **ano** (não mês/ano) — tratada em `_render_competencia` junto com "13º Salário"
+- Incluída na condição que exibe apenas 2 opções no selectbox GRS (Risco Médio e Risco Alto)
 
 ---
 
@@ -340,13 +365,17 @@ Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` nas
 - **Gratificação de Final de Semana**: fator de cálculo é **0,5** (confirmado como correto)
 - **Condição obsoleta no form_servidor.py**: já corrigida — a condição `!= "- Selecione -"` foi removida junto com a opção obsoleta
 - **INSS sobre 13º**: a base de cálculo é a **soma** do 13º Salário com a GIEFS do 13º (confirmado com exemplo: 1010,95 + 64,04 = 1074,99)
-- **GIEFS 13º**: campo renomeado de `valor_base` para `valor_giefs` (mais semântico), reutiliza `numero_meses` existente
+- **GIEFS 13º**: campo `valor_giefs`, reutiliza `numero_meses` existente
 - **Piso Enfermagem 13º**: novo campo `valor_piso`, reutiliza `numero_meses` existente
-- **GIEFS — Dias e GIEFS — Meses**: compartilham o mesmo campo `valor_base` com busca no histórico
-- **GIEFS — 1/3 de Férias**: usa `valor_giefs` (campo separado de `valor_base`)
+- **GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias**: usam o mesmo campo `valor_giefs` (informado manualmente pelo usuário)
+- **GIEFS — 13º**: usa `valor_giefs` + `numero_meses`
 - **Campo `numero_parcelas`**: novo campo inteiro (1-12) para GIEFS — Meses (parcelas)
 - **INSS sobre 13º**: `valor_13_salario` e `giefs_13_salario` são preenchidos automaticamente via busca no histórico
 - **Faltas — Dias e Faltas — Horas**: base inclui **Piso Enfermagem** (CPE — Lei 14434/22). Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
+- **Férias Indenizadas**: **GIEFS NÃO entra** na base de cálculo (confirmado)
+- **GRS — Desconto de Horas**: usa campo `faltas_horas` (horas de falta), não `horas_realizadas`
+- **Desconto de Ajuda de Custo**: campo `valor_ajuda_custo` pré-preenchido do histórico (última "Ajuda de Custo Mensal")
+- **Arquivo `terco_ferias.py` → `ferias_terco.py`**: renomeado (classe `CalculadoraTercoFerias` mantida)
 
 ---
 
@@ -398,50 +427,43 @@ Os commits mais recentes mostram a evolução da refatoração:
 
 ## 10. Plano de desenvolvimento — próxima sessão
 
-> **Data:** 04/03/2026
-> **Objetivo:** Revisar lógica de cálculo e parsers GRS nas calculadoras restantes + commitar pendências.
+> **Data:** 06/03/2026
+> **Objetivo:** Revisar lógica de cálculo das verbas de GIEFS e commitar pendências.
 
-### 10.1 🔴 Commit pendente — renomeação Desconto de Ajuda de Custo
+### 10.1 ✅ Concluído em 05/03 — Nova verba GRS — 13º Salário
 
-- `desconto_ajuda_custo.py` → `ajuda_custo_desconto.py` (não commitado)
-- `calculadora_modelo.py` deletado (confirmar se intencional)
-- `ui/selecao_verba.py` modificado (renomeação "Aumento Salarial (ano)" no histórico)
+- `calculadoras/grs_13.py` criada
+- Registrada em `factory.py`, `__init__.py` e `data/tabelas.json` (código 3171)
+- Competência exibe apenas ano
 
-### 10.2 🟡 Revisar parsers GRS nas calculadoras restantes
+### 10.2 ✅ Concluído em 05/03 — Migração dos parsers GRS
 
-Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)`:
+- `grs_desconto_horas.py`, `ferias_indenizadas.py`, `ferias_terco.py`: `_parser_nivel_grs` local removido, agora usam `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` diretamente
+- ✅ Todos os `_parser_nivel_grs` foram eliminados do projeto
 
-| Arquivo | Padrão atual | Ação |
+### 10.3 ✅ Concluído em 05/03 — Renomeações de campos
+
+- `valor_base` → `valor_giefs` (GIEFS — Dias e GIEFS — Meses); busca no histórico removida
+- `valor_base_desconto` → `valor_ajuda_custo` (Desconto de Ajuda de Custo) + pré-preenchimento do histórico
+
+### 10.4 🟡 Revisar fórmulas de cálculo das verbas de GIEFS
+
+Revisar a lógica de cálculo das calculadoras de GIEFS:
+
+| Verba | Fórmula atual | Revisar |
 |---|---|---|
-| `grs_meses.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `grs_desconto_horas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `ferias_indenizadas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `terco_ferias.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `grs_dias.py` | Parser inline | Chamada direta (corrige "Não faz jus") |
+| GIEFS — Dias | `Valor GIEFS ÷ 30 × Dias` | Confirmar divisor (30) e se a GIEFS é mensal |
+| GIEFS — Meses | `Valor GIEFS ÷ 6 × Parcelas` | Confirmar divisor (6) |
+| GIEFS — 1/3 de Férias | `Valor GIEFS ÷ 3` | Confirmar se algo entra na base além da GIEFS |
+| GIEFS — 13º Salário | `Valor GIEFS ÷ 12 × Meses` | Confirmar divisor (12) |
+| Piso Enfermagem — 13º | `Valor Piso ÷ 12 × Meses` | Confirmar divisor (12) |
 
-**Padrão de alteração em cada uma:**
-
-**Antes:**
-```python
-nivel = self._parser_nivel_grs(grs_risco)   # ou parser inline
-valor_grs = ProvedorDadosFhemig.obter_valor_grs(nivel)
-```
-
-**Depois:**
-```python
-valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
-```
-
-### 10.3 🟡 Pré-preencher `valor_base_desconto` (Desconto de Ajuda de Custo)
-
-Buscar no histórico a última "Ajuda de Custo Mensal" e pré-preencher o campo `valor_base_desconto` (padrão de `grat_final_semana`/`adicional_noturno`).
-
-### 10.4 🟡 Aumento Salarial — cálculo combinado "2024 + 2026"
+### 10.5 🟡 Aumento Salarial — cálculo combinado "2024 + 2026"
 
 - Aguardando confirmação da área se será **composto** (`base × 1,0462 × 1,054`)
 - Se confirmado, adicionar opção "2024 + 2026" no selectbox e lógica de múltiplas alíquotas
 
-### 10.5 🟢 Calculadora restante — Desconto de IPSEMG (3,2%)
+### 10.6 🟢 Calculadora restante — Desconto de IPSEMG (3,2%)
 
 | Verba | Código | Tipo | Fórmula |
 |---|---|---|---|

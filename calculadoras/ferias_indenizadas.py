@@ -5,27 +5,18 @@ from data import ProvedorDadosFhemig
 class CalculadoraFeriasIndenizadas(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: (Venc. Básico + GIEFS + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Nº de Dias de Férias Indenizadas" # no documento não fala para somar GIEFS
+        return "Fórmula: (Venc. Básico + Ab. Emergência + GRS + Ad. Noturno) ÷ 30 × Nº de Dias de Férias Indenizadas"
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "valor_giefs", "abono_emergencia", "grs_risco", "adicional_noturno", "dias_ferias_indenizadas"]
+        return ["vencimento_basico", "abono_emergencia", "grs_risco", "adicional_noturno", "dias_ferias_indenizadas"]
 
-    def _parser_nivel_grs(self, grs_risco: str) -> str:
-        if "Médio" in grs_risco:
-            return "risco_medio"
-        elif "Alto" in grs_risco:
-            return "risco_alto"
-        return "nao_faz_jus"
-
-    def calcular(self, vencimento_basico: float, valor_giefs: float, abono_emergencia: float, grs_risco: str, adicional_noturno: float, dias_ferias_indenizadas: int) -> ResultadoCalculo:
-        nivel = self._parser_nivel_grs(grs_risco)
-        valor_grs = ProvedorDadosFhemig.obter_valor_grs(nivel)
-        base = (vencimento_basico + valor_giefs + abono_emergencia + valor_grs + adicional_noturno)
+    def calcular(self, vencimento_basico: float, abono_emergencia: float, grs_risco: str, adicional_noturno: float, dias_ferias_indenizadas: int) -> ResultadoCalculo:
+        valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
+        base = (vencimento_basico + abono_emergencia + valor_grs + adicional_noturno)
         valor = base / 30 * dias_ferias_indenizadas
         memoria = [
             f"Venc. Básico: {FormatadorCampos.brl(vencimento_basico)}",
-            f"GIEFS: {FormatadorCampos.brl(valor_giefs)}",
             f"Abono Emergência: {FormatadorCampos.brl(abono_emergencia)}",
             f"GRS ({grs_risco}): {FormatadorCampos.brl(valor_grs)}",
             f"Ad. Noturno: {FormatadorCampos.brl(adicional_noturno)}",

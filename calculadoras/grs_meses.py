@@ -10,17 +10,9 @@ class CalculadoraGRSMeses(CalculadoraVerba):
     def campos_necessarios(self) -> list[str]:
         return ["grs_risco", "numero_meses"]
 
-    def _parser_nivel_grs(self, grs_risco: str) -> str:
-        if "Médio" in grs_risco:
-            return "risco_medio"
-        elif "Alto" in grs_risco:
-            return "risco_alto"
-        return "nao_faz_jus"
-
     def calcular(self, grs_risco: str, numero_meses: int) -> ResultadoCalculo:
         # Determinar o valor conforme seleção
-        nivel = self._parser_nivel_grs(grs_risco)
-        valor_grs = ProvedorDadosFhemig.obter_valor_grs(nivel)
+        valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 
         valor_meses = valor_grs * numero_meses
         memoria = [

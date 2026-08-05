@@ -2,25 +2,23 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
-class CalculadoraGRSDias(CalculadoraVerba):
+class CalculadoraGRS13(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: Valor GRS ÷ 30 × Dias Trabalhados no Mês"
-    
+        return "Fórmula: Valor GRS ÷ 12 × Nº de Meses"
+
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["grs_risco", "dias_trabalhados"]
-    
-    def calcular(self, grs_risco: str, dias_trabalhados: int) -> ResultadoCalculo:
-        # Busca o valor conforme seleção
+        return ["grs_risco", "numero_meses"]
+
+    def calcular(self, grs_risco: str, numero_meses: int) -> ResultadoCalculo:
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 
-        valor_diario = valor_grs / 30
-        valor = valor_diario * dias_trabalhados
+        valor = (valor_grs / 12) * numero_meses
         memoria = [
             f"GRS ({grs_risco}): {FormatadorCampos.brl(valor_grs)}",
-            f"÷ 30 = {FormatadorCampos.brl(valor_diario)}/dia",
-            f"× {dias_trabalhados} dias",
+            f"÷ 12 = {FormatadorCampos.brl(valor_grs/12)}/mês",
+            f"× {numero_meses} meses",
             f"= {FormatadorCampos.brl(valor)}",
         ]
         return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)
