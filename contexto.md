@@ -30,11 +30,12 @@ calculadora-verbas-fhemig/
 │   ├── piso_enfermagem_13.py  # ✅ Implementada
 │   ├── giefs_dias.py          # ✅ Implementada
 │   ├── giefs_meses.py         # ✅ Implementada
-│   ├── giefs_ferias.py        # ✅ Implementada
+│   ├── giefs_terco_ferias.py  # ✅ Implementada (renomeado de giefs_ferias.py)
 │   ├── inss_decimo_terceiro.py# ✅ Implementada
 │   ├── grs_meses.py           # ✅ Implementada
+│   ├── grs_13.py              # ✅ Implementada (nova)
 │   ├── grs_desconto_horas.py  # ✅ Implementada
-│   ├── terco_ferias.py        # ✅ Implementada
+│   ├── ferias_terco.py        # ✅ Implementada (renomeado de terco_ferias.py)
 │   ├── ferias_indenizadas.py  # ✅ Implementada
 │   ├── faltas_horas.py        # ✅ Implementada
 │   ├── faltas_dias.py         # ✅ Implementada
@@ -135,6 +136,10 @@ calculadora-verbas-fhemig/
 - **Campo `valor_base` → `valor_giefs`**: Renomeado em `giefs_dias.py` e `giefs_meses.py` para clareza. **Removida a busca no histórico** — o valor da GIEFS é informado manualmente pelo usuário (default 0.0).
 - **Campo `valor_base_desconto` → `valor_ajuda_custo`**: Renomeado no Desconto de Ajuda de Custo. **Adicionado pré-preenchimento** do histórico (última "Ajuda de Custo Mensal").
 - **Arquivo `terco_ferias.py` → `ferias_terco.py`**: Renomeado (classe `CalculadoraTercoFerias` mantida).
+- **GIEFS — Meses**: Simplificada para **campo único de valor** — fórmula `Valor GIEFS ÷ 6 × Parcelas` → `Valor total da GIEFS para o período`. O campo órfão `numero_parcelas` foi removido de `ui/config.py` e `ui/selecao_verba.py`.
+- **Correção de renderização GIEFS — Meses**: Renomeada a verba `"GIEFS — Meses (parcelas)"` → `"GIEFS — Meses"` no `data/tabelas.json`, alinhando com o registro do `factory.py` (resolvia o bug de verba não renderizada).
+- **Arquivo `giefs_ferias.py` → `giefs_terco_ferias.py`**: Renomeado, classe `CalculadoraGIEFSFerias` → `CalculadoraGIEFSTercoFerias` (arquivo + `factory.py` + `__init__.py`).
+- **Revisão verbas de 13º**: Usuário revisou 13º Salário, GIEFS 13º, Piso 13º e GRS 13º — **validadas** (fórmulas corretas conforme área).
 
 ---
 
@@ -427,8 +432,8 @@ Os commits mais recentes mostram a evolução da refatoração:
 
 ## 10. Plano de desenvolvimento — próxima sessão
 
-> **Data:** 06/03/2026
-> **Objetivo:** Revisar lógica de cálculo das verbas de GIEFS e commitar pendências.
+> **Data:** 07/03/2026
+> **Objetivo:** Revisar o cálculo do INSS sobre o 13º Salário e commitar pendências.
 
 ### 10.1 ✅ Concluído em 05/03 — Nova verba GRS — 13º Salário
 
@@ -446,24 +451,42 @@ Os commits mais recentes mostram a evolução da refatoração:
 - `valor_base` → `valor_giefs` (GIEFS — Dias e GIEFS — Meses); busca no histórico removida
 - `valor_base_desconto` → `valor_ajuda_custo` (Desconto de Ajuda de Custo) + pré-preenchimento do histórico
 
-### 10.4 🟡 Revisar fórmulas de cálculo das verbas de GIEFS
+### 10.4 ✅ Concluído em 06/03 — Revisão verbas de GIEFS
 
-Revisar a lógica de cálculo das calculadoras de GIEFS:
+- **GIEFS — Meses**: simplificada para **campo único de valor** (fórmula `Valor GIEFS ÷ 6 × Parcelas` → `Valor total da GIEFS para o período`)
+- **Correção de renderização**: verba renomeada `"GIEFS — Meses (parcelas)"` → `"GIEFS — Meses"` no JSON
+- **Arquivo `giefs_ferias.py` → `giefs_terco_ferias.py`**: renomeado, classe `CalculadoraGIEFSTercoFerias`
 
-| Verba | Fórmula atual | Revisar |
-|---|---|---|
-| GIEFS — Dias | `Valor GIEFS ÷ 30 × Dias` | Confirmar divisor (30) e se a GIEFS é mensal |
-| GIEFS — Meses | `Valor GIEFS ÷ 6 × Parcelas` | Confirmar divisor (6) |
-| GIEFS — 1/3 de Férias | `Valor GIEFS ÷ 3` | Confirmar se algo entra na base além da GIEFS |
-| GIEFS — 13º Salário | `Valor GIEFS ÷ 12 × Meses` | Confirmar divisor (12) |
-| Piso Enfermagem — 13º | `Valor Piso ÷ 12 × Meses` | Confirmar divisor (12) |
+### 10.5 ✅ Concluído em 06/03 — Revisão das verbas de 13º
 
-### 10.5 🟡 Aumento Salarial — cálculo combinado "2024 + 2026"
+Usuário revisou as fórmulas de:
+- **13º Salário** ✓
+- **GIEFS — 13º Salário** ✓
+- **Piso Enfermagem — 13º Salário** ✓
+- **GRS — 13º Salário** ✓
+
+Todas **validadas** conforme a área competente.
+
+### 10.6 🟡 Revisar INSS sobre o 13º Salário
+
+Revisar a lógica de cálculo de `calculadoras/inss_decimo_terceiro.py`:
+
+**Fórmula atual:** `(13º + GIEFS 13º) × Alíquota − Dedução (tabela progressiva)`
+
+**Campos:** `valor_13_salario`, `giefs_13_salario`, `ano_referencia`
+
+**Pontos a validar:**
+- A base de cálculo `(13º + GIEFS 13º)` está correta?
+- Deve incluir **GRS 13º** e **Piso 13º** na base? (são verbas que incidem sobre o 13º)
+- Confirmar a aplicação da tabela progressiva INSS do ano referência
+- Verificar pré-preenchimento dos campos (`valor_13_salario` e `giefs_13_salario` via histórico)
+
+### 10.7 🟡 Aumento Salarial — cálculo combinado "2024 + 2026"
 
 - Aguardando confirmação da área se será **composto** (`base × 1,0462 × 1,054`)
 - Se confirmado, adicionar opção "2024 + 2026" no selectbox e lógica de múltiplas alíquotas
 
-### 10.6 🟢 Calculadora restante — Desconto de IPSEMG (3,2%)
+### 10.8 🟢 Calculadora restante — Desconto de IPSEMG (3,2%)
 
 | Verba | Código | Tipo | Fórmula |
 |---|---|---|---|

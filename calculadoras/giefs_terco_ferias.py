@@ -1,9 +1,7 @@
-#GIEFS — 1/3 de Férias
-
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 
-class CalculadoraGIEFSFerias(CalculadoraVerba):
+class CalculadoraGIEFSTercoFerias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
         return "Fórmula: Valor GIEFS ÷ 3"

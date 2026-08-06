@@ -23,7 +23,8 @@
 - O atraso em horas ou dias afeta o valor do campo da GRS que é considerada na fórmula de cálculo? 
 
 ## Investigar diferença entre numero_meses e numero_parcelas em config.py
-## Diferença entre `numero_meses` e `numero_parcelas`
+
+### Diferença entre `numero_meses` e `numero_parcelas`
 
 Ambos são campos numéricos inteiros (1–12) que multiplicam um valor base, mas representam **conceitos de negócio diferentes** e são usados em **verbas diferentes**:
 

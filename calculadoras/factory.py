@@ -9,7 +9,7 @@ from .piso_enfermagem_13 import CalculadoraPisoEnfermagem13
 from .inss_decimo_terceiro import CalculadoraINSSDecimoTerceiro
 from .giefs_dias import CalculadoraGIEFSDias
 from .giefs_meses import CalculadoraGIEFSMeses
-from .giefs_ferias import CalculadoraGIEFSFerias
+from .giefs_terco_ferias import CalculadoraGIEFSTercoFerias
 from .grs_meses import  CalculadoraGRSMeses
 from .grs_13 import CalculadoraGRS13
 from .grs_desconto_horas import CalculadoraGRSDescontoHoras
@@ -33,7 +33,7 @@ REGISTRO_CALCULADORAS = {
     "INSS sobre 13º Salário": CalculadoraINSSDecimoTerceiro(),
     "GIEFS — Dias": CalculadoraGIEFSDias(),
     "GIEFS — Meses": CalculadoraGIEFSMeses(),
-    "GIEFS — 1/3 de Férias": CalculadoraGIEFSFerias(),
+    "GIEFS — 1/3 de Férias": CalculadoraGIEFSTercoFerias(),
     "GRS — Dias": CalculadoraGRSDias(),
     "GRS — Meses": CalculadoraGRSMeses(),
     "GRS — 13º Salário": CalculadoraGRS13(),

@@ -151,8 +151,6 @@ class SelecaoVerba:
                         break
                 else:
                     valor_default = 0.0
-            elif campo == "numero_parcelas":
-                valor_default = 1
             elif campo == "dias_ferias_indenizadas":
                 valor_default = 1
             elif campo == "faltas_horas":
@@ -215,13 +213,6 @@ class SelecaoVerba:
                         config["label"],
                         options=opcoes_ch, # [120, 180, 240, 264]
                         index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
-                    )
-                elif campo == "numero_parcelas":
-                    valores[campo] = st.number_input(
-                        config["label"],
-                        value=valor_default,
-                        min_value=1,
-                        max_value=12,
                     )
                 elif campo == "dias_ferias_indenizadas":
                     valores[campo] = st.number_input(
