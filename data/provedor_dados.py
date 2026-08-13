@@ -58,10 +58,10 @@ class ProvedorDadosFhemig:
         return dados["tabela_grs"][nivel]
 
     @classmethod
-    def obter_aliquota_reajuste(cls, ano: str) -> float:
+    def obter_aliquota_reajuste(cls, ano: int) -> float:
         """Retorna a alíquota de reajuste salarial para o ano solicitado."""
         dados = cls._carregar_dados_globais()
-        return dados["tabela_reajustes"][ano]
+        return dados["tabela_reajustes"][str(ano)]
 
     
 

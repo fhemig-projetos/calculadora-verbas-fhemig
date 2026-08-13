@@ -102,9 +102,20 @@ class SelecaoVerba:
             elif campo == "horas_realizadas":
                 valor_default = 0
             elif campo == "ano_referencia":
-                valor_default = date.today().year # preenche o ano atual como default
+                # Opções e default dependem da verba (reajuste só tem 2024/2026)
+                if nome_verba == "Aumento Salarial":
+                    opcoes_ano = [2024, 2026]
+                else:
+                    opcoes_ano = [2024, 2025, 2026]
+                ano_default = date.today().year if date.today().year in opcoes_ano else opcoes_ano[-1]
+                indice_default_ano = opcoes_ano.index(ano_default)
             elif campo == "grs_risco":
-                valor_default = 0 # índice do selectbox
+                # Opções dependem da verba (verbas GRS não têm "Não faz jus")
+                if nome_verba in ["GRS — Dias", "GRS — Meses", "GRS — 13º Salário", "GRS — Desconto de Horas"]:
+                    opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
+                else:
+                    opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
+                indice_default_grs = 0  # índice do selectbox (primeira opção)
             elif campo == "dias_trabalhados":
                 valor_default = 1
             elif campo == "grat_final_semana":
@@ -170,8 +181,6 @@ class SelecaoVerba:
                 valor_default = ds.get("vencimento_basico")  # busca do preenchimento do cabeçalho
             elif campo == "ajuda_custo_diario":
                 valor_default = 75.0
-            elif campo == "ano_reajuste":
-                valor_default = 0 # índice do selectbox
             else:
                 valor_default = 0
 
@@ -182,17 +191,14 @@ class SelecaoVerba:
                 if campo == "ano_referencia":
                     valores[campo] = st.selectbox(
                         config["label"],
-                        options=[2024, 2025, 2026],
-                        index=valor_default - 2024,
+                        options=opcoes_ano,
+                        index=indice_default_ano,
                     )
                 elif campo == "grs_risco":
-                    if nome_verba in ["GRS — Dias", "GRS — Meses", "GRS — 13º Salário", "GRS — Desconto de Horas"]:
-                        opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
-                    else:
-                        opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
                     valores[campo] = st.selectbox(
                         config["label"],
                         options=opcoes_grs,
+                        index=indice_default_grs,
                     )
                 elif campo == "dias_trabalhados":
                     valores[campo] = st.number_input(
@@ -233,11 +239,6 @@ class SelecaoVerba:
                         min_value=1,
                         max_value=30,
                     )
-                elif campo == "ano_reajuste":
-                    valores[campo] = st.selectbox(
-                        config["label"],
-                        options=["2024", "2026"],
-                    )
                 else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(
                             config["label"],
@@ -251,7 +252,7 @@ class SelecaoVerba:
             # Se for Aumento Salarial, inclui o ano no nome p/ diferenciar no histórico
             nome_verba_historico = nome_verba
             if nome_verba == "Aumento Salarial":
-                nome_verba_historico = f"{nome_verba} ({valores['ano_reajuste']})"
+                nome_verba_historico = f"{nome_verba} ({valores['ano_referencia']})"
 
             st.session_state["ultimo_resultado"] = {
                 "nome_verba": nome_verba_historico,
@@ -300,7 +301,13 @@ class SelecaoVerba:
         st.divider()
         st.markdown("#### 📅 Competência")
 
-        if nome_verba in ("13º Salário", "GRS — 13º Salário"):
+        if nome_verba in (
+            "13º Salário",
+            "GIEFS — 13º Salário",
+            "Piso Enfermagem — 13º Salário",
+            "GRS — 13º Salário",
+            "INSS sobre 13º Salário",
+        ):
             # Apenas ano
             st.caption("Selecione o ano de referência do cálculo")
             hoje = date.today()

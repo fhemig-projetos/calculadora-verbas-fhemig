@@ -38,6 +38,10 @@
       "codigo": "2412",
       "tipo": "Vantagem"
     },
+    "INSS Mensal (tabela progressiva)": {
+      "codigo": "7808",
+      "tipo": "Desconto"
+    },
     "13º Salário": {
       "codigo": "2491",
       "tipo": "Vantagem"
@@ -54,16 +58,16 @@
       "codigo": "1164",
       "tipo": "Vantagem"
     },
+    "GRS — 13º Salário": {
+      "codigo": "3171",
+      "tipo": "Vantagem"
+    },
     "GIEFS — Dias": {
       "codigo": "2417",
       "tipo": "Vantagem"
     },
     "GIEFS — Meses": {
       "codigo": "2417",
-      "tipo": "Vantagem"
-    },
-    "GIEFS — 1/3 de Férias": {
-      "codigo": "3242",
       "tipo": "Vantagem"
     },
     "GRS — Dias": {
@@ -74,16 +78,16 @@
       "codigo": "2420",
       "tipo": "Vantagem"
     },
-    "GRS — 13º Salário": {
-      "codigo": "3171",
-      "tipo": "Vantagem"
-    },
     "GRS — Desconto de Horas": {
       "codigo": "7820",
       "tipo": "Desconto"
     },
     "1/3 de Férias": {
       "codigo": "2431",
+      "tipo": "Vantagem"
+    },
+    "GIEFS — 1/3 de Férias": {
+      "codigo": "3242",
       "tipo": "Vantagem"
     },
     "Férias Indenizadas": {
@@ -112,10 +116,6 @@
     },
     "Desconto de IPSEMG (3,2%)": {
       "codigo": "7700",
-      "tipo": "Desconto"
-    },
-    "INSS Mensal (tabela progressiva)": {
-      "codigo": "7808",
       "tipo": "Desconto"
     }
   },

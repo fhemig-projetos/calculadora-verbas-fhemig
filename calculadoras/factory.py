@@ -20,6 +20,7 @@ from .faltas_dias import CalculadoraFaltasDias
 from .ajuda_custo import CalculadoraAjudaCusto
 from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
+from .ipsemg import CalculadoraIPSEMG
 
 # Registro (Factory) para conectar a UI às Classes
 REGISTRO_CALCULADORAS = {
@@ -31,18 +32,19 @@ REGISTRO_CALCULADORAS = {
     "GIEFS — 13º Salário": CalculadoraGIEFS13(),
     "Piso Enfermagem — 13º Salário": CalculadoraPisoEnfermagem13(),
     "INSS sobre 13º Salário": CalculadoraINSSDecimoTerceiro(),
+    "GRS — 13º Salário": CalculadoraGRS13(),
     "GIEFS — Dias": CalculadoraGIEFSDias(),
     "GIEFS — Meses": CalculadoraGIEFSMeses(),
-    "GIEFS — 1/3 de Férias": CalculadoraGIEFSTercoFerias(),
     "GRS — Dias": CalculadoraGRSDias(),
     "GRS — Meses": CalculadoraGRSMeses(),
-    "GRS — 13º Salário": CalculadoraGRS13(),
     "GRS — Desconto de Horas": CalculadoraGRSDescontoHoras(),
     "1/3 de Férias": CalculadoraTercoFerias(),
+    "GIEFS — 1/3 de Férias": CalculadoraGIEFSTercoFerias(),
     "Férias Indenizadas": CalculadoraFeriasIndenizadas(),
     "Faltas — Horas": CalculadoraFaltasHoras(),
     "Faltas — Dias": CalculadoraFaltasDias(),
     "Ajuda de Custo Mensal": CalculadoraAjudaCusto(),
     "Desconto de Ajuda de Custo": CalculadoraDescontoAjudaCusto(),
     "Aumento Salarial": CalculadoraAumentoSalarial(),
+    "Desconto de IPSEMG (3,2%)": CalculadoraIPSEMG(),
 }

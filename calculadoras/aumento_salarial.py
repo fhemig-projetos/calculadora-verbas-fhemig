@@ -9,10 +9,10 @@ class CalculadoraAumentoSalarial(CalculadoraVerba):
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["ano_reajuste", "vencimento_basico"]
+        return ["ano_referencia", "vencimento_basico"]
 
-    def calcular(self, ano_reajuste: str, vencimento_basico: float) -> ResultadoCalculo:
-        aliquota = ProvedorDadosFhemig.obter_aliquota_reajuste(ano_reajuste)
+    def calcular(self, ano_referencia: int, vencimento_basico: float) -> ResultadoCalculo:
+        aliquota = ProvedorDadosFhemig.obter_aliquota_reajuste(ano_referencia)
         aumento = vencimento_basico * aliquota
         novo_valor = vencimento_basico + aumento
         memoria = [

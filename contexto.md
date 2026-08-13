@@ -41,7 +41,8 @@ calculadora-verbas-fhemig/
 │   ├── faltas_dias.py         # ✅ Implementada
 │   ├── ajuda_custo.py         # ✅ Implementada
 │   ├── ajuda_custo_desconto.py# ✅ Implementada
-│   └── aumento_salarial.py    # ✅ Implementada
+│   ├── aumento_salarial.py    # ✅ Implementada
+│   └── ipsemg.py              # ✅ Implementada
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
@@ -66,7 +67,7 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (22 de 23 — 1 restante)
+### 2.1 Calculadoras (23 de 23 — completa)
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -80,8 +81,8 @@ calculadora-verbas-fhemig/
 | INSS Mensal (tabela progressiva) | `calculadoras/inss_mensal.py` | ✅ |
 | INSS sobre 13º Salário | `calculadoras/inss_decimo_terceiro.py` | ✅ |
 | GIEFS — Dias | `calculadoras/giefs_dias.py` | ✅ |
-| GIEFS — Meses (parcelas) | `calculadoras/giefs_meses.py` | ✅ |
-| GIEFS — 1/3 de Férias | `calculadoras/giefs_ferias.py` | ✅ |
+| GIEFS — Meses | `calculadoras/giefs_meses.py` | ✅ |
+| GIEFS — 1/3 de Férias | `calculadoras/giefs_terco_ferias.py` | ✅ |
 | GRS — Meses | `calculadoras/grs_meses.py` | ✅ |
 | GRS — 13º Salário | `calculadoras/grs_13.py` | ✅ |
 | GRS — Desconto de Horas | `calculadoras/grs_desconto_horas.py` | ✅ |
@@ -92,6 +93,7 @@ calculadora-verbas-fhemig/
 | Ajuda de Custo Mensal | `calculadoras/ajuda_custo.py` | ✅ |
 | Desconto de Ajuda de Custo | `calculadoras/ajuda_custo_desconto.py` | ✅ |
 | Aumento Salarial | `calculadoras/aumento_salarial.py` | ✅ |
+| Desconto de IPSEMG (3,2%) | `calculadoras/ipsemg.py` | ✅ |
 
 ### 2.2 Interface
 
@@ -108,7 +110,7 @@ calculadora-verbas-fhemig/
   - CH Mensal como selectbox [120, 180, 240, 264] com default do formulário
   - GRS com opções dinâmicas (3 opções para verbas remuneratórias, 2 para GRS Dias)
 - **Resultado** com memória de cálculo em expander
-- **Competência** (mês/ano ou apenas ano para 13º)
+- **Competência** (mês/ano; apenas **ano** para todas as verbas de 13º: 13º Salário, GIEFS 13º, Piso 13º, GRS 13º e INSS sobre 13º)
 - **Observação** (opcional, até 200 caracteres)
 - **Histórico** em dataframe com totais (vantagens, descontos, líquido)
 - Botões: "Remover último", "Limpar lista"
@@ -127,7 +129,8 @@ calculadora-verbas-fhemig/
 - **GRS**: Parser **centralizado** em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` — recebe a string da UI e mapeia para a chave do JSON (`risco_medio`, `risco_alto`, `nao_faz_jus`). Eliminou os `_parser_nivel_grs` locais e parsers inline. UI dinâmica: verbas GRS (Dias, Meses, 13º, Desconto de Horas) exibem apenas "Risco Médio" e "Risco Alto"; demais verbas exibem as 3 opções.
 - **CH Mensal**: Mudou de `number_input` para `selectbox` com opções [120, 180, 240, 264]. Default vem do formulário do servidor (CH Semanal ÷ 5 × 30). Se valor default não estiver nas opções, fallback para índice 2 (240).
 - **CH Semanal**: Selectbox sem opção "Selecione", default = 40 (index 2).
-- **Aumento Salarial**: Multi-alíquotas via `tabela_reajustes` no JSON. Campo `ano_reajuste` (selectbox 2024/2026). No histórico, o nome vira "Aumento Salarial (2024)" / "Aumento Salarial (2026)" para diferenciar.
+- **Aumento Salarial**: Multi-alíquotas via `tabela_reajustes` no JSON. Usa o campo único `ano_referencia` (selectbox 2024/2026, sem 2025 por não haver reajuste nesse ano). No histórico, o nome vira "Aumento Salarial (2024)" / "Aumento Salarial (2026)" para diferenciar.
+- **Campo unificado `ano_referencia`**: os antigos campos `ano_referencia` e `ano_reajuste` foram unificados em um só (`ano_referencia`). As chaves em `tabelas.json` continuam **string** (JSON não tem chave numérica); os provedores convertem na borda com `str(ano)` (`obter_tabela_inss` e `obter_aliquota_reajuste`). Opções por verba: Aumento Salarial → [2024, 2026]; demais → [2024, 2025, 2026].
 - **Faltas — Dias e Faltas — Horas**: Fórmulas revisadas para incluir **Piso Enfermagem** na base. Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
 - **GRS — 13º Salário**: Nova verba (código 3171, Vantagem). Fórmula `Valor GRS ÷ 12 × Nº de Meses`. Usa `grs_risco` (selectbox) + `numero_meses`. Competência exibe apenas **ano** (como 13º Salário).
 - **Parser GRS migrado**: `grs_desconto_horas.py`, `ferias_indenizadas.py` e `ferias_terco.py` tiveram o `_parser_nivel_grs` local removido, passando a chamar `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` diretamente. Isso corrigiu um bug onde o valor da GRS sempre resultava em 0.0.
@@ -140,6 +143,8 @@ calculadora-verbas-fhemig/
 - **Correção de renderização GIEFS — Meses**: Renomeada a verba `"GIEFS — Meses (parcelas)"` → `"GIEFS — Meses"` no `data/tabelas.json`, alinhando com o registro do `factory.py` (resolvia o bug de verba não renderizada).
 - **Arquivo `giefs_ferias.py` → `giefs_terco_ferias.py`**: Renomeado, classe `CalculadoraGIEFSFerias` → `CalculadoraGIEFSTercoFerias` (arquivo + `factory.py` + `__init__.py`).
 - **Revisão verbas de 13º**: Usuário revisou 13º Salário, GIEFS 13º, Piso 13º e GRS 13º — **validadas** (fórmulas corretas conforme área).
+- **Competência das verbas de 13º**: todas as verbas de 13º (13º Salário, GIEFS 13º, Piso 13º, GRS 13º e INSS sobre 13º) usam competência **somente por ano** em `_render_competencia`.
+- **Refactor render/defaults**: a decisão de `opcoes` e valor/índice default de `ano_referencia` e `grs_risco` foi movida para o bloco de defaults; o bloco de render passou a só renderizar (padrão do `carga_horaria_mensal`).
 
 ---
 
@@ -169,7 +174,7 @@ calculadora-verbas-fhemig/
 **Detalhes:**
 - Registrada como `"GIEFS — Dias"` (código 2417, Vantagem)
 
-### 3.3 ✅ GIEFS — Meses (parcelas)
+### 3.3 ✅ GIEFS — Meses
 
 **Arquivo:** `calculadoras/giefs_meses.py` — classe `CalculadoraGIEFSMeses`
 
@@ -182,7 +187,7 @@ calculadora-verbas-fhemig/
 
 ### 3.4 ✅ GIEFS — 1/3 de Férias
 
-**Arquivo:** `calculadoras/giefs_ferias.py` — classe `CalculadoraGIEFSFerias`
+**Arquivo:** `calculadoras/giefs_terco_ferias.py` — classe `CalculadoraGIEFSTercoFerias`
 
 **Fórmula:** `Valor GIEFS ÷ 3`
 
@@ -298,7 +303,7 @@ calculadora-verbas-fhemig/
 
 **Fórmula:** `Venc. Básico × alíquota do reajuste`
 
-**Campos:** `ano_reajuste` (selectbox 2024/2026), `vencimento_basico` (do cabeçalho)
+**Campos:** `ano_referencia` (selectbox 2024/2026), `vencimento_basico` (do cabeçalho)
 
 **Detalhes:**
 - Alíquotas vêm de `tabela_reajustes` no JSON (2024: 4,62%, 2026: 5,4%)
@@ -321,17 +326,29 @@ calculadora-verbas-fhemig/
 - **Competência** exibe apenas **ano** (não mês/ano) — tratada em `_render_competencia` junto com "13º Salário"
 - Incluída na condição que exibe apenas 2 opções no selectbox GRS (Risco Médio e Risco Alto)
 
+### 3.15 ✅ Desconto de IPSEMG (3,2%)
+
+**Arquivo:** `calculadoras/ipsemg.py` — classe `CalculadoraIPSEMG`
+
+**Fórmula:** `(Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + Ad. Noturno + GRS + Ad. Desempenho + 13º) × 3,2%`
+
+**Campos:** `vencimento_basico` (cabeçalho), `grat_final_semana` (histórico), `abono_emergencia` (default 0), `valor_giefs` (manual), `adicional_noturno` (histórico), `grs_risco` (select), `ad_desempenho` (default 0), `valor_13_salario` (histórico)
+
+**Detalhes:**
+- Base montada pela soma dos componentes; aplica alíquota fixa de 3,2%
+- **GIEFS e GRS** ficam com tratamento padrão (manual/select), **sem pré-preenchimento**; os demais campos vêm pré-preenchidos de cabeçalho/histórico
+- Registrada como `"Desconto de IPSEMG (3,2%)"` (código 7700, Desconto)
+- Exemplo confirmado: 20,55 × 0,032 = 0,66
+
 ---
 
 ## 4. Pendências (a fazer)
 
-### 4.1 Calculadoras faltantes (1 restante do `app.py`)
+### 4.1 ✅ Desconto de IPSEMG (3,2%) — implementado
 
-Seguir o mesmo padrão das já implementadas.
-
-| Verba | Código | Tipo | Fórmula (app.py) |
-|---|---|---|---|
-| Desconto de IPSEMG (3,2%) | 7700 | Desconto | base × 3,2% |
+| Verba | Código | Tipo | Fórmula | Arquivo |
+|---|---|---|---|---|
+| Desconto de IPSEMG (3,2%) | 7700 | Desconto | (base de incidência) × 3,2% | `calculadoras/ipsemg.py` |
 
 ### 4.2 Exportação PDF
 
@@ -345,23 +362,14 @@ Seguir o mesmo padrão das já implementadas.
 - Versão modular usa `data/tabelas.json`
 - Quando `app.py` for descontinuado, remover as duplicatas
 
-### 4.4 Revisar parsers GRS nas calculadoras restantes
+### 4.4 ✅ Concluído — Migração dos parsers GRS
 
-Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` nas calculadoras que ainda usam `_parser_nivel_grs` local ou parser inline:
+Todos os `_parser_nivel_grs` locais foram eliminados; todas as calculadoras usam `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` diretamente (ver 10.2). Confirmado por busca: **nenhuma ocorrência restante**.
 
-| Arquivo | Padrão atual | Ação |
-|---|---|---|
-| `grs_meses.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `grs_desconto_horas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `ferias_indenizadas.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `terco_ferias.py` | `_parser_nivel_grs` local | Remover método + chamada direta |
-| `grs_dias.py` | Parser inline | Chamada direta (corrige "Não faz jus") |
+### 4.5 ✅ Resolvido — renomeação Desconto de Ajuda de Custo
 
-### 4.5 Commit pendente — renomeação Desconto de Ajuda de Custo
-
-- `desconto_ajuda_custo.py` → `ajuda_custo_desconto.py` (não commitado)
-- `calculadora_modelo.py` deletado (confirmar se intencional)
-- `ui/selecao_verba.py` modificado (renomeação "Aumento Salarial (ano)" no histórico)
+- Arquivo `ajuda_custo_desconto.py` em uso (`calculadora_modelo.py` não existe mais)
+- Renomeações e ajustes já registrados nos commits anteriores
 
 ---
 
@@ -374,7 +382,7 @@ Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` nas
 - **Piso Enfermagem 13º**: novo campo `valor_piso`, reutiliza `numero_meses` existente
 - **GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias**: usam o mesmo campo `valor_giefs` (informado manualmente pelo usuário)
 - **GIEFS — 13º**: usa `valor_giefs` + `numero_meses`
-- **Campo `numero_parcelas`**: novo campo inteiro (1-12) para GIEFS — Meses (parcelas)
+- **Campo `numero_parcelas`**: removido — a GIEFS — Meses foi simplificada para **campo único de valor** (ver 2.4/10.4)
 - **INSS sobre 13º**: `valor_13_salario` e `giefs_13_salario` são preenchidos automaticamente via busca no histórico
 - **Faltas — Dias e Faltas — Horas**: base inclui **Piso Enfermagem** (CPE — Lei 14434/22). Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
 - **Férias Indenizadas**: **GIEFS NÃO entra** na base de cálculo (confirmado)
@@ -387,6 +395,7 @@ Centralizar o parser GRS em `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` nas
 ## 6. Dúvidas em aberto (ver `dúvidas.md`)
 
 - Abono Emergência é valor fixo (R$ 150)?
+- **INSS Mensal**: a base atualmente usa **apenas o `vencimento_basico`**. O legado (`app.py`) tinha um campo único "Base de cálculo (R$)". Confirmar se a base deve incluir outras rubricas (Grat. Fim Semana, Ad. Noturno, GRS, etc.) ou se mantém só o vencimento básico.
 - ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
 - Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área.
 
@@ -416,6 +425,7 @@ Os commits mais recentes mostram a evolução da refatoração:
 - `9bc2c2d` — "feat: implementa calculadoras de GRS Dias e 13º Salário"
 - `f955347` — "feat: implementa aumento salarial com diferentes alíquotas e revisa cálculo de faltas de dias e horas"
 - Implementações recentes: Férias Indenizadas, Faltas — Horas, Faltas — Dias, Ajuda de Custo Mensal, Desconto de Ajuda de Custo, Aumento Salarial (multi-alíquotas)
+- **Trabalho da sessão atual (ainda NÃO commitado):** unificação `ano_reajuste` → `ano_referencia`; competência por ano nas verbas de 13º; refactor render/defaults (`ano_referencia` e `grs_risco`); implementação do **Desconto de IPSEMG**; validação do INSS sobre 13º; `data/tabelas.json` reorganizado e `duvidas.md` renomeado (acento removido).
 
 ---
 
@@ -467,27 +477,51 @@ Usuário revisou as fórmulas de:
 
 Todas **validadas** conforme a área competente.
 
-### 10.6 🟡 Revisar INSS sobre o 13º Salário
+### 10.6 ✅ Concluído — INSS sobre o 13º Salário (validado)
 
-Revisar a lógica de cálculo de `calculadoras/inss_decimo_terceiro.py`:
+**Fórmula confirmada:** `(13º + GIEFS 13º) × Alíquota − Dedução (tabela progressiva)`
 
-**Fórmula atual:** `(13º + GIEFS 13º) × Alíquota − Dedução (tabela progressiva)`
+**Decisão:** a base é **somente** `13º + GIEFS 13º`. **GRS 13º e Piso 13º NÃO entram** na base (conforme spec da área).
 
-**Campos:** `valor_13_salario`, `giefs_13_salario`, `ano_referencia`
+**Campos:** `valor_13_salario` e `giefs_13_salario` (pré-preenchidos via histórico), `ano_referencia` (selectbox 2024-2026).
 
-**Pontos a validar:**
-- A base de cálculo `(13º + GIEFS 13º)` está correta?
-- Deve incluir **GRS 13º** e **Piso 13º** na base? (são verbas que incidem sobre o 13º)
-- Confirmar a aplicação da tabela progressiva INSS do ano referência
-- Verificar pré-preenchimento dos campos (`valor_13_salario` e `giefs_13_salario` via histórico)
+**Exemplo validado:** `1010,95 + 64,04 = 1074,99` → faixa 7,5% → **80,62** (tabela progressiva; `ano_referencia: int`, convertido com `str()` na borda).
 
 ### 10.7 🟡 Aumento Salarial — cálculo combinado "2024 + 2026"
 
 - Aguardando confirmação da área se será **composto** (`base × 1,0462 × 1,054`)
 - Se confirmado, adicionar opção "2024 + 2026" no selectbox e lógica de múltiplas alíquotas
 
-### 10.8 🟢 Calculadora restante — Desconto de IPSEMG (3,2%)
+### 10.8 ✅ Concluído — Desconto de IPSEMG (3,2%)
 
 | Verba | Código | Tipo | Fórmula |
 |---|---|---|---|
-| Desconto de IPSEMG (3,2%) | 7700 | Desconto | base × 3,2% |
+| Desconto de IPSEMG (3,2%) | 7700 | Desconto | (Venc + Grat. Fim Sem. + Ab. Emerg. + GIEFS + Ad. Noturno + GRS + Ad. Desemp. + 13º) × 3,2% |
+
+Base de incidência montada a partir dos campos dos componentes (com pré-preenchimento do histórico/cabeçalho para os campos exceto GIEFS e GRS, que ficam com default/manual). Exemplo confirmado: 20,55 × 0,032 = 0,66.
+
+---
+
+## 11. Próximos passos (pendências em aberto)
+
+> Consolidação do que segue em aberto, com referência às seções detalhadas. Itens em `🟡` dependem de confirmação da área.
+
+### 11.1 Desenvolvimento
+
+1. **Exportação PDF (ver 4.2)** — Implementar `utils/exportador_pdf.py`, extraindo o `gerar_pdf()` do `app.py` (linhas 141-273) e integrar à UI modular (exportar resultado/histórico).
+2. **Remover duplicação de dados (ver 4.3)** — Quando `app.py` for descontinuado, remover `TABELA_CARGOS`, `TABELA_INSS`, `VERBAS_META` duplicados e passar a usar exclusivamente `data/tabelas.json`.
+3. **Aumento Salarial combinado (ver 10.7 🟡)** — Aguardando confirmação da área se o cálculo "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`). Se confirmado, adicionar opção "2024 + 2026" no selectbox de `ano_referencia` e a lógica de múltiplas alíquotas.
+
+### 11.2 Decisões de regra de negócio em aberto (ver `duvidas.md` e seção 6)
+
+- **Abono Emergência**: é valor fixo (R$ 150)?
+- **INSS Mensal**: base atualmente usa **apenas o `vencimento_basico`**; definir se deve usar a base completa de remuneração (como no legado)
+- **Piso Enfermagem**: o valor é fixo? faz sentido puxar o valor automaticamente (carreira PENF) ou manter campo aberto?
+- **Desconto de Ajuda de Custo**: confirmar se é do **"Custeio Alimentação"**
+- **Faltas/atrasos**: o atraso (horas/dias) afeta o campo GRS considerado na fórmula?
+- **GIEFS — Meses**: confirmar a fórmula (não localizada na planilha)
+
+### 11.3 Encerramento da sessão
+
+- **Commit do trabalho da sessão atual** (ainda não commitado — ver seção 8)
+- **Revisão final** da versão modular em relação ao `app.py` legado antes de descontinuá-lo

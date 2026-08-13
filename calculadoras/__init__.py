@@ -22,5 +22,6 @@ from .faltas_dias import CalculadoraFaltasDias
 from .ajuda_custo import CalculadoraAjudaCusto
 from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
+from .ipsemg import CalculadoraIPSEMG
 
 from .factory import REGISTRO_CALCULADORAS
