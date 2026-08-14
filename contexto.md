@@ -60,7 +60,7 @@ calculadora-verbas-fhemig/
     ├── __init__.py
     ├── formatador_campos.py   # FormatadorCampos (brl, masp, arredondar)
     ├── ui_callbacks.py        # on_change_masp, on_change_moeda
-    └── exportador_pdf.py      # 🔴 VAZIO — aguardando implementação
+    └── exportador_pdf.py      # ✅ GeradorPDF — PDF do histórico (layout FHEMIG)
 ```
 
 ---
@@ -113,7 +113,7 @@ calculadora-verbas-fhemig/
 - **Competência** (mês/ano; apenas **ano** para todas as verbas de 13º: 13º Salário, GIEFS 13º, Piso 13º, GRS 13º e INSS sobre 13º)
 - **Observação** (opcional, até 200 caracteres)
 - **Histórico** em dataframe com totais (vantagens, descontos, líquido)
-- Botões: "Remover último", "Limpar lista"
+- Botões: "Remover último", "Limpar lista", "📄 Gerar PDF"
 
 ### 2.3 Dados
 
@@ -350,11 +350,13 @@ calculadora-verbas-fhemig/
 |---|---|---|---|---|
 | Desconto de IPSEMG (3,2%) | 7700 | Desconto | (base de incidência) × 3,2% | `calculadoras/ipsemg.py` |
 
-### 4.2 Exportação PDF
+### 4.2 ✅ Exportação PDF — implementada (14/08)
 
-- `utils/exportador_pdf.py` está **vazio**
-- A função `gerar_pdf()` completa existe no `app.py` (linhas 141-273)
-- Precisa ser extraída para o módulo e integrada à UI modular
+- `utils/exportador_pdf.py` com a classe **`GeradorPDF`** (layout do `PDFGenerator` de outra aplicação).
+- Estrutura: `BaseDocTemplate` + templates de página (1ª com logo, demais sem), cor `#108da5`, seções "Dados do Servidor", "Verbas Calculadas" (com totais), "Memória de Cálculo", "Observações" e rodapé.
+- Integrado à UI: botão **"📄 Gerar PDF"** em `_render_historico` (via `st.download_button`).
+- Logo institucional: `assets/cabecalho_pdf.png` (desenhado só se o arquivo existir).
+- Detalhes no plano de sessão (seção 12.2).
 
 ### 4.3 Remover duplicação de dados
 
@@ -525,3 +527,50 @@ Base de incidência montada a partir dos campos dos componentes (com pré-preenc
 
 - **Commit do trabalho da sessão atual** (ainda não commitado — ver seção 8)
 - **Revisão final** da versão modular em relação ao `app.py` legado antes de descontinuá-lo
+---
+
+## 12. Plano de desenvolvimento — sessão 14/08
+
+> **Sessão:** correção do pré-preenchimento do histórico + implementação do PDF + planejamento da persistência de campos manuais.
+> **Status:** trabalho em andamento — alguns itens concluídos, outros pendentes (ver marcadores ✅/🟡).
+
+### 12.1 ✅ Concluído — Correção do pré-preenchimento (bug do histórico)
+
+**Problema:** ao trocar de verba, campos que vêm do histórico (adicional noturno, grat. final de semana, 13º, GIEFS 13º, ajuda de custo) não voltavam para o valor do cálculo anterior — mantinham o valor editado manualmente em outra verba (ex.: editar "Adicional Noturno" no 13º e ver esse valor no IPSEMG em vez do histórico).
+
+**Causa raiz:** widgets sem `key` explícita tinham chave automática baseada no rótulo; o Streamlit reutilizava o estado persistido e ignorava o default `value`, e **apaga o estado de widgets não renderizados** numa execução (confirmado via debug).
+
+**Solução aplicada em `ui/selecao_verba.py`:**
+- Cada campo passou a receber uma `campo_key` explícita:
+  - **Campos do histórico** (5): `key = "{verba_nonce}::{campo}"` → o nonce muda a cada troca de verba, o widget é tratado como novo e o default do histórico é reaplicado.
+  - **Campos manuais** (vencimento, GIEFS, dias, GRS, etc.): `key = "in::{campo}"` → mantém o valor digitado enquanto o widget for renderizado entre verbas.
+
+**Validação (AppTest):**
+| Cenário | Resultado |
+|---|---|
+| Histórico reseta na troca (adicional no IPSEMG volta pro histórico) | ✅ |
+| GRS persiste entre verbas que o usam (IPSEMG → 13º) | ✅ |
+| **GIEFS/dias persiste após passar por verba não relacionada (GIEFS → 13º → GIEFS)** | ❌ **PENDENTE** (requer mecanismo `mem`, ver 12.3) |
+
+### 12.2 ✅ Concluído — Exportação de PDF (`utils/exportador_pdf.py`)
+
+- Classe **`GeradorPDF`** implementada no layout do `PDFGenerator` de outra aplicação.
+- Estrutura: `BaseDocTemplate` + `PageTemplate` (1ª página com logo, demais sem), cor institucional `#108da5`, seções "Dados do Servidor", "Verbas Calculadas" (com totais), "Memória de Cálculo" e "Observações", rodapé com data/aviso.
+- Logo: `assets/cabecalho_pdf.png` (desenhado só se o arquivo existir).
+- Integração: botão **"📄 Gerar PDF"** em `_render_historico` (`st.download_button`); `GeradorPDF` exportado pelo pacote `utils`.
+
+### 12.3 🟡 Em aberto — Persistência de campos manuais via `mem::{campo}`
+
+**Contexto:** descoberto (via debug/`AppTest`) que o **Streamlit apaga o estado de widgets não renderizados** — `in::valor_giefs` vira `<nao existe>` ao passar pelo 13º. Por isso, a chave `in::...` não garante persistência quando o campo some de uma verba intermediária.
+
+**Plano (a implementar):** persistir o valor dos campos manuais em chave própria (dado nosso, não de widget — o Streamlit não apaga):
+1. **Gravar:** ao renderizar cada campo manual, gravar o retorno do widget em `st.session_state[f"mem::{campo}"]` (ou usar callback `on_change`).
+2. **Ler:** ao renderizar, usar `value = st.session_state.get(f"mem::{campo}", valor_default)` como default.
+3. **Selectbox (GRS, ano, carga):** guardar a string selecionada em `mem`; ao voltar, recomputar o `index` (com fallback pro default se a opção não existir mais — caso do "Não faz jus").
+4. **Campos do histórico continuam com o nonce** (reset na troca) — convivem sem conflito.
+
+**Critério de aceite (AppTest):** GIEFS — Dias digita 500 → vai ao 13º → volta → campo GIEFS deve mostrar **500** (hoje volta a 0).
+
+### 12.4 Commit pendente
+- Trabalho da sessão ainda **não commitado**: nonce/`campo_key` em `ui/selecao_verba.py`; `GeradorPDF` em `utils/exportador_pdf.py`; export em `utils/__init__.py`; logo `assets/cabecalho_pdf.png`; esta atualização do `contexto.md`.
+

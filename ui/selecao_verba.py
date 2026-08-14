@@ -1,7 +1,7 @@
 import streamlit as st
 from data import ProvedorDadosFhemig
 from calculadoras import CalculadoraVerba, REGISTRO_CALCULADORAS
-from utils import FormatadorCampos
+from utils import FormatadorCampos, GeradorPDF
 from datetime import date 
 from .config import CONFIG_CAMPOS
 
@@ -49,6 +49,12 @@ class SelecaoVerba:
 
         if st.session_state.get("ultima_verba_selecionada") != verba_input:
             st.session_state["ultimo_resultado"] = None
+            # A cada troca de verba, incrementa o "verba_nonce". Esse número entra
+            # no `key` de todos os campos, fazendo com que os widgets sejam tratados
+            # como "novos" e o default vindo do histórico seja aplicado novamente.
+            if "verba_nonce" not in st.session_state:
+                st.session_state["verba_nonce"] = 0
+            st.session_state["verba_nonce"] += 1
             st.session_state["ultima_verba_selecionada"] = verba_input
 
         # Seleciona a verba e passa os metadados correspondentes
@@ -82,6 +88,11 @@ class SelecaoVerba:
 
         # Pega valores default preenchidos no cabeçalho
         ds = st.session_state.get("dados_servidor", {})
+
+        # Nonce da verba atual: entra no `key` de cada campo. Como ele muda a cada
+        # troca de verba, os widgets são vistos como novos e o default (histórico)
+        # é aplicado, em vez de reusar o último valor digitado em outra verba.
+        nonce = st.session_state.get("verba_nonce", 0)
 
         # Gera os campos dinamicamente
         valores = {}
@@ -187,18 +198,29 @@ class SelecaoVerba:
             # Renderiza os campos
             desabilitado = campo in ("ad_desempenho")
 
+            # Chave de cada campo:
+            # - campo que vem do histórico → usa o nonce (reseta p/ o valor do histórico na troca de verba)
+            # - campo manual               → chave fixa (mantém o valor digitado entre verbas)
+            if campo in ["grat_final_semana", "adicional_noturno",
+                         "valor_13_salario", "giefs_13_salario", "valor_ajuda_custo"]:
+                campo_key = f"{nonce}::{campo}"
+            else:
+                campo_key = f"in::{campo}"
+
             with cols[i % 2]:
                 if campo == "ano_referencia":
                     valores[campo] = st.selectbox(
                         config["label"],
                         options=opcoes_ano,
                         index=indice_default_ano,
+                        key=campo_key,
                     )
                 elif campo == "grs_risco":
                     valores[campo] = st.selectbox(
                         config["label"],
                         options=opcoes_grs,
                         index=indice_default_grs,
+                        key=campo_key,
                     )
                 elif campo == "dias_trabalhados":
                     valores[campo] = st.number_input(
@@ -206,6 +228,7 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=30,
+                        key=campo_key,
                     )
                 elif campo == "numero_meses":
                     valores[campo] = st.number_input(
@@ -213,12 +236,14 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=12,
+                        key=campo_key,
                     )
                 elif campo == "carga_horaria_mensal":
                     valores[campo] = st.selectbox(
                         config["label"],
                         options=opcoes_ch, # [120, 180, 240, 264]
                         index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
+                        key=campo_key,
                     )
                 elif campo == "dias_ferias_indenizadas":
                     valores[campo] = st.number_input(
@@ -226,11 +251,13 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=30,
+                        key=campo_key,
                     )
                 elif campo == "faltas_horas":
                     valores[campo] = st.number_input(
                         config["label"],
                         value=valor_default,
+                        key=campo_key,
                     )
                 elif campo == "faltas_dias":
                     valores[campo] = st.number_input(
@@ -238,12 +265,14 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=30,
+                        key=campo_key,
                     )
                 else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
                     valores[campo] = st.number_input(
                             config["label"],
                             value=valor_default,
                             disabled=desabilitado,
+                            key=campo_key,
                         )
 
         if st.button("Calcular", type="primary", use_container_width=True):
@@ -377,8 +406,8 @@ class SelecaoVerba:
         col2.metric("Total Descontos", FormatadorCampos.brl(descontos))
         col3.metric("Líquido", FormatadorCampos.brl(liquido))
 
-        # Botões de limpar o dataframe
-        col_btn1, col_btn2 = st.columns(2)
+        # Botões de ação sobre a lista (remover / limpar / gerar PDF)
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
         with col_btn1:
             if st.button("🗑️ Remover último", type="secondary", use_container_width=True):
                 st.session_state["historico"].pop()
@@ -387,3 +416,15 @@ class SelecaoVerba:
             if st.button("🗑️ Limpar lista", type="secondary", use_container_width=True):
                 st.session_state["historico"] = []
                 st.rerun()
+        with col_btn3:
+            ds = st.session_state.get("dados_servidor", {})
+            masp = FormatadorCampos.masp(ds.get("masp")) or "servidor"
+            nome_arquivo = f"verbas_{masp}_{date.today().strftime('%d%m%Y')}.pdf"
+            st.download_button(
+                "📄 Gerar PDF",
+                data=GeradorPDF(historico, ds).gerar(),
+                file_name=nome_arquivo,
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )

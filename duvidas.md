@@ -30,6 +30,3 @@
 
 ## Dúvida INSS mensal e INSS 13o  
 - Quais verbas entram pro INSS mensal? E as do INSS 13o estão corretas mesmo?  
-
-## Dúvida
-- Tem algum comportamento estranho relacionado ao pré-preenchimento das verbas do IPSEMG: investigar melhor.
