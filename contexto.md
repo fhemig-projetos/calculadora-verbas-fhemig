@@ -42,7 +42,8 @@ calculadora-verbas-fhemig/
 │   ├── ajuda_custo.py         # ✅ Implementada
 │   ├── ajuda_custo_desconto.py# ✅ Implementada
 │   ├── aumento_salarial.py    # ✅ Implementada
-│   └── ipsemg.py              # ✅ Implementada
+│   ├── ipsemg.py              # ✅ Implementada
+│   └── licenca_maternidade.py # ✅ Implementada (17/08)
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
@@ -67,7 +68,7 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (23 de 23 — completa)
+### 2.1 Calculadoras (24 de 24 — completa)
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -94,6 +95,7 @@ calculadora-verbas-fhemig/
 | Desconto de Ajuda de Custo | `calculadoras/ajuda_custo_desconto.py` | ✅ |
 | Aumento Salarial | `calculadoras/aumento_salarial.py` | ✅ |
 | Desconto de IPSEMG (3,2%) | `calculadoras/ipsemg.py` | ✅ |
+| Licença Maternidade | `calculadoras/licenca_maternidade.py` | ✅ |
 
 ### 2.2 Interface
 
@@ -145,6 +147,12 @@ calculadora-verbas-fhemig/
 - **Revisão verbas de 13º**: Usuário revisou 13º Salário, GIEFS 13º, Piso 13º e GRS 13º — **validadas** (fórmulas corretas conforme área).
 - **Competência das verbas de 13º**: todas as verbas de 13º (13º Salário, GIEFS 13º, Piso 13º, GRS 13º e INSS sobre 13º) usam competência **somente por ano** em `_render_competencia`.
 - **Refactor render/defaults**: a decisão de `opcoes` e valor/índice default de `ano_referencia` e `grs_risco` foi movida para o bloco de defaults; o bloco de render passou a só renderizar (padrão do `carga_horaria_mensal`).
+- **Persistência de campos "genéricos" (17/08)**: no `else` final do bloco de defaults (`horas_realizadas`, `abono_emergencia`, `valor_giefs`, `valor_piso`, etc.), o fallback de `persistidos.get(campo, ...)` passou a checar `CONFIG_CAMPOS[campo]["tipo"]`: se for `"moeda"`, o default é `0.0` (float); senão, `0` (int) — como já era.
+- **Cabeçalho volta a "irradiar" para vencimento/CH/valor_base_aumento (17/08)**: `persistidos[campo] = valores[campo]` passou a gravar **todos** os campos (removida a exclusão anterior de `vencimento_basico`, `carga_horaria_mensal`, `valor_base_aumento`). Para não deixar esses 3 campos "grudados" no primeiro valor digitado e ignorando trocas de servidor no cabeçalho, foi adicionado `st.session_state["ultima_referencia_cabecalho"]`: ao detectar mudança em `(vencimento_basico, ch_mensal)` do `dados_servidor`, `_render_calculadora` limpa esses 3 campos de `persistidos` e incrementa `verba_nonce` (força o Streamlit a recriar a `key` dos widgets). Resultado: o cabeçalho sempre prevalece quando muda, mas o usuário pode editar livremente os 3 campos até a próxima troca de servidor.
+- **Correção de 2 bugs de comparação em `ui/selecao_verba.py` (17/08)**:
+  - `elif campo == ("dias_trabalhados", "dias_ferias_indenizadas", "faltas_dias"):` (string comparada com tupla, sempre `False`) → corrigido para `campo in (...)`. Antes do fix, esses 3 campos caíam no `else` genérico sem `min_value=1, max_value=30`, permitindo valores inválidos (0, negativos, >30).
+  - `desabilitado = campo in ("ad_desempenho")` (sem vírgula = string, testava substring) → corrigido para `campo in ("ad_desempenho",)` (tupla de fato).
+- **Licença Maternidade (17/08)**: nova verba implementada — ver seção 3.16.
 
 ---
 
@@ -340,6 +348,21 @@ calculadora-verbas-fhemig/
 - Registrada como `"Desconto de IPSEMG (3,2%)"` (código 7700, Desconto)
 - Exemplo confirmado: 20,55 × 0,032 = 0,66
 
+### 3.16 ✅ Licença Maternidade (17/08)
+
+**Arquivo:** `calculadoras/licenca_maternidade.py` — classe `CalculadoraLicencaMaternidade`
+
+**Fórmula:** `Venc. Básico + Valor GIEFS + Ab. Emergência + GRS` (confirmado: 4232,07 + 371,91 + 180,00 + 0,00 = 4783,98)
+
+**Campos:** `vencimento_basico` (cabeçalho), `valor_giefs` (manual), `abono_emergencia` (manual), `grs_risco` (select, 3 opções)
+
+**Detalhes:**
+- Verba identificada na planilha da área e implementada nesta sessão (antes ausente do app)
+- Reaproveita `ProvedorDadosFhemig.obter_valor_grs()`
+- Nenhum campo novo em `CONFIG_CAMPOS` — os 4 campos usados já existiam
+- Registrada como `"Licença Maternidade"` (código 1200, Vantagem) em `data/tabelas.json`, `factory.py` e `__init__.py`
+- Competência segue o padrão mês/ano (não é verba de 13º)
+
 ---
 
 ## 4. Pendências (a fazer)
@@ -427,7 +450,11 @@ Os commits mais recentes mostram a evolução da refatoração:
 - `9bc2c2d` — "feat: implementa calculadoras de GRS Dias e 13º Salário"
 - `f955347` — "feat: implementa aumento salarial com diferentes alíquotas e revisa cálculo de faltas de dias e horas"
 - Implementações recentes: Férias Indenizadas, Faltas — Horas, Faltas — Dias, Ajuda de Custo Mensal, Desconto de Ajuda de Custo, Aumento Salarial (multi-alíquotas)
-- **Trabalho da sessão atual (ainda NÃO commitado):** unificação `ano_reajuste` → `ano_referencia`; competência por ano nas verbas de 13º; refactor render/defaults (`ano_referencia` e `grs_risco`); implementação do **Desconto de IPSEMG**; validação do INSS sobre 13º; `data/tabelas.json` reorganizado e `duvidas.md` renomeado (acento removido).
+- `65b10ae` — "feat: revisa verbas de cálculo de grs, férias e inicia revisão de verbas de giefs"
+- `4892e40` — "feat: revisa cálculos de giefs e verbas de 13º"
+- `a4a6e14` — "feat: revisa verbas de 13o, implementa inss 13o e desconto de ipsemg"
+- `d5f4576` — "feat: adiciona lógica de exportar pdf com histórico dos cálculos"
+- `172ccef` — "feat: implementa lógica de persistência dos valores dos campos entre troca de verbas e cálculo de licença maternidade, revisão final das regras de negócio iniciais dos cálculos conforme planilha fornecida pela equipe da taxação" (sessão 17/08 — ver seção 13)
 
 ---
 
@@ -559,7 +586,11 @@ Base de incidência montada a partir dos campos dos componentes (com pré-preenc
 - Logo: `assets/cabecalho_pdf.png` (desenhado só se o arquivo existir).
 - Integração: botão **"📄 Gerar PDF"** em `_render_historico` (`st.download_button`); `GeradorPDF` exportado pelo pacote `utils`.
 
-### 12.3 🟡 Em aberto — Persistência de campos manuais via `mem::{campo}`
+### 12.3 ✅ Resolvido (17/08) — Persistência de campos manuais
+
+**Resolução:** em vez do mecanismo `mem::{campo}` descrito abaixo, a persistência foi implementada via o dicionário `st.session_state["valores_digitados"]` (`persistidos`), já usado como fallback em todo o bloco de defaults de `_render_calculadora`. Cada campo grava seu valor em `persistidos[campo] = valores[campo]` ao final de cada iteração do loop (ver 2.4 — "Cabeçalho volta a 'irradiar'..."), sobrevivendo à troca de verba (diferente do estado de widget, que o Streamlit apaga quando o campo não é renderizado). Resolve o mesmo problema descrito no critério de aceite abaixo.
+
+> Plano original (histórico, não implementado literalmente — mantido como referência):
 
 **Contexto:** descoberto (via debug/`AppTest`) que o **Streamlit apaga o estado de widgets não renderizados** — `in::valor_giefs` vira `<nao existe>` ao passar pelo 13º. Por isso, a chave `in::...` não garante persistência quando o campo some de uma verba intermediária.
 
@@ -571,6 +602,31 @@ Base de incidência montada a partir dos campos dos componentes (com pré-preenc
 
 **Critério de aceite (AppTest):** GIEFS — Dias digita 500 → vai ao 13º → volta → campo GIEFS deve mostrar **500** (hoje volta a 0).
 
-### 12.4 Commit pendente
-- Trabalho da sessão ainda **não commitado**: nonce/`campo_key` em `ui/selecao_verba.py`; `GeradorPDF` em `utils/exportador_pdf.py`; export em `utils/__init__.py`; logo `assets/cabecalho_pdf.png`; esta atualização do `contexto.md`.
+### 12.4 ✅ Commitado
+- Trabalho da sessão 14/08 commitado em `d5f4576` ("feat: adiciona lógica de exportar pdf com histórico dos cálculos") e commits seguintes — ver seção 8.
+
+---
+
+## 13. Plano de desenvolvimento — sessão 17/08
+
+> **Sessão:** correção de bugs de persistência/comparação em `ui/selecao_verba.py`, implementação da verba **Licença Maternidade** e revisão final das regras de negócio conforme planilha da equipe de taxação. Trabalho **commitado** em `172ccef` (ver seção 8).
+
+### 13.1 ✅ Concluído — ver seção 2.4 e 3.16
+- Fallback `0.0`/`0` do `else` genérico de defaults conforme `tipo` (`moeda` vs. demais)
+- Cabeçalho volta a "irradiar" para `vencimento_basico`/`carga_horaria_mensal`/`valor_base_aumento` ao trocar de servidor, mantendo edição manual entre trocas de verba
+- Correção de 2 bugs de comparação (`campo == (tupla)` sempre falso; `campo in ("ad_desempenho")` sem vírgula)
+- Reordenação de verbas no selectbox (`data/tabelas.json`): "Aumento Salarial" movida para logo após "Hora Extra"
+- Nova verba **Licença Maternidade** implementada e validada (4232,07 + 371,91 + 180,00 + 0,00 = 4783,98)
+
+### 13.2 🟡 Plano para amanhã
+
+1. **Deploy** — gerar a URL pública do Streamlit (Streamlit Community Cloud ou equivalente) para a aplicação.
+2. **Merge para `main`** — dar merge da branch `galhozinho-iza` (branch de trabalho atual) na `main`.
+3. **Dúvida a esclarecer com a área — INSS Mensal e INSS sobre 13º:**
+   - Quais verbas efetivamente entram na base de cálculo do INSS Mensal? (ver dúvida já registrada na seção 6/11.2 — hoje a base usa só `vencimento_basico`)
+   - Confirmar mais uma vez se a base do INSS sobre 13º (`13º + GIEFS 13º`, já validada em 10.6) está correta, ou se há algo a revisar.
+4. **Melhorias a implementar:**
+   - **GRS no histórico:** para as verbas de GRS, exibir no nome da linha da tabela do histórico se é "Risco Alto" ou "Risco Médio" (hoje o histórico mostra só o nome da verba, sem essa distinção) — provavelmente ajustar `nome_verba_historico` em `_render_calculadora` (`ui/selecao_verba.py`, por analogia ao tratamento já existente para "Aumento Salarial (2024)"/"Aumento Salarial (2026)").
+   - **Busca de dados do servidor pelo MASP:** trazer/preencher automaticamente os dados do servidor a partir do MASP informado (hoje o formulário em `ui/form_servidor.py` não faz essa busca — precisa avaliar se há fonte de dados disponível para isso, ex: nova tabela em `tabelas.json` ou integração externa).
+5. **Encaminhar e-mail para a área** solicitando validação e testes para homologação da ferramenta (após os itens acima, ou em paralelo, conforme prioridade).
 
