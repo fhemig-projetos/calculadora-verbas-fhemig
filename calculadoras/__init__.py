@@ -23,5 +23,6 @@ from .ajuda_custo import CalculadoraAjudaCusto
 from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
 from .ipsemg import CalculadoraIPSEMG
+from .licenca_maternidade import CalculadoraLicencaMaternidade
 
 from .factory import REGISTRO_CALCULADORAS

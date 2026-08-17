@@ -21,6 +21,7 @@ from .ajuda_custo import CalculadoraAjudaCusto
 from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
 from .ipsemg import CalculadoraIPSEMG
+from .licenca_maternidade import CalculadoraLicencaMaternidade
 
 # Registro (Factory) para conectar a UI às Classes
 REGISTRO_CALCULADORAS = {
@@ -47,4 +48,5 @@ REGISTRO_CALCULADORAS = {
     "Desconto de Ajuda de Custo": CalculadoraDescontoAjudaCusto(),
     "Aumento Salarial": CalculadoraAumentoSalarial(),
     "Desconto de IPSEMG (3,2%)": CalculadoraIPSEMG(),
+    "Licença Maternidade": CalculadoraLicencaMaternidade(),
 }

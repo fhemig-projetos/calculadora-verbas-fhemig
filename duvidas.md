@@ -30,3 +30,7 @@
 
 ## Dúvida INSS mensal e INSS 13o  
 - Quais verbas entram pro INSS mensal? E as do INSS 13o estão corretas mesmo?  
+
+## Melhorias
+- p/ as verbas de GRS trazer no nome da tabela do histórico se é verba de risco alto ou risco médio
+- trazer dados do servidor a partir do masp

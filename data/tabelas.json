@@ -38,10 +38,15 @@
       "codigo": "2412",
       "tipo": "Vantagem"
     },
-    "INSS Mensal (tabela progressiva)": {
-      "codigo": "7808",
-      "tipo": "Desconto"
+    "Aumento Salarial": {
+      "codigo": "----",
+      "tipo": "Vantagem"
     },
+    "Licença Maternidade": {
+      "codigo": "1200",
+      "tipo": "Vantagem"
+    },
+
     "13º Salário": {
       "codigo": "2491",
       "tipo": "Vantagem"
@@ -94,14 +99,6 @@
       "codigo": "2432",
       "tipo": "Vantagem"
     },
-    "Faltas — Horas": {
-      "codigo": "7810",
-      "tipo": "Desconto"
-    },
-    "Faltas — Dias": {
-      "codigo": "7811",
-      "tipo": "Desconto"
-    },
     "Ajuda de Custo Mensal": {
       "codigo": "2070",
       "tipo": "Vantagem"
@@ -110,9 +107,17 @@
       "codigo": "9018",
       "tipo": "Desconto"
     },
-    "Aumento Salarial": {
-      "codigo": "----",
-      "tipo": "Vantagem"
+    "Faltas — Horas": {
+      "codigo": "7810",
+      "tipo": "Desconto"
+    },
+    "Faltas — Dias": {
+      "codigo": "7811",
+      "tipo": "Desconto"
+    },
+    "INSS Mensal (tabela progressiva)": {
+      "codigo": "7808",
+      "tipo": "Desconto"
     },
     "Desconto de IPSEMG (3,2%)": {
       "codigo": "7700",
