@@ -2,7 +2,7 @@
 
 > **Propósito:** Refatoração do `app.py` (monolítico) para arquitetura modular com pacotes e OOP.
 > **Stack:** Python + Streamlit + ReportLab (PDF) + Pandas
-> **Entrypoint atual:** `main.py` (novo) | `app.py` (legado, sendo substituído)
+> **Entrypoint atual:** `main.py` (versão modular, único entrypoint — `app.py` legado removido da raiz em 18/08, arquivado em `old/app_old.py`)
 
 ---
 
@@ -11,10 +11,17 @@
 ```
 calculadora-verbas-fhemig/
 ├── main.py                    # Entrypoint da versão modular
-├── app.py                     # Versão monolítica legada (a ser substituída)
 ├── contexto.md                # Este arquivo
 ├── dúvidas.md                 # Dúvidas em aberto sobre regras de negócio
 ├── requirements.txt           # streamlit, reportlab, pandas
+│
+├── assets/                    # Identidade visual
+│   ├── icone.png               # Favicon (page_icon em main.py)
+│   ├── LogoFhemig.png           # Logo institucional no cabeçalho (ui/cabecalho.py)
+│   └── cabecalho_pdf.png       # Logo usado no PDF exportado (utils/exportador_pdf.py)
+│
+├── old/                       # Código legado arquivado
+│   └── app_old.py             # Antigo app.py monolítico (removido da raiz em 18/08)
 │
 ├── calculadoras/              # Pacote de classes de cálculo (OOP)
 │   ├── __init__.py            # Exporta classes + factory
@@ -381,11 +388,11 @@ calculadora-verbas-fhemig/
 - Logo institucional: `assets/cabecalho_pdf.png` (desenhado só se o arquivo existir).
 - Detalhes no plano de sessão (seção 12.2).
 
-### 4.3 Remover duplicação de dados
+### 4.3 ✅ Resolvido (18/08) — Remover duplicação de dados
 
-- `app.py` tem `TABELA_CARGOS`, `TABELA_INSS`, `VERBAS_META` duplicados
-- Versão modular usa `data/tabelas.json`
-- Quando `app.py` for descontinuado, remover as duplicatas
+- `app.py` (que tinha `TABELA_CARGOS`, `TABELA_INSS`, `VERBAS_META` duplicados) foi **removido da raiz**, arquivado em `old/app_old.py`.
+- Versão modular usa exclusivamente `data/tabelas.json` — sem duplicidade restante.
+- `main.py` agora é o único entrypoint da aplicação.
 
 ### 4.4 ✅ Concluído — Migração dos parsers GRS
 
@@ -676,4 +683,30 @@ valor_outras_vantagens = sum(
 - Ver seção 4.6: expandir a base do **INSS sobre 13º Salário** para incluir Piso 13º e GRS 13º (mesmo raciocínio, ainda não implementado).
 - Ver seção 6: confirmar com a área se `valor_outras_vantagens` deve filtrar por competência.
 - Ver seção 6: se o cálculo combinado "Aumento Salarial 2024+2026" vier a ser composto (pendência 10.7), revisar se a soma simples de `valor_outras_vantagens` ainda está correta nesse cenário.
+
+### 14.3 ✅ Concluído — Identidade visual
+
+- **`main.py`**: `st.set_page_config` atualizado — `page_title="Calculadora de Verbas - Fhemig"` e `page_icon="assets/icone.png"` (favicon na aba do navegador).
+- **`ui/cabecalho.py`**: adicionada a logo institucional `assets/LogoFhemig.png` no topo da página, ao lado do título (`st.columns` com `vertical_alignment="center"`).
+- Novos arquivos de imagem em `assets/`: `icone.png` (favicon) e `LogoFhemig.png` (logo do cabeçalho) — além do já existente `cabecalho_pdf.png` (logo do PDF).
+
+### 14.4 ✅ Concluído — Remoção do `app.py` legado
+
+- Ver seção 4.3 (resolvida). `app.py` saiu da raiz e foi arquivado em `old/app_old.py`; `main.py` é agora o único entrypoint.
+
+### 14.5 🟡 Plano de deploy — Streamlit Community Cloud (discutido, não executado)
+
+Passo a passo alinhado com o usuário para gerar a URL pública (pendência da seção 13.2, item 1):
+
+1. Commitar o trabalho pendente e mergear `galhozinho-iza` → `main` (pendência da seção 13.2, item 2) — o deploy vai apontar pra `main`.
+2. `requirements.txt` já está ok (`streamlit`, `reportlab`, `pandas`).
+3. **Atenção:** Python local é 3.14.4 (muito recente) — recomendado fixar uma versão mais conservadora (3.11/3.12) pro deploy, via `.python-version` ou no seletor da própria UI do Streamlit Cloud.
+4. Logar em [share.streamlit.io](https://share.streamlit.io) com a conta GitHub que tem acesso a `fhemig-projetos/calculadora-verbas-fhemig`.
+5. "New app" → Repository = `fhemig-projetos/calculadora-verbas-fhemig`, Branch = `main`, Main file path = `main.py`.
+6. Deploy e acompanhar o log de build.
+7. Pegar a URL pública gerada (`https://<nome-do-app>.streamlit.app` ou subdomínio customizado).
+8. Testar o fluxo completo (formulário → cálculo → PDF) direto na URL publicada.
+9. Redeploys futuros: push em `main` dispara redeploy automático (ou reboot manual pelo painel).
+
+**Não executado ainda** — nenhum commit, merge ou deploy foi realizado nesta sessão.
 
