@@ -19,4 +19,6 @@ CONFIG_CAMPOS = {
     "valor_ajuda_custo": {"label": "Valor da Ajuda de Custo (R$)", "tipo": "moeda"},
     "valor_13_salario":  {"label": "Valor do 13º Salário (R$)", "tipo": "moeda"},
     "giefs_13_salario":  {"label": "Valor da GIEFS do 13º (R$)", "tipo": "moeda"},
+    "valor_outras_vantagens": {"label": "Outras Vantagens (soma automática do histórico) (R$)", "tipo": "moeda"},
+    "outras_verbas": {"label": "Outras Verbas (R$)", "tipo": "moeda"},
 }

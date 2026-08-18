@@ -18,33 +18,24 @@ class CalculadoraINSSDecimoTerceiro(CalculadoraVerba):
         # Pega a tabela do ano escolhido pelo usuário
         tabela = ProvedorDadosFhemig.obter_tabela_inss(ano_referencia)
 
-        # Percorre as faixas em ordem crescente
-        for faixa in tabela:
-            if base <= faixa["limite"]:
-                # Fórmula
-                valor = base * faixa["aliq"] - faixa["deducao"]
-                # Memória de cálculo
-                memoria = [
-                    f"13º Salário: {FormatadorCampos.brl(valor_13_salario)}",
-                    f"GIEFS 13º: {FormatadorCampos.brl(giefs_13_salario)}",
-                    f"─────",
-                    f"BASE: {FormatadorCampos.brl(base)}",
-                    f"Faixa de {FormatadorCampos.brl(faixa['limite'])}: {faixa['aliq']*100:.1f}%",
-                    f"Dedução: {FormatadorCampos.brl(faixa['deducao'])}",
-                    f"= {FormatadorCampos.brl(valor)}",
-                ]
-                return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)
-        
-        # Se passou de todas (acima do teto) utiliza a última faixa
-        ultima = tabela[-1]
-        valor = base * ultima["aliq"] - ultima["deducao"]
+        # Percorre as faixas em ordem crescente (usa a última faixa se acima do teto)
+        faixa = None
+        for f in tabela:
+            if base <= f["limite"]:
+                faixa = f
+                break
+        if faixa is None:
+            faixa = tabela[-1]
+
+        valor = base * faixa["aliq"] - faixa["deducao"]
+
         memoria = [
             f"13º Salário: {FormatadorCampos.brl(valor_13_salario)}",
             f"GIEFS 13º: {FormatadorCampos.brl(giefs_13_salario)}",
             f"─────",
             f"BASE: {FormatadorCampos.brl(base)}",
-            f"Faixa de {FormatadorCampos.brl(ultima['limite'])}: {ultima['aliq']*100:.1f}%",
-            f"Dedução: {FormatadorCampos.brl(ultima['deducao'])}",
+            f"Faixa de {FormatadorCampos.brl(faixa['limite'])}: {faixa['aliq']*100:.1f}%",
+            f"Dedução: {FormatadorCampos.brl(faixa['deducao'])}",
             f"= {FormatadorCampos.brl(valor)}",
         ]
         return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)

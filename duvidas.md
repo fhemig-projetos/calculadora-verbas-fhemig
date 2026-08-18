@@ -34,3 +34,4 @@
 ## Melhorias
 - p/ as verbas de GRS trazer no nome da tabela do histórico se é verba de risco alto ou risco médio
 - trazer dados do servidor a partir do masp
+- listar data fim efetiva no pdf

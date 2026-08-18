@@ -151,6 +151,22 @@ class SelecaoVerba:
                     opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
                 valor_persistido = persistidos.get(campo)
                 indice_default_grs = opcoes_grs.index(valor_persistido) if valor_persistido in opcoes_grs else 0
+            ## Outras Vantagens do INSS Mensal → soma automática do histórico (todas as verbas de
+            ## tipo Vantagem, exceto Ajuda de Custo e as verbas de 13º, que entram no INSS do 13º)
+            elif campo == "valor_outras_vantagens":
+                NOMES_EXCLUIDOS_INSS = {
+                    "Ajuda de Custo Mensal",
+                    "13º Salário",
+                    "GIEFS — 13º Salário",
+                    "Piso Enfermagem — 13º Salário",
+                    "GRS — 13º Salário",
+                }
+                historico = st.session_state.get("historico", [])
+                valor_default = sum(
+                    (item["valor"] for item in historico
+                    if item.get("tipo") == "Vantagem" and item.get("nome_verba") not in NOMES_EXCLUIDOS_INSS),
+                    start=0.0, # inicializa o campo com 0.0 caso não tenha verba calculada
+                )
             ## Campos do Histórico → histórico primeiro, persistido como fallback
             elif campo in ("grat_final_semana", "adicional_noturno", "valor_13_salario",
                         "giefs_13_salario", "valor_ajuda_custo"):
@@ -239,7 +255,7 @@ class SelecaoVerba:
                             key=campo_key,
                         )
 
-            # Persiste o valor atual (menos os campos que sempre vêm do cabeçalho)
+            # Persiste o valor atual
             persistidos[campo] = valores[campo]
 
         if st.button("Calcular", type="primary", use_container_width=True):

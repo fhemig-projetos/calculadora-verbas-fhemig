@@ -396,6 +396,12 @@ Todos os `_parser_nivel_grs` locais foram eliminados; todas as calculadoras usam
 - Arquivo `ajuda_custo_desconto.py` em uso (`calculadora_modelo.py` não existe mais)
 - Renomeações e ajustes já registrados nos commits anteriores
 
+### 4.6 🟡 Pendente — expandir base do INSS sobre 13º Salário
+
+- Hoje (`calculadoras/inss_decimo_terceiro.py`) a base é só `valor_13_salario + giefs_13_salario`.
+- Pelo mesmo raciocínio aplicado ao INSS Mensal nesta sessão (ver seção 14): **Piso Enfermagem — 13º Salário** e **GRS — 13º Salário** também deveriam entrar na base.
+- Ao implementar, avaliar se vale a mesma abordagem residual (soma automática das 4 verbas de 13º do histórico, com um campo tipo `valor_outras_vantagens_13`) em vez de campos individuais — replicando o padrão criado em 14.
+
 ---
 
 ## 5. Observações sobre regras de negócio
@@ -420,9 +426,11 @@ Todos os `_parser_nivel_grs` locais foram eliminados; todas as calculadoras usam
 ## 6. Dúvidas em aberto (ver `dúvidas.md`)
 
 - Abono Emergência é valor fixo (R$ 150)?
-- **INSS Mensal**: a base atualmente usa **apenas o `vencimento_basico`**. O legado (`app.py`) tinha um campo único "Base de cálculo (R$)". Confirmar se a base deve incluir outras rubricas (Grat. Fim Semana, Ad. Noturno, GRS, etc.) ou se mantém só o vencimento básico.
+- ~~**INSS Mensal**: a base atualmente usa **apenas o `vencimento_basico`**...~~ ✅ Esclarecido (18/08) — ver seção 14
+- **INSS Mensal — soma por competência**: hoje `valor_outras_vantagens` soma **todo** o histórico da sessão, sem filtrar por mês/ano batendo com a competência do cálculo do INSS Mensal sendo feito. Confirmar com a área se é necessário filtrar por competência (ver seção 14).
 - ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
-- Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área.
+- **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6).
+- Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área. **Relacionado:** o novo campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo combinado for confirmado como composto, pode ser necessário revisar essa soma simples.
 
 ---
 
@@ -629,4 +637,43 @@ Base de incidência montada a partir dos campos dos componentes (com pré-preenc
    - **GRS no histórico:** para as verbas de GRS, exibir no nome da linha da tabela do histórico se é "Risco Alto" ou "Risco Médio" (hoje o histórico mostra só o nome da verba, sem essa distinção) — provavelmente ajustar `nome_verba_historico` em `_render_calculadora` (`ui/selecao_verba.py`, por analogia ao tratamento já existente para "Aumento Salarial (2024)"/"Aumento Salarial (2026)").
    - **Busca de dados do servidor pelo MASP:** trazer/preencher automaticamente os dados do servidor a partir do MASP informado (hoje o formulário em `ui/form_servidor.py` não faz essa busca — precisa avaliar se há fonte de dados disponível para isso, ex: nova tabela em `tabelas.json` ou integração externa).
 5. **Encaminhar e-mail para a área** solicitando validação e testes para homologação da ferramenta (após os itens acima, ou em paralelo, conforme prioridade).
+
+---
+
+## 14. Plano de desenvolvimento — sessão 18/08
+
+> **Sessão:** revisão da base de cálculo do INSS Mensal, conforme resposta da área de taxação (ver dúvida da seção 13.2, item 3).
+
+### 14.1 ✅ Concluído — Base do INSS Mensal ampliada (residual)
+
+**Resposta da área:** entram na base do INSS Mensal **todas as verbas de Vantagem já calculadas**, **exceto Ajuda de Custo**. As verbas de 13º (13º Salário, GIEFS 13º, Piso 13º, GRS 13º) **não** entram aqui — pelo mesmo raciocínio, elas entram é na base do **INSS sobre 13º Salário** (ver pendência 4.6).
+
+**Abordagem implementada:** em vez de um campo por verba (chegou a ser cogitado e descartado por ficar com campos demais), a base usa um **campo único somado automaticamente** a partir do histórico:
+
+```python
+NOMES_EXCLUIDOS_INSS = {
+    "Ajuda de Custo Mensal",
+    "13º Salário", "GIEFS — 13º Salário",
+    "Piso Enfermagem — 13º Salário", "GRS — 13º Salário",
+}
+valor_outras_vantagens = sum(
+    item["valor"] for item in historico
+    if item.get("tipo") == "Vantagem" and item.get("nome_verba") not in NOMES_EXCLUIDOS_INSS
+)
+```
+
+- Campo `valor_outras_vantagens` (novo em `ui/config.py`/`ui/selecao_verba.py`): pré-preenchido com essa soma, mas continua **editável**.
+- Campo `outras_verbas` (novo): manual, default `0.0`, sem pré-preenchimento — resguardo para vantagens que a área possa ter esquecido de mapear como verba própria na aplicação.
+- **Fórmula:** `Base = vencimento_basico + valor_outras_vantagens + outras_verbas` → tabela progressiva do INSS aplicada sobre essa base (lógica de faixas inalterada).
+- **Vantagem da abordagem residual:** soma automaticamente **todas as ocorrências** de cada verba no histórico (não só a mais recente) — resolve por construção a dúvida que existia sobre "somar tudo vs. valor mais recente". Também resolve o caso do "Aumento Salarial" (nome no histórico vem com sufixo de ano, ex. `"Aumento Salarial (2026)"`) sem precisar de lógica de prefixo, já que a soma só filtra por `tipo` e nomes excluídos explícitos.
+- **Arquivos alterados:** `calculadoras/inss_mensal.py` (fórmula reescrita), `ui/config.py` (2 campos novos), `ui/selecao_verba.py` (bloco de default para `valor_outras_vantagens`).
+- Nenhuma verba de **Desconto** entra na base (natural, já que a soma filtra só `tipo == "Vantagem"`).
+
+**Limitação conhecida (ver seção 6):** a soma não filtra por competência (mês/ano) — soma todo o histórico da sessão, independente do período de cada lançamento. Fica como pendência para quando a área confirmar se isso é necessário.
+
+### 14.2 🟡 Pendências geradas nesta sessão
+
+- Ver seção 4.6: expandir a base do **INSS sobre 13º Salário** para incluir Piso 13º e GRS 13º (mesmo raciocínio, ainda não implementado).
+- Ver seção 6: confirmar com a área se `valor_outras_vantagens` deve filtrar por competência.
+- Ver seção 6: se o cálculo combinado "Aumento Salarial 2024+2026" vier a ser composto (pendência 10.7), revisar se a soma simples de `valor_outras_vantagens` ainda está correta nesse cenário.
 
