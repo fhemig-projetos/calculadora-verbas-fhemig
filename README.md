@@ -1,69 +1,50 @@
 # Calculadora de Verbas Remuneratórias — FHEMIG / DIGEPE
 
-Aplicação Streamlit para cálculo e conferência de verbas remuneratórias 
+Aplicação Streamlit para cálculo e conferência de verbas remuneratórias
 nos Resumos Funcionais da FHEMIG.
+
+## Aplicação publicada
+
+🔗 **[https://calculadora-verbas-fhemig.streamlit.app/](https://calculadora-verbas-fhemig.streamlit.app/)**
 
 ## Verbas implementadas
 
-- Gratificação de Final de Semana  
-- Adicional Noturno  
-- Hora Extra  
-- 13º Salário  
-- GIEFS — 13º Salário  
-- INSS sobre 13º Salário  
-- GIEFS — Dias  
-- GIEFS — Meses (parcelas)  
-- GIEFS — 1/3 de Férias  
-- GRS — Dias  
-- GRS — Meses  
-- GRS — Desconto de Horas  
-- 1/3 de Férias  
-- Férias Indenizadas  
-- Faltas — Horas (desconto)  
-- Faltas — Dias (desconto)  
-- Ajuda de Custo Mensal  
-- Desconto de Custeio (4%)  
-- Aumento Salarial (4,62%)  
-- Desconto de IPSEMG (3,2%)  
-- INSS Mensal (tabela progressiva 2024/2025/2026)  
+- Hora Extra
+- Adicional Noturno
+- Gratificação de Final de Semana
+- GRS — Dias
+- GRS — Meses
+- GRS — 13º Salário
+- GRS — Desconto de Horas
+- 13º Salário
+- GIEFS — 13º Salário
+- Piso Enfermagem — 13º Salário
+- INSS sobre 13º Salário
+- GIEFS — Dias
+- GIEFS — Meses
+- GIEFS — 1/3 de Férias
+- 1/3 de Férias
+- Férias Indenizadas
+- Faltas — Horas (desconto)
+- Faltas — Dias (desconto)
+- Ajuda de Custo Mensal
+- Desconto de Ajuda de Custo
+- Aumento Salarial (multi-alíquotas)
+- Desconto de IPSEMG (3,2%)
+- INSS Mensal (tabela progressiva 2024/2025/2026)
+- Licença Maternidade
 
 ## Como rodar localmente
 
 ```bash
-pip install streamlit
-streamlit run app.py
+pip install -r requirements.txt
+streamlit run main.py
 ```
 
-## Deploy no Streamlit Community Cloud
+## Estrutura do projeto
 
-Ver instruções completas no guia de deploy.
+Ver `contexto.md` (seção 1) para a árvore completa do repositório e o detalhamento de cada pacote (`calculadoras/`, `data/`, `ui/`, `utils/`).
 
----
+## Status e pendências
 
-### Próximos passos do Projeto
-
-* **[ ] Refinamento da Interface (Layout Dinâmico):**
-* Implementar a organização dos campos em colunas (estilo *grid*), mantendo a responsividade do layout original.
-* Refinar o `Gerador de Formulários` para suportar agrupamento lógico de inputs.
-
-* **[ ] Revisar a validação de campos**
-* Mapear se a validação está fazendo sentido e se é necessário adicionar alguma nova regra.
-* O MASP, por exemplo, acho que pode ser validado para forçar apenas inserção de dados numéricos.
-
-* **[ ] Conclusão do Motor de Memória de Cálculo:**
-* Padronizar a estrutura de dados da memória entre todas as classes de calculadoras.
-* Implementar a exibição otimizada da memória no front-end, garantindo clareza e rastreabilidade dos cálculos.
-
-* **[ ] Implementação do Cabeçalho e Identidade Visual:**
-* Padronizar o cabeçalho com logo e informações institucionais.
-* Aplicar estilos (CSS) para manter a interface alinhada com a identidade visual da instituição.
-
-* **[ ] Funcionalidade de Exportação (PDF):**
-* Integrar biblioteca de geração de documentos (ex: `ReportLab` ou `FPDF`).
-* Criar o template de impressão que consolida os dados de entrada, o resultado final e a memória de cálculo.
-
-* **[ ] Integração com Dados do Servidor:**
-* Refatorar a busca de níveis/graus para injetar os dados externos diretamente na estrutura das calculadoras.
-
----
-
+O andamento do projeto, decisões de regra de negócio e a lista viva de pendências ficam registrados em `contexto.md` (seções 4 e 14) e `duvidas.md`, em vez de duplicados aqui.

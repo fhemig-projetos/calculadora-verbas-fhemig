@@ -409,6 +409,46 @@ Todos os `_parser_nivel_grs` locais foram eliminados; todas as calculadoras usam
 - Pelo mesmo raciocínio aplicado ao INSS Mensal nesta sessão (ver seção 14): **Piso Enfermagem — 13º Salário** e **GRS — 13º Salário** também deveriam entrar na base.
 - Ao implementar, avaliar se vale a mesma abordagem residual (soma automática das 4 verbas de 13º do histórico, com um campo tipo `valor_outras_vantagens_13`) em vez de campos individuais — replicando o padrão criado em 14.
 
+### 4.7 🟡 Parcialmente resolvido (19/08) — substituir códigos das verbas pelos códigos corretos
+
+- Vários registros em `data/tabelas.json` têm código placeholder ou a confirmar (ex.: "Aumento Salarial" com código `----`; GIEFS 13º e GRS 13º compartilhando o mesmo código `3171`, provavelmente por engano/placeholder).
+- Levantar com a área a tabela oficial de códigos de cada verba e atualizar `data/tabelas.json` (campo `codigo` de cada entrada em `verbas`).
+
+**Aplicado em 19/08**, a partir do documento "Levantamento de Dados — Cálculo de Rescisão" (RH/CCPT), que traz os códigos oficiais de rubrica separados por **Contrato** vs **Efetivo**. Como a calculadora é só para **contratados**, foi usada sempre a variante Contrato. Confirmado pelo usuário que os códigos de 3 dígitos do documento são os corretos (não truncados) — **já atualizado em `data/tabelas.json`**:
+
+| Verba (`tabelas.json`) | Código anterior | Código atual (Contrato) |
+|---|---|---|
+| Gratificação de Final de Semana | `2416` | ✅ `416` |
+| Adicional Noturno | `2411` | ✅ `773` |
+| 13º Salário | `2491` | ✅ `491` |
+| GIEFS — Dias | `2417` | ✅ `417` |
+| GIEFS — Meses | `2417` | ✅ `417` |
+| GIEFS — 13º Salário | `3171` | ✅ `417` |
+| GRS — Dias | `2420` | ✅ `774` |
+| GRS — Meses | `2420` | ✅ `774` |
+| GRS — 13º Salário | `3171` (bug — copiado do GIEFS) | ✅ `774` |
+| 1/3 de Férias | `2431` | ✅ `492` |
+
+Observações do levantamento:
+- O documento **não distingue código por periodicidade** para GIEFS e GRS — o mesmo código (`417` e `774`, respectivamente) vale pra Dias, Meses e 13º. Isso confirma que `GRS — 13º Salário` estava com código errado (herdado do GIEFS por engano).
+- **Sem código encontrado no documento** para: Hora Extra, GIEFS — 1/3 de Férias, Férias Indenizadas, Faltas — Horas/Dias, GRS — Desconto de Horas, INSS Mensal, INSS sobre 13º, IPSEMG, Ajuda de Custo (Mensal/Desconto), Aumento Salarial, Licença Maternidade, Piso Enfermagem — 13º Salário. O documento só lista os códigos dos **componentes da base de cálculo**, não o código de pagamento dessas verbas — continuam pendentes de confirmação com a área.
+- **Achado à parte (não tratado nesta pendência):** o documento indica que o **Adicional de Desempenho (ADE, código 537) é "SOMENTE EFETIVO"**. Como a calculadora é só para contratados, isso pode significar que o campo `ad_desempenho` (usado hoje em `ferias_terco.py`, `faltas_horas.py`, `faltas_dias.py`, `ipsemg.py`) não deveria compor essas fórmulas. Fica registrado como **nova dúvida em aberto** (ver seção 6) — decidido explicitamente **não tratar** nesta pendência, escopo restrito à troca de códigos.
+
+### 4.8 🟡 Pendente — preenchimento automático dos dados do servidor pelo MASP
+
+- Já registrado como melhoria na seção 13.2, item 4 — reforçado como pendência aqui.
+- Hoje `ui/form_servidor.py` não faz nenhuma busca a partir do MASP digitado; usuário preenche tudo manualmente.
+- Avaliar fonte de dados disponível (nova tabela em `tabelas.json`? integração externa?) antes de implementar.
+
+### 4.9 ✅ Resolvido (19/08) — Data Fim Efetiva não aparece na tabela "Dados do Servidor" do PDF
+
+- `utils/exportador_pdf.py` (`_adicionar_dados_servidor`): adicionada a linha `linha("Data Fim Efetiva", data_fim_efetiva)`, logo após "Data de Admissão", formatada do mesmo jeito (`%d/%m/%Y`, ou "—" se vazia).
+
+### 4.10 ✅ Resolvido (19/08) — ampliar intervalo de anos em Data de Admissão e Data Fim Efetiva
+
+- `ui/form_servidor.py`: os dois `st.date_input` (Data de Admissão e Data Fim Efetiva) passaram a receber `min_value=date(1950, 1, 1)` e `max_value=date.today()` explícitos.
+- Antes, sem esses parâmetros, o Streamlit usava um intervalo padrão de ±10 anos a partir de hoje (já que `value` começa como `None`), limitando a seleção aos últimos ~10 anos e, de quebra, permitindo datas futuras (que não fazem sentido pra admissão/fim efetiva) — ambos os problemas corrigidos.
+
 ---
 
 ## 5. Observações sobre regras de negócio
@@ -438,6 +478,7 @@ Todos os `_parser_nivel_grs` locais foram eliminados; todas as calculadoras usam
 - ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
 - **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6).
 - Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área. **Relacionado:** o novo campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo combinado for confirmado como composto, pode ser necessário revisar essa soma simples.
+- **Adicional de Desempenho (ADE) é "somente efetivo"** (achado em 19/08, ver pendência 4.7): o documento oficial de levantamento de dados do RH/CCPT indica que o ADE (código 537) só se aplica a servidores efetivos. Como a calculadora é exclusivamente para **contratados**, isso levanta a dúvida se o campo `ad_desempenho` — usado hoje em `ferias_terco.py`, `faltas_horas.py`, `faltas_dias.py` e `ipsemg.py` — deveria ser removido dessas fórmulas. Não avaliado ainda; aguardando decisão para tratar em sessão futura.
 
 ---
 
@@ -694,19 +735,29 @@ valor_outras_vantagens = sum(
 
 - Ver seção 4.3 (resolvida). `app.py` saiu da raiz e foi arquivado em `old/app_old.py`; `main.py` é agora o único entrypoint.
 
-### 14.5 🟡 Plano de deploy — Streamlit Community Cloud (discutido, não executado)
+### 14.5 ✅ Concluído (18/08) — Deploy no Streamlit Community Cloud
 
-Passo a passo alinhado com o usuário para gerar a URL pública (pendência da seção 13.2, item 1):
+Pendência da seção 13.2 (itens 1 e 2) **executada**:
 
-1. Commitar o trabalho pendente e mergear `galhozinho-iza` → `main` (pendência da seção 13.2, item 2) — o deploy vai apontar pra `main`.
-2. `requirements.txt` já está ok (`streamlit`, `reportlab`, `pandas`).
-3. **Atenção:** Python local é 3.14.4 (muito recente) — recomendado fixar uma versão mais conservadora (3.11/3.12) pro deploy, via `.python-version` ou no seletor da própria UI do Streamlit Cloud.
-4. Logar em [share.streamlit.io](https://share.streamlit.io) com a conta GitHub que tem acesso a `fhemig-projetos/calculadora-verbas-fhemig`.
-5. "New app" → Repository = `fhemig-projetos/calculadora-verbas-fhemig`, Branch = `main`, Main file path = `main.py`.
-6. Deploy e acompanhar o log de build.
-7. Pegar a URL pública gerada (`https://<nome-do-app>.streamlit.app` ou subdomínio customizado).
-8. Testar o fluxo completo (formulário → cálculo → PDF) direto na URL publicada.
-9. Redeploys futuros: push em `main` dispara redeploy automático (ou reboot manual pelo painel).
+- Merge de `galhozinho-iza` → `main` feito diretamente no GitHub; branch `galhozinho-iza` excluída (local e remota) após o merge.
+- Deploy realizado no [share.streamlit.io](https://share.streamlit.io) apontando pra `main` / `main.py`.
+- **Obstáculo encontrado:** erro "You do not have access to this app or it does not exist" ao tentar deployar — causa raiz foi o **GitHub App do Streamlit não estar instalado na organização `fhemig-projetos`** (só na conta pessoal). Resolvido instalando/configurando o app em `github.com/settings/installations` (ou pelo link de gerenciamento de acesso dentro do próprio Streamlit Cloud) e liberando o repositório `calculadora-verbas-fhemig` para a org.
+- Mesmo após corrigir a instalação, o deploy só emplacou **colando a URL completa do repositório manualmente** no formulário do Streamlit Cloud (o seletor de repositório/organização não estava listando o repo, provavelmente por cache do dropdown).
+- **Local:** branch `galhozinho-iza` local também apagada após confirmar (`git merge-base --is-ancestor`) que estava 100% contida em `origin/main`; `main` local atualizado via `git pull`.
 
-**Não executado ainda** — nenhum commit, merge ou deploy foi realizado nesta sessão.
+### 14.6 🟡 Novas pendências identificadas pós-deploy (18/08)
+
+Levantadas pelo usuário após o app já publicado — ver detalhes em 4.7 a 4.10:
+1. ✅ Substituir os códigos placeholder/incorretos das verbas em `data/tabelas.json` pelos códigos oficiais (4.7) — **10 de ~20 códigos aplicados em 19/08**, restante aguardando confirmação da área.
+2. Preenchimento automático dos dados do servidor no cabeçalho a partir do MASP (4.8).
+3. ✅ Incluir Data Fim Efetiva na tabela "Dados do Servidor" do PDF exportado (4.9) — resolvido em 19/08.
+4. ✅ Ampliar o intervalo de anos selecionáveis em Data de Admissão e Data Fim Efetiva (4.10) — resolvido em 19/08.
+
+### 14.7 ✅ Concluído (19/08) — README.md atualizado
+
+- Entrypoint corrigido para `main.py` (antes mandava rodar `app.py`, já removido).
+- Lista completa das 24 verbas com nomes atuais (antes faltavam Piso 13º, GRS 13º, GRS — Meses, Licença Maternidade).
+- Nova seção com o link da aplicação publicada: `https://calculadora-verbas-fhemig.streamlit.app/`.
+- Instalação via `pip install -r requirements.txt` (antes só mandava instalar `streamlit`).
+- Seção "Próximos passos" desatualizada substituída por ponteiro para `contexto.md`/`duvidas.md`.
 

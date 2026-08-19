@@ -135,6 +135,8 @@ class GeradorPDF:
 
         dt_admissao = ds.get("dt_admissao")
         data_admissao = dt_admissao.strftime("%d/%m/%Y") if dt_admissao else "—"
+        dt_fim_efetiva = ds.get("dt_fim_efetiva")
+        data_fim_efetiva = dt_fim_efetiva.strftime("%d/%m/%Y") if dt_fim_efetiva else "—"
         ven = ds.get("vencimento_basico")
 
         def linha(label, valor):
@@ -148,6 +150,7 @@ class GeradorPDF:
             linha("Nº de Admissão", ds.get("admissao") or "—"),
             linha("Nome", ds.get("nome") or "—"),
             linha("Data de Admissão", data_admissao),
+            linha("Data Fim Efetiva", data_fim_efetiva),
             linha("Cargo", ds.get("cargo_classe") or "—"),
             linha("Nível", ds.get("cargo_nivel") or "—"),
             linha("Grau", ds.get("cargo_grau") or "—"),
