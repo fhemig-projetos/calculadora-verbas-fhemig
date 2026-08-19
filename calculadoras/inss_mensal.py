@@ -5,40 +5,45 @@ from utils import FormatadorCampos
 class CalculadoraINSS(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "INSS = Vencimento Básico × Alíquota - Dedução (tabela progressiva)"
+        return ("Fórmula: (Venc. Básico + Outras Vantagens + Outras Verbas) × "
+                "Alíquota - Dedução (Tabela Progressiva)")
 
     @property
     def campos_necessarios(self):
-        return ["vencimento_basico", "ano_referencia"]
-    
-    def calcular(self, vencimento_basico: float, ano_referencia: int) -> ResultadoCalculo:
+        return ["vencimento_basico", "valor_outras_vantagens", "outras_verbas", "ano_referencia"]
+
+    def calcular(
+        self,
+        vencimento_basico: float,
+        valor_outras_vantagens: float,
+        outras_verbas: float,
+        ano_referencia: int,
+    ) -> ResultadoCalculo:
+        # Base de incidência: vencimento + demais vantagens do histórico + outras verbas informadas manualmente
+        base = vencimento_basico + valor_outras_vantagens + outras_verbas
+
         # Pega a tabela do ano escolhido pelo usuário
         tabela = ProvedorDadosFhemig.obter_tabela_inss(ano_referencia)
 
-        # Percorre as faixas em ordem crescente
-        for faixa in tabela:
-            if vencimento_basico <= faixa["limite"]:
-                # Fórmula
-                valor = vencimento_basico * faixa["aliq"] - faixa["deducao"]
-                # Memória de cálculo
-                memoria = [
-                    f"Vencimento: {FormatadorCampos.brl(vencimento_basico)}",
-                    f"Faixa de {FormatadorCampos.brl(faixa['limite'])}: {faixa['aliq']*100:.1f}%",
-                    f"Dedução: {FormatadorCampos.brl(faixa['deducao'])}",
-                    f"= {FormatadorCampos.brl(valor)}",
-                ]
-                return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)
-        
-        # Se passou de todas (acima do teto) utiliza a última faixa
-        ultima = tabela[-1]
-        # Fórmula
-        valor = vencimento_basico * ultima["aliq"] - ultima["deducao"]
-        # Memória de cálculo
+        # Percorre as faixas em ordem crescente (usa a última faixa se acima do teto)
+        faixa = None
+        for f in tabela:
+            if base <= f["limite"]:
+                faixa = f
+                break
+        if faixa is None:
+            faixa = tabela[-1]
+
+        valor = base * faixa["aliq"] - faixa["deducao"]
+
         memoria = [
-            f"Vencimento: {FormatadorCampos.brl(vencimento_basico)}",
-            f"Faixa de {FormatadorCampos.brl(ultima['limite'])}: {ultima['aliq']*100:.1f}%",
-            f"Dedução: {FormatadorCampos.brl(ultima['deducao'])}",
+            f"Venc. Básico: {FormatadorCampos.brl(vencimento_basico)}",
+            f"Outras Vantagens (soma do histórico): {FormatadorCampos.brl(valor_outras_vantagens)}",
+            f"Outras Verbas: {FormatadorCampos.brl(outras_verbas)}",
+            f"─────────────────────",
+            f"BASE de Incidência: {FormatadorCampos.brl(base)}",
+            f"Faixa de {FormatadorCampos.brl(faixa['limite'])}: {faixa['aliq']*100:.1f}%",
+            f"Dedução: {FormatadorCampos.brl(faixa['deducao'])}",
             f"= {FormatadorCampos.brl(valor)}",
         ]
         return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)
-

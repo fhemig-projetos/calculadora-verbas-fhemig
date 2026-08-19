@@ -12,4 +12,13 @@ CONFIG_CAMPOS = {
     "numero_meses": {"label": "Nº de Meses de Direito", "tipo": "meses"},
     "valor_giefs": {"label": "Valor da GIEFS (R$)", "tipo": "moeda"},
     "valor_piso": {"label": "Valor do Piso (R$)", "tipo": "moeda"},
+    "dias_ferias_indenizadas": {"label": "Nº de Dias de Férias Indenizadas", "tipo": "dias"},
+    "faltas_horas": {"label": "Nº de Horas de Faltas", "tipo": "horas"},
+    "faltas_dias": {"label": "Nº de Dias de Faltas", "tipo": "dias"},
+    "ajuda_custo_diario": {"label": "Valor Diário da Ajuda de Custo (R$)", "tipo": "moeda"},
+    "valor_ajuda_custo": {"label": "Valor da Ajuda de Custo (R$)", "tipo": "moeda"},
+    "valor_13_salario":  {"label": "Valor do 13º Salário (R$)", "tipo": "moeda"},
+    "giefs_13_salario":  {"label": "Valor da GIEFS do 13º (R$)", "tipo": "moeda"},
+    "valor_outras_vantagens": {"label": "Outras Vantagens (soma automática do histórico) (R$)", "tipo": "moeda"},
+    "outras_verbas": {"label": "Outras Verbas (R$)", "tipo": "moeda"},
 }

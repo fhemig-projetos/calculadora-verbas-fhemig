@@ -1,7 +1,7 @@
 import streamlit as st
 from data import ProvedorDadosFhemig
 from calculadoras import CalculadoraVerba, REGISTRO_CALCULADORAS
-from utils import FormatadorCampos
+from utils import FormatadorCampos, GeradorPDF
 from datetime import date 
 from .config import CONFIG_CAMPOS
 
@@ -16,6 +16,14 @@ class SelecaoVerba:
 
         if "ultima_verba_selecionada" not in st.session_state:
             st.session_state["ultima_verba_selecionada"] = None
+
+        # Guarda o último valor digitado em cada campo, entre trocas de verba
+        if "valores_digitados" not in st.session_state:
+            st.session_state["valores_digitados"] = {}
+
+        # Guarda a última "assinatura" do cabeçalho vista, para detectar troca de servidor
+        if "ultima_referencia_cabecalho" not in st.session_state:
+            st.session_state["ultima_referencia_cabecalho"] = None
 
     def render(self):
         verbas_json = ProvedorDadosFhemig.obter_verbas()
@@ -38,17 +46,24 @@ class SelecaoVerba:
         st.divider()
 
         """
-        SE a última verba que eu calculei é DIFERENTE da verba que está no selectbox AGORA:
-            ENTÃO:
-                1. Apaga o resultado atual (some da tela) 
-                2. Anota que agora a "última verba" é esta nova
-        > 1. Apaga o resultado por conta de `if ur is None` em self._render_resultado().
-        > 2. Precisa anotar para ativar a lógica do if p/ limpar a tela só quando troca a verba (se fosse só ultimo_resultado = None, sem o if, por exemplo iria limpar a tela assim que clicasse em `Calcular` e nunca iria exibir o histórico).
-        > OBS: O histórico continua sendo renderizado, pq _render_historico() está fora do por conta de `if ur is None` em self._render_resultado() `if calculadora`.
+        Detecta troca de verba: se a verba escolhida agora é diferente da última
+        selecionada, faz dois ajustes de estado:
+        1. Limpa "ultimo_resultado" — some o resultado (e tudo que depende dele:
+            competência, observação, botão "Adicionar à lista") da tela, já que
+            pertence ao cálculo da verba anterior.
+        2. Incrementa "verba_nonce" — esse número entra na `key` de todos os
+            campos (`f"{nonce}::{campo}"`), fazendo o Streamlit tratá-los como
+            widgets "novos" e reaplicar o `value=valor_default` (histórico/
+            persistido/cabeçalho), em vez de manter o valor antigo que estava
+            guardado na `key` da verba anterior.
+        Só entra aqui na troca de verba (não em todo rerun) — por isso a comparação
+        com "ultima_verba_selecionada" antes de agir.
         """
-
         if st.session_state.get("ultima_verba_selecionada") != verba_input:
             st.session_state["ultimo_resultado"] = None
+            if "verba_nonce" not in st.session_state:
+                st.session_state["verba_nonce"] = 0
+            st.session_state["verba_nonce"] += 1
             st.session_state["ultima_verba_selecionada"] = verba_input
 
         # Seleciona a verba e passa os metadados correspondentes
@@ -83,84 +98,140 @@ class SelecaoVerba:
         # Pega valores default preenchidos no cabeçalho
         ds = st.session_state.get("dados_servidor", {})
 
+        # Nonce da verba atual
+        nonce = st.session_state.get("verba_nonce", 0)
+
+        # Atalho para o dicionário persistente
+        persistidos = st.session_state["valores_digitados"]
+
         # Gera os campos dinamicamente
         valores = {}
         cols = st.columns(2)
+
+        """
+        Se vencimento/ch_mensal do cabeçalho mudarem (novo servidor), limpa o valor
+        persistido desses campos e bump no verba_nonce para recriar as `key`s dos
+        widgets — assim o cabeçalho novo "irradia" para os campos, e a partir daí
+        o usuário pode editá-los livremente até a próxima troca de servidor.
+        """
+        referencia_cabecalho = (ds.get("vencimento_basico"), ds.get("ch_mensal"))
+        if st.session_state["ultima_referencia_cabecalho"] is not None and st.session_state["ultima_referencia_cabecalho"] != referencia_cabecalho:
+            for campo_cabecalho in ("vencimento_basico", "carga_horaria_mensal", "valor_base_aumento"):
+                persistidos.pop(campo_cabecalho, None)
+            st.session_state["verba_nonce"] = st.session_state.get("verba_nonce", 0) + 1
+            nonce = st.session_state["verba_nonce"]  # atualiza a variável já usada nas keys abaixo
+        st.session_state["ultima_referencia_cabecalho"] = referencia_cabecalho
 
         for i, campo in enumerate(calculadora.campos_necessarios):
             config = CONFIG_CAMPOS.get(campo)
 
             # Define os valores default para cada campo
+            ## Campos do Cabeçalho → default do cabeçalho, mas persiste o que digitei
             if campo == "vencimento_basico":
-                valor_default = ds.get("vencimento_basico") # busca do preenchimento do cabeçalho
-            elif campo == "ad_desempenho":
-                valor_default = 0.0
+                valor_default = persistidos.get(campo, ds.get("vencimento_basico"))
             elif campo == "carga_horaria_mensal":
-                valor_default = ds.get("ch_mensal") # busca do preenchimento do cabeçalho
+                valor_default = persistidos.get(campo, ds.get("ch_mensal"))
                 opcoes_ch = [120, 180, 240, 264]
-                indice_default = opcoes_ch.index(valor_default)
-            elif campo == "horas_realizadas":
-                valor_default = 0
+                indice_default = opcoes_ch.index(valor_default) if valor_default in opcoes_ch else 0
+            elif campo == "valor_base_aumento":
+                valor_default = persistidos.get(campo, ds.get("vencimento_basico"))
+            ## Campos de selectbox → índice vem do persistido (se a opção existir)
             elif campo == "ano_referencia":
-                valor_default = date.today().year # preenche o ano atual como default
-            elif campo == "grs_risco":
-                valor_default = 0 # índice do selectbox
-            elif campo == "dias_trabalhados":
-                valor_default = 1
-            elif campo == "grat_final_semana":
-                # Busca no histórico o último cálculo de GFS
-                historico = st.session_state.get("historico", [])
-                for item in reversed(historico):
-                    if item.get("nome_verba") == "Gratificação de Final de Semana":
-                        valor_default = item["valor"]
-                        break
-                else: # executa só se o loop terminou sem encontrar nada (s/ esse else o valor_default sempre seria sobrescrito)
-                    valor_default = 0.0
-            elif campo == "adicional_noturno":
-                # Busca no histórico o último cálculo de Adicional Noturno
-                historico = st.session_state.get("historico", [])
-                for item in reversed(historico):
-                    if item.get("nome_verba") == "Adicional Noturno":
-                        valor_default = item["valor"]
-                        break
+                opcoes_ano = [2024, 2026] if nome_verba == "Aumento Salarial" else [2024, 2025, 2026]
+                valor_persistido = persistidos.get(campo)
+                if valor_persistido in opcoes_ano:
+                    ano_default = valor_persistido
                 else:
-                    valor_default = 0.0
-            elif campo == "numero_meses":
-                valor_default = 1
-            elif campo == "abono_emergencia":
-                valor_default = 0.0
-            elif campo == "valor_giefs":
-                valor_default = 0.0
-            elif campo == "valor_piso":
-                valor_default = 0.0
-            else:
-                valor_default = 0
+                    ano_default = date.today().year if date.today().year in opcoes_ano else opcoes_ano[-1]
+                indice_default_ano = opcoes_ano.index(ano_default)
+            elif campo == "grs_risco":
+                if nome_verba in ["GRS — Dias", "GRS — Meses", "GRS — 13º Salário", "GRS — Desconto de Horas"]:
+                    opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
+                else:
+                    opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
+                valor_persistido = persistidos.get(campo)
+                indice_default_grs = opcoes_grs.index(valor_persistido) if valor_persistido in opcoes_grs else 0
+            ## Outras Vantagens do INSS Mensal → soma automática do histórico (todas as verbas de
+            ## tipo Vantagem, exceto Ajuda de Custo e as verbas de 13º, que entram no INSS do 13º)
+            elif campo == "valor_outras_vantagens":
+                NOMES_EXCLUIDOS_INSS = {
+                    "Ajuda de Custo Mensal",
+                    "13º Salário",
+                    "GIEFS — 13º Salário",
+                    "Piso Enfermagem — 13º Salário",
+                    "GRS — 13º Salário",
+                }
+                historico = st.session_state.get("historico", [])
+                valor_default = sum(
+                    (item["valor"] for item in historico
+                    if item.get("tipo") == "Vantagem" and item.get("nome_verba") not in NOMES_EXCLUIDOS_INSS),
+                    start=0.0, # inicializa o campo com 0.0 caso não tenha verba calculada
+                )
+            ## Campos do Histórico → histórico primeiro, persistido como fallback
+            elif campo in ("grat_final_semana", "adicional_noturno", "valor_13_salario",
+                        "giefs_13_salario", "valor_ajuda_custo"):
+                nome_alvo_dict = { ## tentar melhorar essa lógica depois para ficar mais eficiente
+                    "grat_final_semana": "Gratificação de Final de Semana",
+                    "adicional_noturno": "Adicional Noturno",
+                    "valor_13_salario": "13º Salário",
+                    "giefs_13_salario": "GIEFS — 13º Salário",
+                    "valor_ajuda_custo": "Ajuda de Custo Mensal",
+                }
+                nome_alvo = nome_alvo_dict[campo]
+                historico = st.session_state.get("historico", [])
+                for item in reversed(historico):
+                    if item.get("nome_verba") == nome_alvo:
+                        valor_default = item["valor"]
+                        break # quebra o loop quando encontrar correspondência na tabela do histórico
+                else:
+                    valor_default = persistidos.get(campo, 0.0)
+            # Demais manuais → persistido, com default puro
+            elif campo == "ajuda_custo_diario":
+                valor_default = persistidos.get(campo, 75.0)
+            elif campo in ("dias_trabalhados", "numero_meses", "dias_ferias_indenizadas", "faltas_horas", "faltas_dias"):
+                valor_default = persistidos.get(campo, 1)
+            else:  # ad_desempenho, horas_realizadas, abono_emergencia, valor_giefs, valor_piso, etc.
+                if config["tipo"] == "moeda":
+                    valor_default = persistidos.get(campo, 0.0)
+                else:
+                    valor_default = persistidos.get(campo, 0)
 
             # Renderiza os campos
-            desabilitado = campo in ("ad_desempenho")
+            ## Se campo == "ad_desempenho", desabilitado == True
+            desabilitado = campo in ("ad_desempenho",)
+
+            ## Chave sempre com nonce: widget "novo" a cada troca de verba
+            campo_key = f"{nonce}::{campo}"
 
             with cols[i % 2]:
                 if campo == "ano_referencia":
                     valores[campo] = st.selectbox(
                         config["label"],
-                        options=[2024, 2025, 2026],
-                        index=valor_default - 2024,
+                        options=opcoes_ano,
+                        index=indice_default_ano,
+                        key=campo_key,
                     )
                 elif campo == "grs_risco":
-                    if nome_verba == "GRS — Dias":
-                        opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
-                    else:
-                        opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
                     valores[campo] = st.selectbox(
                         config["label"],
                         options=opcoes_grs,
+                        index=indice_default_grs,
+                        key=campo_key,
                     )
-                elif campo == "dias_trabalhados":
+                elif campo == "carga_horaria_mensal":
+                    valores[campo] = st.selectbox(
+                        config["label"],
+                        options=opcoes_ch, # [120, 180, 240, 264]
+                        index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
+                        key=campo_key,
+                    )
+                elif campo in ("dias_trabalhados", "dias_ferias_indenizadas", "faltas_dias"):
                     valores[campo] = st.number_input(
                         config["label"],
                         value=valor_default,
                         min_value=1,
                         max_value=30,
+                        key=campo_key,
                     )
                 elif campo == "numero_meses":
                     valores[campo] = st.number_input(
@@ -168,25 +239,35 @@ class SelecaoVerba:
                         value=valor_default,
                         min_value=1,
                         max_value=12,
+                        key=campo_key,
                     )
-                elif campo == "carga_horaria_mensal":
-                    valores[campo] = st.selectbox(
+                elif campo == "faltas_horas":
+                    valores[campo] = st.number_input(
                         config["label"],
-                        options=opcoes_ch, # [120, 180, 240, 264]
-                        index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
+                        value=valor_default,
+                        key=campo_key,
                     )
-                else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas
+                else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas, etc.
                     valores[campo] = st.number_input(
                             config["label"],
                             value=valor_default,
                             disabled=desabilitado,
+                            key=campo_key,
                         )
+
+            # Persiste o valor atual
+            persistidos[campo] = valores[campo]
 
         if st.button("Calcular", type="primary", use_container_width=True):
             resultado = calculadora.calcular(**valores)
 
+            # Se for Aumento Salarial, inclui o ano no nome p/ diferenciar no histórico
+            nome_verba_historico = nome_verba
+            if nome_verba == "Aumento Salarial":
+                nome_verba_historico = f"{nome_verba} ({valores['ano_referencia']})"
+
             st.session_state["ultimo_resultado"] = {
-                "nome_verba": nome_verba,
+                "nome_verba": nome_verba_historico,
                 "codigo": verba_meta["codigo"],
                 "tipo": verba_meta["tipo"],
                 "valor": resultado.valor,
@@ -226,13 +307,17 @@ class SelecaoVerba:
             })
             st.rerun()
 
-            print(f"historico: {st.session_state["historico"]}")
-
     def _render_competencia(self, nome_verba: str):
         st.divider()
         st.markdown("#### 📅 Competência")
 
-        if nome_verba == "13º Salário":
+        if nome_verba in (
+            "13º Salário",
+            "GIEFS — 13º Salário",
+            "Piso Enfermagem — 13º Salário",
+            "GRS — 13º Salário",
+            "INSS sobre 13º Salário",
+        ):
             # Apenas ano
             st.caption("Selecione o ano de referência do cálculo")
             hoje = date.today()
@@ -302,8 +387,8 @@ class SelecaoVerba:
         col2.metric("Total Descontos", FormatadorCampos.brl(descontos))
         col3.metric("Líquido", FormatadorCampos.brl(liquido))
 
-        # Botões de limpar o dataframe
-        col_btn1, col_btn2 = st.columns(2)
+        # Botões de ação sobre a lista (remover / limpar / gerar PDF)
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
         with col_btn1:
             if st.button("🗑️ Remover último", type="secondary", use_container_width=True):
                 st.session_state["historico"].pop()
@@ -312,3 +397,15 @@ class SelecaoVerba:
             if st.button("🗑️ Limpar lista", type="secondary", use_container_width=True):
                 st.session_state["historico"] = []
                 st.rerun()
+        with col_btn3:
+            ds = st.session_state.get("dados_servidor", {})
+            masp = FormatadorCampos.masp(ds.get("masp")) or "servidor"
+            nome_arquivo = f"verbas_{masp}_{date.today().strftime('%d%m%Y')}.pdf"
+            st.download_button(
+                "📄 Gerar PDF",
+                data=GeradorPDF(historico, ds).gerar(),
+                file_name=nome_arquivo,
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )

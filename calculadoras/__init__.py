@@ -8,5 +8,21 @@ from .inss_mensal import CalculadoraINSS
 from .decimo_terceiro import CalculadoraDecimoTerceiro
 from .giefs_13 import CalculadoraGIEFS13
 from .piso_enfermagem_13 import CalculadoraPisoEnfermagem13
+from .inss_decimo_terceiro import CalculadoraINSSDecimoTerceiro
+from .giefs_dias import CalculadoraGIEFSDias
+from .giefs_meses import CalculadoraGIEFSMeses
+from .giefs_terco_ferias import CalculadoraGIEFSTercoFerias
+from .grs_meses import CalculadoraGRSMeses
+from .grs_13 import CalculadoraGRS13
+from .grs_desconto_horas import CalculadoraGRSDescontoHoras
+from .ferias_terco import CalculadoraTercoFerias
+from .ferias_indenizadas import CalculadoraFeriasIndenizadas
+from .faltas_horas import CalculadoraFaltasHoras
+from .faltas_dias import CalculadoraFaltasDias
+from .ajuda_custo import CalculadoraAjudaCusto
+from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
+from .aumento_salarial import CalculadoraAumentoSalarial
+from .ipsemg import CalculadoraIPSEMG
+from .licenca_maternidade import CalculadoraLicencaMaternidade
 
 from .factory import REGISTRO_CALCULADORAS

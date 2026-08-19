@@ -26,32 +26,111 @@
     ]
   },
   "verbas": {
-    "Gratificação de Final de Semana": {"codigo": "2416", "tipo": "Vantagem"},
-    "Adicional Noturno":               {"codigo": "2411", "tipo": "Vantagem"},
-    "Hora Extra":                      {"codigo": "2412", "tipo": "Vantagem"},
-    "13º Salário":                     {"codigo": "2491", "tipo": "Vantagem"},
-    "GIEFS — 13º Salário":             {"codigo": "3171", "tipo": "Vantagem"},
-    "INSS sobre 13º Salário":          {"codigo": "7708", "tipo": "Desconto"},
-    "Piso Enfermagem — 13º Salário":   {"codigo": "1164", "tipo": "Vantagem"},
-    "GIEFS — Dias":                    {"codigo": "2417", "tipo": "Vantagem"},
-    "GIEFS — Meses (parcelas)":        {"codigo": "2417", "tipo": "Vantagem"},
-    "GIEFS — 1/3 de Férias":           {"codigo": "3242", "tipo": "Vantagem"},
-    "GRS — Dias":                      {"codigo": "2420", "tipo": "Vantagem"},
-    "GRS — Meses":                     {"codigo": "2420", "tipo": "Vantagem"},
-    "GRS — Desconto de Horas":         {"codigo": "7820", "tipo": "Desconto"},
-    "1/3 de Férias":                   {"codigo": "2431", "tipo": "Vantagem"},
-    "Férias Indenizadas":              {"codigo": "2432", "tipo": "Vantagem"},
-    "Faltas — Horas (desconto)":       {"codigo": "7810", "tipo": "Desconto"},
-    "Faltas — Dias (desconto)":        {"codigo": "7811", "tipo": "Desconto"},
-    "Ajuda de Custo Mensal":           {"codigo": "2070", "tipo": "Vantagem"},
-    "Desconto de Custeio (4%)":        {"codigo": "9018", "tipo": "Desconto"},
-    "Aumento Salarial (4,62%)":        {"codigo": "----", "tipo": "Vantagem"},
-    "Desconto de IPSEMG (3,2%)":       {"codigo": "7700", "tipo": "Desconto"},
-    "INSS Mensal (tabela progressiva)":{"codigo": "7808", "tipo": "Desconto"}
+    "Gratificação de Final de Semana": {
+      "codigo": "2416",
+      "tipo": "Vantagem"
+    },
+    "Adicional Noturno": {
+      "codigo": "2411",
+      "tipo": "Vantagem"
+    },
+    "Hora Extra": {
+      "codigo": "2412",
+      "tipo": "Vantagem"
+    },
+    "Aumento Salarial": {
+      "codigo": "----",
+      "tipo": "Vantagem"
+    },
+    "Licença Maternidade": {
+      "codigo": "1200",
+      "tipo": "Vantagem"
+    },
+
+    "13º Salário": {
+      "codigo": "2491",
+      "tipo": "Vantagem"
+    },
+    "GIEFS — 13º Salário": {
+      "codigo": "3171",
+      "tipo": "Vantagem"
+    },
+    "INSS sobre 13º Salário": {
+      "codigo": "7708",
+      "tipo": "Desconto"
+    },
+    "Piso Enfermagem — 13º Salário": {
+      "codigo": "1164",
+      "tipo": "Vantagem"
+    },
+    "GRS — 13º Salário": {
+      "codigo": "3171",
+      "tipo": "Vantagem"
+    },
+    "GIEFS — Dias": {
+      "codigo": "2417",
+      "tipo": "Vantagem"
+    },
+    "GIEFS — Meses": {
+      "codigo": "2417",
+      "tipo": "Vantagem"
+    },
+    "GRS — Dias": {
+      "codigo": "2420",
+      "tipo": "Vantagem"
+    },
+    "GRS — Meses": {
+      "codigo": "2420",
+      "tipo": "Vantagem"
+    },
+    "GRS — Desconto de Horas": {
+      "codigo": "7820",
+      "tipo": "Desconto"
+    },
+    "1/3 de Férias": {
+      "codigo": "2431",
+      "tipo": "Vantagem"
+    },
+    "GIEFS — 1/3 de Férias": {
+      "codigo": "3242",
+      "tipo": "Vantagem"
+    },
+    "Férias Indenizadas": {
+      "codigo": "2432",
+      "tipo": "Vantagem"
+    },
+    "Ajuda de Custo Mensal": {
+      "codigo": "2070",
+      "tipo": "Vantagem"
+    },
+    "Desconto de Ajuda de Custo": {
+      "codigo": "9018",
+      "tipo": "Desconto"
+    },
+    "Faltas — Horas": {
+      "codigo": "7810",
+      "tipo": "Desconto"
+    },
+    "Faltas — Dias": {
+      "codigo": "7811",
+      "tipo": "Desconto"
+    },
+    "INSS Mensal (tabela progressiva)": {
+      "codigo": "7808",
+      "tipo": "Desconto"
+    },
+    "Desconto de IPSEMG (3,2%)": {
+      "codigo": "7700",
+      "tipo": "Desconto"
+    }
   },
   "tabela_grs": {
       "nao_faz_jus": 0.0,
       "risco_medio": 160.20,
       "risco_alto": 320.40
+  },
+  "tabela_reajustes": {
+    "2024": 0.0462,
+    "2026": 0.0540
   }
 }
