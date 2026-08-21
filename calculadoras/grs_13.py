@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraGRS13(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:

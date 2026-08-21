@@ -2,10 +2,12 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraGRSMeses(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
         return "Fórmula: Valor GRS x Meses"
+
     @property
     def campos_necessarios(self) -> list[str]:
         return ["grs_risco", "numero_meses"]
@@ -20,4 +22,4 @@ class CalculadoraGRSMeses(CalculadoraVerba):
             f"x {numero_meses} meses",
             f"= {FormatadorCampos.brl(valor_meses)}",
         ]
-        return ResultadoCalculo(valor=round(valor_meses,2), memoria_calculo=memoria)
+        return ResultadoCalculo(valor=round(valor_meses, 2), memoria_calculo=memoria)

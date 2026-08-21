@@ -1,7 +1,8 @@
 import streamlit as st
 
-class Cabecalho: 
-    
+
+class Cabecalho:
+
     def render(cls):
         col_logo, col_titulo = st.columns([1, 5], vertical_alignment="center")
         with col_logo:

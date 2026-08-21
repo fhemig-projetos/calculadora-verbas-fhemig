@@ -6,15 +6,22 @@ from utils import FormatadorCampos
 class CalculadoraIPSEMG(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return ("Fórmula: (Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + "
-                "Ad. Noturno + GRS + Ad. Desempenho + 13º) × 3,2%")
+        return (
+            "Fórmula: (Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + "
+            "Ad. Noturno + GRS + Ad. Desempenho + 13º) × 3,2%"
+        )
 
     @property
     def campos_necessarios(self) -> list[str]:
         return [
-            "vencimento_basico", "grat_final_semana", "abono_emergencia",
-            "valor_giefs", "adicional_noturno", "grs_risco",
-            "ad_desempenho", "valor_13_salario",
+            "vencimento_basico",
+            "grat_final_semana",
+            "abono_emergencia",
+            "valor_giefs",
+            "adicional_noturno",
+            "grs_risco",
+            "ad_desempenho",
+            "valor_13_salario",
         ]
 
     def calcular(
@@ -33,9 +40,14 @@ class CalculadoraIPSEMG(CalculadoraVerba):
 
         # Soma dos componentes que compõem a base de incidência
         base = (
-            vencimento_basico + grat_final_semana + abono_emergencia +
-            valor_giefs + adicional_noturno + valor_grs +
-            ad_desempenho + valor_13_salario
+            vencimento_basico
+            + grat_final_semana
+            + abono_emergencia
+            + valor_giefs
+            + adicional_noturno
+            + valor_grs
+            + ad_desempenho
+            + valor_13_salario
         )
 
         # Fórmula: base × 3,2%

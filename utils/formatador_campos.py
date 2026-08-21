@@ -13,8 +13,7 @@ class FormatadorCampos:
         if valor_cru is None:
             return valor_cru
         return round(valor_cru, 2)
-    
+
     @staticmethod
     def brl(valor: float) -> str:
         return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-

@@ -2,15 +2,23 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from data import ProvedorDadosFhemig
 from utils import FormatadorCampos
 
+
 class CalculadoraINSS(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return ("Fórmula: (Venc. Básico + Outras Vantagens + Outras Verbas) × "
-                "Alíquota - Dedução (Tabela Progressiva)")
+        return (
+            "Fórmula: (Venc. Básico + Outras Vantagens + Outras Verbas) × "
+            "Alíquota - Dedução (Tabela Progressiva)"
+        )
 
     @property
     def campos_necessarios(self):
-        return ["vencimento_basico", "valor_outras_vantagens", "outras_verbas", "ano_referencia"]
+        return [
+            "vencimento_basico",
+            "valor_outras_vantagens",
+            "outras_verbas",
+            "ano_referencia",
+        ]
 
     def calcular(
         self,

@@ -1,6 +1,7 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 
+
 class CalculadoraGIEFSMeses(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:

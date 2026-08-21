@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from data import ProvedorDadosFhemig
 from utils import FormatadorCampos
 
+
 class CalculadoraINSSDecimoTerceiro(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -10,8 +11,10 @@ class CalculadoraINSSDecimoTerceiro(CalculadoraVerba):
     @property
     def campos_necessarios(self) -> list[str]:
         return ["valor_13_salario", "giefs_13_salario", "ano_referencia"]
-    
-    def calcular(self, valor_13_salario: float, giefs_13_salario: float, ano_referencia: int) -> ResultadoCalculo:
+
+    def calcular(
+        self, valor_13_salario: float, giefs_13_salario: float, ano_referencia: int
+    ) -> ResultadoCalculo:
         # Soma o 13º salário com a GIEFS do 13º
         base = valor_13_salario + giefs_13_salario
 

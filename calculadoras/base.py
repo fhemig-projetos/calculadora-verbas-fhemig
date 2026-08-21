@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+
 @dataclass
 class ResultadoCalculo:
     valor: float
     memoria_calculo: list[str]
+
 
 class CalculadoraVerba(ABC):
     @property
@@ -12,7 +14,7 @@ class CalculadoraVerba(ABC):
     def descricao_formula(self) -> str:
         """Texto explicativo da fórmula que aparecerá na tela do Streamlit."""
         pass
-    
+
     @property
     @abstractmethod
     def campos_necessarios(self) -> list[str]:

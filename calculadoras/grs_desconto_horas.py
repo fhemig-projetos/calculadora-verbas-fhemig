@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraGRSDescontoHoras(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -11,7 +12,9 @@ class CalculadoraGRSDescontoHoras(CalculadoraVerba):
     def campos_necessarios(self) -> list[str]:
         return ["grs_risco", "carga_horaria_mensal", "faltas_horas"]
 
-    def calcular(self, grs_risco: str, carga_horaria_mensal: int, faltas_horas: int) -> ResultadoCalculo:
+    def calcular(
+        self, grs_risco: str, carga_horaria_mensal: int, faltas_horas: int
+    ) -> ResultadoCalculo:
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 
         # Previne divisão por zero

@@ -62,30 +62,34 @@ class GeradorPDF:
         )
 
         frame_primeira_pagina = Frame(
-            x1=40, y1=40,
+            x1=40,
+            y1=40,
             width=largura_pagina - 80,
             height=altura_pagina - 90 - 40,
             id="frame_primeira_pagina",
         )
         frame_demais_paginas = Frame(
-            x1=40, y1=40,
+            x1=40,
+            y1=40,
             width=largura_pagina - 80,
             height=altura_pagina - 40 - 40,
             id="frame_demais_paginas",
         )
 
-        doc.addPageTemplates([
-            PageTemplate(
-                id="primeira_pagina",
-                frames=[frame_primeira_pagina],
-                onPage=self._adicionar_cabecalho,
-                autoNextPageTemplate="demais_paginas",
-            ),
-            PageTemplate(
-                id="demais_paginas",
-                frames=[frame_demais_paginas],
-            ),
-        ])
+        doc.addPageTemplates(
+            [
+                PageTemplate(
+                    id="primeira_pagina",
+                    frames=[frame_primeira_pagina],
+                    onPage=self._adicionar_cabecalho,
+                    autoNextPageTemplate="demais_paginas",
+                ),
+                PageTemplate(
+                    id="demais_paginas",
+                    frames=[frame_demais_paginas],
+                ),
+            ]
+        )
 
         elementos = []
         self._adicionar_dados_servidor(elementos)
@@ -136,7 +140,9 @@ class GeradorPDF:
         dt_admissao = ds.get("dt_admissao")
         data_admissao = dt_admissao.strftime("%d/%m/%Y") if dt_admissao else "—"
         dt_fim_efetiva = ds.get("dt_fim_efetiva")
-        data_fim_efetiva = dt_fim_efetiva.strftime("%d/%m/%Y") if dt_fim_efetiva else "—"
+        data_fim_efetiva = (
+            dt_fim_efetiva.strftime("%d/%m/%Y") if dt_fim_efetiva else "—"
+        )
         ven = ds.get("vencimento_basico")
 
         def linha(label, valor):
@@ -160,26 +166,32 @@ class GeradorPDF:
 
         tabela = Table(dados_tabela, colWidths=[115, 200])
         tabela.hAlign = "LEFT"
-        tabela.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
-            ("LINEAFTER", (0, 0), (0, -1), 0.75, self.AZUL),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEADING", (0, 0), (-1, -1), 12),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
+        tabela.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
+                    ("LINEAFTER", (0, 0), (0, -1), 0.75, self.AZUL),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEADING", (0, 0), (-1, -1), 12),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
         elementos.append(tabela)
         elementos.append(Spacer(1, 20))
 
     # ── Verbas calculadas + totais + memória ────────────────────────────────────
     def _totais(self):
         vantagens = sum(
-            item.get("valor", 0.0) for item in self.historico
+            item.get("valor", 0.0)
+            for item in self.historico
             if item.get("tipo") == "Vantagem"
         )
         descontos = sum(
-            item.get("valor", 0.0) for item in self.historico
+            item.get("valor", 0.0)
+            for item in self.historico
             if item.get("tipo") == "Desconto"
         )
         return vantagens, descontos, vantagens - descontos
@@ -205,58 +217,82 @@ class GeradorPDF:
             textColor=self.AZUL,
         )
 
-        linhas = [[
-            Paragraph("<b>Código</b>", estilo_cabecalho),
-            Paragraph("<b>Verba</b>", estilo_cabecalho),
-            Paragraph("<b>Tipo</b>", estilo_cabecalho),
-            Paragraph("<b>Competência</b>", estilo_cabecalho),
-            Paragraph("<b>Valor (R$)</b>", estilo_cabecalho),
-        ]]
+        linhas = [
+            [
+                Paragraph("<b>Código</b>", estilo_cabecalho),
+                Paragraph("<b>Verba</b>", estilo_cabecalho),
+                Paragraph("<b>Tipo</b>", estilo_cabecalho),
+                Paragraph("<b>Competência</b>", estilo_cabecalho),
+                Paragraph("<b>Valor (R$)</b>", estilo_cabecalho),
+            ]
+        ]
 
         for h in self.historico:
-            linhas.append([
-                Paragraph(str(h.get("codigo") or "—"), estilo_celula),
-                Paragraph(str(h.get("nome_verba") or "—"), estilo_celula),
-                Paragraph(str(h.get("tipo") or "—"), estilo_celula),
-                Paragraph(str(h.get("competencia") or "—"), estilo_celula),
-                Paragraph(FormatadorCampos.brl(h.get("valor", 0.0)), estilo_celula),
-            ])
+            linhas.append(
+                [
+                    Paragraph(str(h.get("codigo") or "—"), estilo_celula),
+                    Paragraph(str(h.get("nome_verba") or "—"), estilo_celula),
+                    Paragraph(str(h.get("tipo") or "—"), estilo_celula),
+                    Paragraph(str(h.get("competencia") or "—"), estilo_celula),
+                    Paragraph(FormatadorCampos.brl(h.get("valor", 0.0)), estilo_celula),
+                ]
+            )
 
         vantagens, descontos, liquido = self._totais()
-        linhas.append([
-            Paragraph("<b>Total Vantagens</b>", estilo_negrito), "", "", "",
-            Paragraph(FormatadorCampos.brl(vantagens), estilo_negrito),
-        ])
-        linhas.append([
-            Paragraph("<b>Total Descontos</b>", estilo_negrito), "", "", "",
-            Paragraph(FormatadorCampos.brl(descontos), estilo_negrito),
-        ])
-        linhas.append([
-            Paragraph("<b>Líquido</b>", estilo_negrito), "", "", "",
-            Paragraph(FormatadorCampos.brl(liquido), estilo_negrito),
-        ])
+        linhas.append(
+            [
+                Paragraph("<b>Total Vantagens</b>", estilo_negrito),
+                "",
+                "",
+                "",
+                Paragraph(FormatadorCampos.brl(vantagens), estilo_negrito),
+            ]
+        )
+        linhas.append(
+            [
+                Paragraph("<b>Total Descontos</b>", estilo_negrito),
+                "",
+                "",
+                "",
+                Paragraph(FormatadorCampos.brl(descontos), estilo_negrito),
+            ]
+        )
+        linhas.append(
+            [
+                Paragraph("<b>Líquido</b>", estilo_negrito),
+                "",
+                "",
+                "",
+                Paragraph(FormatadorCampos.brl(liquido), estilo_negrito),
+            ]
+        )
 
         tabela = Table(linhas, colWidths=[50, 175, 80, 95, 115])
         tabela.hAlign = "CENTER"
-        tabela.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-            ("BACKGROUND", (0, 0), (-1, 0), self.AZUL),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.white),
-            ("LINEAFTER", (0, 0), (0, -1), 0.75, self.AZUL),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ]))
+        tabela.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                    ("BACKGROUND", (0, 0), (-1, 0), self.AZUL),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.white),
+                    ("LINEAFTER", (0, 0), (0, -1), 0.75, self.AZUL),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elementos.append(tabela)
 
         # Memória de cálculo de cada verba (opcional)
         itens_com_memoria = [
             (h.get("nome_verba", "Verba"), h.get("memoria") or [])
-            for h in self.historico if h.get("memoria")
+            for h in self.historico
+            if h.get("memoria")
         ]
         if itens_com_memoria:
             elementos.append(Spacer(1, 20))
@@ -270,7 +306,8 @@ class GeradorPDF:
         # Observações das verbas (opcional)
         itens_com_obs = [
             (h.get("nome_verba", "Verba"), h.get("observacao"))
-            for h in self.historico if h.get("observacao")
+            for h in self.historico
+            if h.get("observacao")
         ]
         if itens_com_obs:
             elementos.append(Spacer(1, 20))

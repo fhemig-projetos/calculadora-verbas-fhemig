@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraTercoFerias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -9,15 +10,32 @@ class CalculadoraTercoFerias(CalculadoraVerba):
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "ad_desempenho", "abono_emergencia",
-                "adicional_noturno", "grs_risco"]
+        return [
+            "vencimento_basico",
+            "ad_desempenho",
+            "abono_emergencia",
+            "adicional_noturno",
+            "grs_risco",
+        ]
 
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, abono_emergencia: float, adicional_noturno: float, grs_risco: str) -> ResultadoCalculo:
+    def calcular(
+        self,
+        vencimento_basico: float,
+        ad_desempenho: float,
+        abono_emergencia: float,
+        adicional_noturno: float,
+        grs_risco: str,
+    ) -> ResultadoCalculo:
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 
         # Fórmula
-        base = (vencimento_basico + ad_desempenho + abono_emergencia +
-                adicional_noturno + valor_grs)
+        base = (
+            vencimento_basico
+            + ad_desempenho
+            + abono_emergencia
+            + adicional_noturno
+            + valor_grs
+        )
         valor = base / 3
 
         memoria = [

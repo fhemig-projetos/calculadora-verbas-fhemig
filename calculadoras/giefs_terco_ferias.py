@@ -1,6 +1,7 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 
+
 class CalculadoraGIEFSTercoFerias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -14,6 +15,6 @@ class CalculadoraGIEFSTercoFerias(CalculadoraVerba):
         valor = valor_giefs / 3
         memoria = [
             f"Valor GIEFS: {FormatadorCampos.brl(valor_giefs)}",
-            f"÷ 3 = {FormatadorCampos.brl(valor_giefs/3)}"
+            f"÷ 3 = {FormatadorCampos.brl(valor_giefs/3)}",
         ]
-        return ResultadoCalculo(valor=round(valor,2),memoria_calculo=memoria)
+        return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)

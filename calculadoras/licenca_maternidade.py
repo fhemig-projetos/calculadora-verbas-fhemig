@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraLicencaMaternidade(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -11,7 +12,13 @@ class CalculadoraLicencaMaternidade(CalculadoraVerba):
     def campos_necessarios(self) -> list[str]:
         return ["vencimento_basico", "valor_giefs", "abono_emergencia", "grs_risco"]
 
-    def calcular(self, vencimento_basico: float, valor_giefs: float, abono_emergencia: float, grs_risco: str) -> ResultadoCalculo:
+    def calcular(
+        self,
+        vencimento_basico: float,
+        valor_giefs: float,
+        abono_emergencia: float,
+        grs_risco: str,
+    ) -> ResultadoCalculo:
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
         valor = vencimento_basico + valor_giefs + abono_emergencia + valor_grs
         memoria = [

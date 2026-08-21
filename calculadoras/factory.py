@@ -10,7 +10,7 @@ from .inss_decimo_terceiro import CalculadoraINSSDecimoTerceiro
 from .giefs_dias import CalculadoraGIEFSDias
 from .giefs_meses import CalculadoraGIEFSMeses
 from .giefs_terco_ferias import CalculadoraGIEFSTercoFerias
-from .grs_meses import  CalculadoraGRSMeses
+from .grs_meses import CalculadoraGRSMeses
 from .grs_13 import CalculadoraGRS13
 from .grs_desconto_horas import CalculadoraGRSDescontoHoras
 from .ferias_terco import CalculadoraTercoFerias

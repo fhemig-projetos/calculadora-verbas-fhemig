@@ -2,23 +2,46 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraDecimoTerceiro(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
         return "Fórmula: (Venc. Básico + Ad. Desempenho + Ab. Emergência + Grat. Fim Semana + Ad. Noturno + GRS) ÷ 12 × Nº de Meses"
-    
+
     @property
     def campos_necessarios(self):
-        return ["vencimento_basico", "ad_desempenho", "abono_emergencia",
-                "grat_final_semana", "adicional_noturno", "grs_risco", "numero_meses"]
-    
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, abono_emergencia: float, grat_final_semana: float, adicional_noturno: float, grs_risco: str, numero_meses: int) -> ResultadoCalculo:
+        return [
+            "vencimento_basico",
+            "ad_desempenho",
+            "abono_emergencia",
+            "grat_final_semana",
+            "adicional_noturno",
+            "grs_risco",
+            "numero_meses",
+        ]
+
+    def calcular(
+        self,
+        vencimento_basico: float,
+        ad_desempenho: float,
+        abono_emergencia: float,
+        grat_final_semana: float,
+        adicional_noturno: float,
+        grs_risco: str,
+        numero_meses: int,
+    ) -> ResultadoCalculo:
         # Busca o valor se faz jus à GRS
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
 
         # Fórmula
-        base = (vencimento_basico + ad_desempenho + abono_emergencia +
-        grat_final_semana + adicional_noturno + valor_grs)
+        base = (
+            vencimento_basico
+            + ad_desempenho
+            + abono_emergencia
+            + grat_final_semana
+            + adicional_noturno
+            + valor_grs
+        )
         valor = (base / 12) * numero_meses
 
         memoria = [

@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraFaltasDias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -9,11 +10,32 @@ class CalculadoraFaltasDias(CalculadoraVerba):
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "ad_desempenho", "abono_emergencia", "grs_risco", "valor_piso", "faltas_dias"]
+        return [
+            "vencimento_basico",
+            "ad_desempenho",
+            "abono_emergencia",
+            "grs_risco",
+            "valor_piso",
+            "faltas_dias",
+        ]
 
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, abono_emergencia: float, grs_risco: str, valor_piso: float, faltas_dias: int) -> ResultadoCalculo:
+    def calcular(
+        self,
+        vencimento_basico: float,
+        ad_desempenho: float,
+        abono_emergencia: float,
+        grs_risco: str,
+        valor_piso: float,
+        faltas_dias: int,
+    ) -> ResultadoCalculo:
         valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
-        base = vencimento_basico + ad_desempenho + abono_emergencia + valor_grs + valor_piso
+        base = (
+            vencimento_basico
+            + ad_desempenho
+            + abono_emergencia
+            + valor_grs
+            + valor_piso
+        )
         valor = base / 30 * faltas_dias
         memoria = [
             f"Venc. Básico: {FormatadorCampos.brl(vencimento_basico)}",
@@ -27,4 +49,4 @@ class CalculadoraFaltasDias(CalculadoraVerba):
             f"× {faltas_dias} dias de falta",
             f"= {FormatadorCampos.brl(valor)}",
         ]
-        return ResultadoCalculo(valor=round(valor,2), memoria_calculo=memoria)
+        return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)

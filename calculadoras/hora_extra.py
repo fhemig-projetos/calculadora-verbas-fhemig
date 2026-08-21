@@ -1,6 +1,7 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 
+
 class CalculadoraHoraExtra(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -8,23 +9,35 @@ class CalculadoraHoraExtra(CalculadoraVerba):
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "ad_desempenho", "carga_horaria_mensal", "horas_realizadas"]
+        return [
+            "vencimento_basico",
+            "ad_desempenho",
+            "carga_horaria_mensal",
+            "horas_realizadas",
+        ]
 
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
+    def calcular(
+        self,
+        vencimento_basico: float,
+        ad_desempenho: float,
+        carga_horaria_mensal: float,
+        horas_realizadas: float,
+    ) -> ResultadoCalculo:
         # Tratamento de erro básico para não quebrar o app
         if carga_horaria_mensal <= 0:
-            return ResultadoCalculo(0.0, ["Erro: Carga horária deve ser maior que zero."])
+            return ResultadoCalculo(
+                0.0, ["Erro: Carga horária deve ser maior que zero."]
+            )
 
-        # Fórmula            
+        # Fórmula
         base = vencimento_basico + ad_desempenho
         valor = (base / carga_horaria_mensal) * horas_realizadas * 1.5
-        
+
         # Memória de cálculo
         memoria = [
-            f"Base: {FormatadorCampos.brl(base)}", 
+            f"Base: {FormatadorCampos.brl(base)}",
             f"Valor/hora: {FormatadorCampos.brl(base/carga_horaria_mensal)}",
-            f"× {horas_realizadas:.0f} horas realizadas × 1,50", 
-            f"= {FormatadorCampos.brl(valor)}"
+            f"× {horas_realizadas:.0f} horas realizadas × 1,50",
+            f"= {FormatadorCampos.brl(valor)}",
         ]
         return ResultadoCalculo(valor=valor, memoria_calculo=memoria)
-

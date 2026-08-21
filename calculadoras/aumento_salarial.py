@@ -2,6 +2,7 @@ from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 from data import ProvedorDadosFhemig
 
+
 class CalculadoraAumentoSalarial(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
@@ -11,7 +12,9 @@ class CalculadoraAumentoSalarial(CalculadoraVerba):
     def campos_necessarios(self) -> list[str]:
         return ["ano_referencia", "vencimento_basico"]
 
-    def calcular(self, ano_referencia: int, vencimento_basico: float) -> ResultadoCalculo:
+    def calcular(
+        self, ano_referencia: int, vencimento_basico: float
+    ) -> ResultadoCalculo:
         aliquota = ProvedorDadosFhemig.obter_aliquota_reajuste(ano_referencia)
         aumento = vencimento_basico * aliquota
         novo_valor = vencimento_basico + aumento

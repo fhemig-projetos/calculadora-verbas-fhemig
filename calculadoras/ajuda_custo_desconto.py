@@ -1,6 +1,7 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
 
+
 class CalculadoraDescontoAjudaCusto(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
