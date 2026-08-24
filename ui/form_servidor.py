@@ -1,7 +1,7 @@
 import streamlit as st
 from data import ProvedorDadosFhemig
 from utils import FormatadorCampos, on_change_masp
-from datetime import date
+import datetime
 
 class FormularioServidor:
     """Formulário de Dados do Servidor.
@@ -38,11 +38,11 @@ class FormularioServidor:
             # Define padrão de data explicitamente 
             ds["dt_admissao"] = c4.date_input(
                 "Data de Admissão", value=ds["dt_admissao"], format="DD/MM/YYYY",
-                min_value=date(1900, 1, 1), max_value=date.today(),
+                min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(),
             )
             ds["dt_fim_efetiva"] = c5.date_input(
                 "Data Fim Efetiva", value=ds["dt_fim_efetiva"], format="DD/MM/YYYY",
-                min_value=date(1900, 1, 1), max_value=date.today(),
+                min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(),
             )
 
             st.divider()
