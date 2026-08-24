@@ -8,3 +8,11 @@ def on_change_masp(key: str):
 def on_change_moeda(key: str):
     raw = st.session_state.get(key)
     st.session_state[key] = FormatadorCampos.arredondar_moeda(raw)
+
+def on_change_maiusculo_strip(key: str):
+    raw = st.session_state.get(key)
+    st.session_state[key] = FormatadorCampos.maiusculo_strip(raw)
+
+def on_change_strip(key: str):
+    raw = st.session_state.get(key)
+    st.session_state[key] = FormatadorCampos.strip(raw)

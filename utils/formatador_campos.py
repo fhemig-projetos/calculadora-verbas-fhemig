@@ -18,3 +18,11 @@ class FormatadorCampos:
     def brl(valor: float) -> str:
         return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    @staticmethod
+    def maiusculo_strip(texto: str) -> str:
+        return texto.strip().upper() if texto else texto
+
+    @staticmethod
+    def strip(texto: str) -> str:
+        return texto.strip() if texto else texto
+

@@ -1,6 +1,6 @@
 import streamlit as st
 from data import ProvedorDadosFhemig, ProvedorServidoresSupabase
-from utils import FormatadorCampos, on_change_masp
+from utils import FormatadorCampos, on_change_masp, on_change_maiusculo_strip, on_change_strip
 import datetime
 
 class FormularioServidor:
@@ -25,6 +25,11 @@ class FormularioServidor:
                 "ch_mensal": 0,
                 "vencimento_basico": 0.0,
             }
+        if "servidor_nonce" not in st.session_state:
+            st.session_state["servidor_nonce"] = 0
+            
+        if "ultima_busca_servidor" not in st.session_state:
+            st.session_state["ultima_busca_servidor"] = None
 
     def render(self):
         with st.expander("Dados do Servidor", expanded=True):
@@ -38,43 +43,73 @@ class FormularioServidor:
             servidor_encontrado = None
             if ds["masp"] and ds["admissao"]:
                 servidor_encontrado = ProvedorServidoresSupabase.buscar_servidor(ds["masp"], ds["admissao"])
+                busca_atual = (ds["masp"], ds["admissao"])
+                if busca_atual != st.session_state["ultima_busca_servidor"]:
+                    st.session_state["ultima_busca_servidor"] = busca_atual
+                    st.session_state["servidor_nonce"] += 1
+                    nonce_novo = st.session_state["servidor_nonce"]
+                    if servidor_encontrado:
+                        ds["nome"] = servidor_encontrado["nome"]
+                        ds["dt_admissao"] = (
+                            datetime.date.fromisoformat(servidor_encontrado["data_inicio"])
+                            if servidor_encontrado["data_inicio"] else None
+                        )
+                        ds["dt_fim_efetiva"] = (
+                            datetime.date.fromisoformat(servidor_encontrado["data_fim_efetiva"])
+                            if servidor_encontrado["data_fim_efetiva"] else None
+                        )
+                        ds["cargo_classe"] = servidor_encontrado["cod_carreira"]
+                        ds["cargo_nivel"] = servidor_encontrado["nivel"]
+                        ds["cargo_grau"] = servidor_encontrado["grau"]
+                        ds["ch_semanal"] = int(servidor_encontrado["carga_horaria"])
+                    else:
+                        # Não encontrado: limpa os dados da busca anterior, para não deixar
+                        # dados de outro servidor associados ao MASP/Admissão atual
+                        ds["nome"] = ""
+                        ds["dt_admissao"] = None
+                        ds["dt_fim_efetiva"] = None
+                        ds["cargo_classe"] = ""
+                        ds["cargo_nivel"] = ""
+                        ds["cargo_grau"] = ""
+                        ds["ch_semanal"] = 0
+                    st.session_state[f"{nonce_novo}::cargo_classe"] = ds["cargo_classe"]
+                    st.session_state[f"{nonce_novo}::cargo_nivel"] = ds["cargo_nivel"]
+                    st.session_state[f"{nonce_novo}::cargo_grau"] = ds["cargo_grau"]
+
                 if servidor_encontrado:
                     st.success("✅ Servidor encontrado na base — dados preenchidos automaticamente")
-                    ds["nome"] = servidor_encontrado["nome"]
-                    if servidor_encontrado["data_inicio"]:
-                        ds["dt_admissao"] = datetime.date.fromisoformat(servidor_encontrado["data_inicio"])
-                    if servidor_encontrado["data_fim_efetiva"]:
-                        ds["dt_fim_efetiva"] = datetime.date.fromisoformat(servidor_encontrado["data_fim_efetiva"])
-                    ds["cargo_classe"] = servidor_encontrado["cod_carreira"]
-                    ds["cargo_nivel"] = servidor_encontrado["nivel"]
-                    ds["cargo_grau"] = servidor_encontrado["grau"]
-                    ds["ch_semanal"] = int(servidor_encontrado["carga_horaria"])
                 else:
                     st.info("ℹ️ Servidor não encontrado na base. Preencha os dados manualmente.")
 
-            ds["nome"] = c3.text_input("Nome Completo do Servidor", value=ds["nome"], key="nome")
+            nonce = st.session_state["servidor_nonce"]
+            ds["nome"] = c3.text_input("Nome Completo do Servidor", value=ds["nome"], key=f"{nonce}::nome")
 
             # Define padrão de data explicitamente
             ds["dt_admissao"] = c4.date_input(
                 "Data de Admissão", value=ds["dt_admissao"], format="DD/MM/YYYY",
                 min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(),
+                key=f"{nonce}::dt_admissao",
             )
             ds["dt_fim_efetiva"] = c5.date_input(
                 "Data Fim Efetiva", value=ds["dt_fim_efetiva"], format="DD/MM/YYYY",
                 min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(),
+                key=f"{nonce}::dt_fim_efetiva",
             )
 
             st.divider()
 
             st.caption("**Cargo** — preencha para busca automática do vencimento básico e carga horária mensal")
             c6, c7, c8 = st.columns(3)
-            ds["cargo_classe"] = c6.text_input("Cargo", value=ds["cargo_classe"], placeholder="Ex: PENF", key="cargo_classe").upper().strip()
-            ds["cargo_nivel"]  = c7.text_input("Nível",          value=ds["cargo_nivel"],  placeholder="Ex: 2", key="cargo_nivel").strip()
-            ds["cargo_grau"]   = c8.text_input("Grau",           value=ds["cargo_grau"],   placeholder="Ex: A", key="cargo_grau").upper().strip()
-            
+            key_cargo_classe = f"{nonce}::cargo_classe"
+            key_cargo_nivel = f"{nonce}::cargo_nivel"
+            key_cargo_grau = f"{nonce}::cargo_grau"
+            ds["cargo_classe"] = c6.text_input("Cargo", placeholder="Ex: PENF", key=key_cargo_classe, on_change=on_change_maiusculo_strip, args=(key_cargo_classe,))
+            ds["cargo_nivel"]  = c7.text_input("Nível",          placeholder="Ex: 2", key=key_cargo_nivel, on_change=on_change_strip, args=(key_cargo_nivel,))
+            ds["cargo_grau"]   = c8.text_input("Grau",           placeholder="Ex: A", key=key_cargo_grau, on_change=on_change_maiusculo_strip, args=(key_cargo_grau,))
+
             c9, c10 = st.columns(2)
             ds["ch_semanal"] = c9.number_input(
-                "Carga Horária Semanal", value=ds["ch_semanal"], min_value=0, step=1, key="ch_semanal",
+                "Carga Horária Semanal", value=ds["ch_semanal"], min_value=0, step=1, key=f"{nonce}::ch_semanal",
             )
 
             # Calcula a ch mensal com base na ch semanal informada
