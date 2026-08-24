@@ -1,1 +1,2 @@
 from .provedor_dados import ProvedorDadosFhemig
+from .provedor_servidores import ProvedorServidoresSupabase

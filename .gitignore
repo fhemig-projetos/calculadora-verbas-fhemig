@@ -4,3 +4,6 @@ __pycache__/
 *.sqlite3
 old/
 .claude/
+.streamlit/secrets.toml
+.streamlit/secrets_admin.toml
+*.csv

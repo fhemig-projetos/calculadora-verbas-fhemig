@@ -2,7 +2,7 @@
 
 > **Propósito:** Refatoração do `app.py` (monolítico) para arquitetura modular com pacotes e OOP.
 > **Stack:** Python + Streamlit + ReportLab (PDF) + Pandas
-> **Entrypoint atual:** `main.py` (versão modular, único entrypoint — `app.py` legado removido da raiz em 18/08, arquivado em `old/app_old.py`)
+> **Entrypoint atual:** `app.py` (renomeado de `main.py` no commit `f4bf15f`, para viabilizar deploy de múltiplos apps no mesmo repo no Streamlit Cloud — ver pendência 4.13). A pasta `old/` (arquivo legado monolítico) não existe mais no repositório.
 
 ---
 
@@ -10,18 +10,19 @@
 
 ```
 calculadora-verbas-fhemig/
-├── main.py                    # Entrypoint da versão modular
+├── app.py                     # Entrypoint da versão modular (renomeado de main.py — ver 4.13)
+├── app_hem.py                 # App de teste p/ deploy de múltiplos apps no mesmo repo (avaliar remoção — ver 15.4)
 ├── contexto.md                # Este arquivo
 ├── dúvidas.md                 # Dúvidas em aberto sobre regras de negócio
-├── requirements.txt           # streamlit, reportlab, pandas
+├── requirements.txt           # streamlit, reportlab, pandas, supabase
 │
 ├── assets/                    # Identidade visual
-│   ├── icone.png               # Favicon (page_icon em main.py)
+│   ├── icone.png               # Favicon (page_icon em app.py)
 │   ├── LogoFhemig.png           # Logo institucional no cabeçalho (ui/cabecalho.py)
 │   └── cabecalho_pdf.png       # Logo usado no PDF exportado (utils/exportador_pdf.py)
 │
-├── old/                       # Código legado arquivado
-│   └── app_old.py             # Antigo app.py monolítico (removido da raiz em 18/08)
+├── scripts/                   # Scripts utilitários (fora do pacote da aplicação)
+│   └── populate_servidores.py # Importa data/dados_funcionais_calculadora_verbas.csv p/ tabela `servidores` no Supabase (ver 15.1)
 │
 ├── calculadoras/              # Pacote de classes de cálculo (OOP)
 │   ├── __init__.py            # Exporta classes + factory
@@ -55,6 +56,7 @@ calculadora-verbas-fhemig/
 ├── data/                      # Dados externos
 │   ├── __init__.py
 │   ├── provedor_dados.py      # ProvedorDadosFhemig (cache + acesso JSON)
+│   ├── provedor_servidores.py # ProvedorServidoresSupabase (busca servidor por MASP+Admissão — ver 15.2)
 │   └── tabelas.json           # Cargos, INSS, verbas, GRS, reajustes
 │
 ├── ui/                        # Componentes de interface Streamlit
@@ -449,6 +451,46 @@ Observações do levantamento:
 - `ui/form_servidor.py`: os dois `st.date_input` (Data de Admissão e Data Fim Efetiva) passaram a receber `min_value=date(1950, 1, 1)` e `max_value=date.today()` explícitos.
 - Antes, sem esses parâmetros, o Streamlit usava um intervalo padrão de ±10 anos a partir de hoje (já que `value` começa como `None`), limitando a seleção aos últimos ~10 anos e, de quebra, permitindo datas futuras (que não fazem sentido pra admissão/fim efetiva) — ambos os problemas corrigidos.
 
+### 4.11 🟡 Pendente — confirmar unicidade de `masp_admissao` na extração de dados
+
+- Ao popular a tabela `servidores` (`scripts/populate_servidores.py`) a partir de `data/dados_funcionais_calculadora_verbas.csv`, o `upsert` com `on_conflict="masp_admissao"` falhava com o erro do Postgres `ON CONFLICT DO UPDATE command cannot affect row a second time` — havia **45 valores duplicados** de `Masp/Admissão` no CSV (de 2904 linhas, só 2859 valores únicos).
+- Investigação (24/08): **42 grupos** eram linhas 100% idênticas repetidas (ruído de exportação). **3 grupos** tinham o mesmo `masp_admissao`, mas divergiam só na `Carga Horária Pagamento` (ex.: 30h e 40h) — podendo indicar dois vínculos/cargos reais da mesma pessoa, e não necessariamente ruído.
+- **Decisão temporária do usuário:** por ora, partir do pressuposto de que `masp/admissão` é suficiente como chave única para os dados e tratar todos os 45 casos (incluindo os 3 com carga horária diferente) como ruído — resolvidos deduplicando no script antes do upsert.
+- **Fica como pendência:** checar com a área de extração de dados se `masp_admissao` é de fato garantidamente único por vínculo, ou se os 3 casos de carga horária diferente representam acúmulo de cargo real (o que exigiria incluir mais alguma coluna, ex. `carga_horaria`, na chave de conflito/unicidade).
+
+### 4.12 🟡 Pendente — ampliar opções de Carga Horária Semanal/Mensal + pendência de confirmação
+
+- **Achado:** ao implementar o pré-preenchimento via Supabase (ver seção 15), constatou-se que a coluna `carga_horaria` da tabela `servidores` tem 5 valores distintos na base real (2861 registros): **12h (3,7%), 24h (6,0%), 30h (14,7%), 40h (60,4%), 60h (15,2%)** — ou seja, ~25% dos servidores têm carga horária fora do `selectbox` de "Carga Horária Semanal", que só aceitava `[20, 30, 40, 44]` (20h e 44h, por sua vez, **não aparecem nenhuma vez** na base real).
+- Esse valor vem da coluna `Carga Horária Pagamento` do CSV original (não necessariamente "carga horária semanal" no sentido estrito — pode representar regime de plantão de 12h, acúmulo de cargos somando 60h, etc.).
+- **Bug relacionado encontrado:** quando o valor de CH não batia com as opções fixas, tanto o `selectbox` de Carga Horária Semanal (`ui/form_servidor.py`) quanto o de Carga Horária Mensal (`ui/selecao_verba.py`) caíam **silenciosamente** para um valor default (40h / 120h respectivamente) — sem qualquer aviso ao usuário, mascarando o valor real do servidor.
+- **Resolvido:** opções ampliadas para incluir os 5 valores encontrados na base:
+  - `ui/form_servidor.py`: `opcoes_ch_semanal = [12, 20, 24, 30, 40, 44, 60]` (linha ~81); filtro de aceitação do valor vindo do Supabase (linha ~51) ampliado de `(20, 30, 40, 44)` para `(12, 20, 24, 30, 40, 44, 60)`.
+  - `ui/selecao_verba.py`: `opcoes_ch = [72, 120, 144, 180, 240, 264, 360]` (CH Mensal = CH Semanal × 6), usado tanto no cálculo do índice default quanto no `selectbox` do campo `carga_horaria_mensal`.
+  - Fallback de índice em ambos os selectbox ajustado para apontar para 40h/240h (antes eram índices fixos que, por coincidência, apontavam pros valores errados após a ampliação da lista).
+- **🟡 Pendência (decisão do usuário):** avaliar se **20h e 44h devem ser removidas** das opções, já que não há nenhum registro na base real com esses valores — usuário pediu para não excluir agora e primeiro **confirmar com a área de extração de dados se há (ou pode haver no futuro) servidores com 20h ou 44h semanais** que hoje simplesmente não estão nos 2861 registros já importados.
+- **Impacto nas calculadoras:** nenhuma mudança de fórmula necessária — `adicional_noturno.py`, `faltas_horas.py`, `gratificacao_final_semana.py`, `grs_desconto_horas.py` e `hora_extra.py` usam `carga_horaria_mensal` apenas como divisor numérico puro (valor-hora = base ÷ CH), então os novos valores (72, 144, 360) funcionam sem alteração de lógica.
+- **Achado à parte, não tratado:** `calculadoras/faltas_horas.py` é a única das 5 calculadoras que usa `carga_horaria_mensal` **sem proteção contra divisão por zero** (as outras 4 têm guarda `if carga_horaria_mensal <= 0`). Fica registrado como possível bug a corrigir em sessão futura.
+- Confirmar os valores possíveis de carga horária com a taxação.
+
+**Atualização (24/08) — solução dos selectbox substituída por campos livres:** a abordagem acima (ampliar as listas fixas) foi **superada** por uma solução mais simples, decidida na mesma sessão: em vez de listar valores possíveis de CH num `selectbox`, os campos viraram `number_input` livres.
+  - `ui/form_servidor.py`: "Carga Horária Semanal" agora é `st.number_input` (`min_value=0, step=1`), sem lista de opções fixa; o pré-preenchimento via Supabase (`ds["ch_semanal"] = int(servidor_encontrado["carga_horaria"])`) passou a aceitar qualquer valor, sem filtro. Isso também corrigiu de quebra um `NameError` (variável `ch_encontrada` referenciada sem estar definida, introduzido numa edição manual entre sessões).
+  - `ui/selecao_verba.py`: bloco especial de `carga_horaria_mensal` (antes um `selectbox` com `opcoes_ch`/`indice_default` próprios) foi removido; o campo agora cai naturalmente no `number_input` genérico já usado por `vencimento_basico` — o próprio comentário do código já antecipava esse caminho ("vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas, etc.").
+  - **Efeito:** a pendência de "20h/44h devem sair da lista?" fica **resolvida por construção** — não há mais lista fixa para incluir/excluir valores. A confirmação com a área sobre quais cargas horárias são válidas de fato continua útil como checagem de sanidade dos dados, mas não bloqueia mais a UI.
+  - Testado end-to-end com servidor real de 60h/semana (MASP 15434251): CH Semanal exibe 60, CH Mensal (cabeçalho) exibe 360, e ao selecionar a verba "Hora Extra" o campo Carga Horária Mensal já vem pré-preenchido com 360.
+
+### 4.13 🟡 Pendente — configurar secrets do Supabase no deploy do Streamlit Cloud
+
+- O pré-preenchimento via Supabase (ver seção 15) só funciona hoje **localmente**, porque `.streamlit/secrets.toml` (com a seção `[supabase_admin]`) existe apenas na máquina de desenvolvimento — **não foi configurado no app publicado** em [share.streamlit.io](https://share.streamlit.io).
+- **Antes de fazer merge/deploy dessa funcionalidade:** adicionar a seção `[supabase_admin]` (com `url` e `key`) nos "Secrets" do app no painel do Streamlit Cloud (Settings → Secrets), senão `ProvedorServidoresSupabase.buscar_servidor` vai lançar exceção em produção — hoje isso é capturado (`try/except` em `data/provedor_servidores.py`, mostra aviso e retorna `None`), mas o pré-preenchimento simplesmente não vai funcionar pra ninguém em produção até essa configuração ser feita.
+- **Achado à parte:** o entrypoint do app foi renomeado de `main.py` para `app.py` num commit anterior (`f4bf15f`), aparentemente para viabilizar deploy de múltiplos apps a partir do mesmo repositório (existe também um `app_hem.py` de teste na raiz). O cabeçalho deste `contexto.md` ainda citava `main.py` como entrypoint — **corrigido nesta sessão** (ver topo do arquivo). Vale confirmar se `app_hem.py` ainda é necessário ou se pode ser removido.
+
+### 4.14 🟡 Pendente — confirmar correção do bug de reset de campos do cabeçalho (digitação)
+
+- Usuário relatou (24/08): ao digitar um novo MASP/Nº de Admissão para fazer uma **segunda** busca de servidor (após já ter feito uma primeira busca), o campo às vezes volta pro valor anterior e exige digitar de novo.
+- **Causa provável:** os campos do cabeçalho (`MASP`, `Nº de Admissão`, `Nome`, `Cargo`, `Nível`, `Grau`, `Carga Horária Semanal`) não tinham `key=` explícita — mesma classe de bug já documentada e corrigida antes neste projeto para outros campos (ver seção 12.1: sem `key`, o Streamlit pode "remontar" o widget quando o `value` muda entre execuções, descartando o que o usuário digitou).
+- **Corrigido nesta sessão:** adicionada `key=` estável (`"masp"`, `"admissao"`, `"nome"`, `"cargo_classe"`, `"cargo_nivel"`, `"cargo_grau"`, `"ch_semanal"`) a todos esses campos em `ui/form_servidor.py`.
+- **Não confirmado:** não foi possível reproduzir o sintoma exato em teste automatizado (Playwright não replica o timing de foco/digitação humana com fidelidade suficiente). A correção segue o padrão já validado no projeto, mas **precisa ser confirmada pelo usuário em uso real** digitando duas buscas seguidas.
+
 ---
 
 ## 5. Observações sobre regras de negócio
@@ -485,14 +527,16 @@ Observações do levantamento:
 ## 7. Como rodar
 
 ```bash
-# Versão modular (nova)
-streamlit run main.py
-
-# Versão legada (monolítica)
 streamlit run app.py
 ```
 
-Dependências: `streamlit`, `reportlab`, `pandas` (ver `requirements.txt`)
+Dependências: `streamlit`, `reportlab`, `pandas`, `supabase` (ver `requirements.txt`)
+
+Para reimportar/atualizar os dados dos servidores no Supabase (requer `.streamlit/secrets.toml` com `[supabase_admin]`):
+
+```bash
+python scripts/populate_servidores.py
+```
 
 ---
 
@@ -760,4 +804,46 @@ Levantadas pelo usuário após o app já publicado — ver detalhes em 4.7 a 4.1
 - Nova seção com o link da aplicação publicada: `https://calculadora-verbas-fhemig.streamlit.app/`.
 - Instalação via `pip install -r requirements.txt` (antes só mandava instalar `streamlit`).
 - Seção "Próximos passos" desatualizada substituída por ponteiro para `contexto.md`/`duvidas.md`.
+
+---
+
+## 15. Plano de desenvolvimento — sessão 24/08
+
+> **Sessão:** integração com Supabase para popular e consultar dados funcionais dos servidores, com pré-preenchimento automático do cabeçalho a partir de MASP + Nº de Admissão. Trabalho **não commitado ainda** nesta sessão.
+
+### 15.1 ✅ Concluído — Script de importação para o Supabase (`scripts/populate_servidores.py`)
+
+- Novo script (fora do pacote da aplicação) que lê `data/dados_funcionais_calculadora_verbas.csv` e faz `upsert` em lotes de 500 na tabela `servidores` do Supabase, usando `masp_admissao` como chave de conflito.
+- **Bug encontrado e corrigido:** 45 valores duplicados de `masp_admissao` no CSV (2904 linhas → 2859 únicas) faziam o `upsert` falhar com `ON CONFLICT DO UPDATE command cannot affect row a second time`. Resolvido deduplicando via `{r["masp_admissao"]: r for r in registros}` antes do upsert (mantém a última ocorrência de cada). Detalhes e a pendência de confirmação com a área de extração de dados em 4.11.
+- Requer `.streamlit/secrets_admin.toml` (ou `secrets.toml`, dependendo da versão) com a seção `[supabase_admin]` (`url`, `key`) — **não versionado** (fora do git).
+- Executado com sucesso: **2859 registros** importados para a tabela `servidores`.
+
+### 15.2 ✅ Concluído — Pré-preenchimento do cabeçalho via Supabase
+
+**Novo arquivo:** `data/provedor_servidores.py` — classe `ProvedorServidoresSupabase`, seguindo o mesmo padrão de `ProvedorDadosFhemig` (namespace estático), mas para dados externos (Supabase) em vez do JSON local:
+- `_cliente()` (função de módulo, `@st.cache_resource`) — cria e cacheia o cliente Supabase a partir de `st.secrets["supabase_admin"]`.
+- `buscar_servidor(masp, numero_admissao)` (`@st.cache_data`) — consulta `servidores` filtrando por `masp` + `numero_admissao` (`.eq(...).eq(...).limit(1)`), com `try/except` pra não quebrar o app em caso de falha de rede (mostra `st.warning` e retorna `None`).
+- **Conversão de nível romano→arábico:** o campo `nivel` vem em algarismo romano no Supabase (`"I"` a `"VI"`, confirmado por consulta — ver `NIVEL_ROMANO_PARA_ARABICO`), mas `tabela_cargos` (`data/tabelas.json`) usa arábico (`"1"` a `"4"`). Sem essa conversão, a busca local de cargo (`ProvedorDadosFhemig.buscar_cargo`) nunca encontraria nada para dados reais vindos do Supabase — corrigido na fonte, dentro de `buscar_servidor`.
+- Registrado em `data/__init__.py` e adicionado `supabase>=2.0.0` ao `requirements.txt`.
+
+**`ui/form_servidor.py` reestruturado:**
+- Ordem dos campos do cabeçalho mudou de **Nome → MASP → Admissão** para **MASP → Nº de Admissão → Nome** (decisão do usuário) — a busca acontece assim que os dois primeiros estão preenchidos, e o Nome (junto com os demais campos) já vem pré-preenchido quando o widget de Nome é renderizado.
+- Gatilho da busca: **automático** (mesmo padrão já usado pela busca de cargo local), não por botão — decisão explícita do usuário, com cache (`st.cache_data`) evitando reconsultas repetidas pra mesma combinação MASP+Admissão.
+- Quando encontrado: preenche `nome`, `dt_admissao`, `dt_fim_efetiva` (convertidas de string ISO via `datetime.date.fromisoformat`), `cargo_classe` (de `cod_carreira`), `cargo_nivel`, `cargo_grau` e `ch_semanal` (de `carga_horaria`) — disparando em cascata a busca local de cargo já existente (`ProvedorDadosFhemig.buscar_cargo`), que por sua vez preenche o vencimento básico.
+- Quando não encontrado: `st.info` avisando, campos ficam livres para preenchimento manual (comportamento idêntico ao já existente para cargo não encontrado).
+- **Simplificação do usuário:** consolidada a checagem `if ds["masp"] and ds["admissao"]:` (antes duplicada — uma vez pra disparar a busca, outra pra decidir qual mensagem mostrar) num único bloco, fundindo a exibição de `st.success`/`st.info` dentro do próprio bloco de busca — mais simples que a alternativa cogitada (variável `busca_realizada`).
+- Testado end-to-end no navegador (Playwright) nos dois caminhos (encontrado / não encontrado), sem erros de console.
+
+### 15.3 ✅ Concluído — Carga Horária Semanal/Mensal viraram campos livres
+
+Ver detalhamento completo em 4.12. Resumo: `selectbox` com opções fixas (que não cobriam todos os valores reais da base: 12h, 24h, 60h além de 30h/40h) foi substituído por `number_input` livre em `ui/form_servidor.py`, e o campo espelho `carga_horaria_mensal` em `ui/selecao_verba.py` teve seu bloco especial de `selectbox` removido, caindo no `number_input` genérico já usado por `vencimento_basico`.
+
+### 15.4 🟡 Pendências geradas nesta sessão
+
+1. **Configurar secrets do Supabase no Streamlit Cloud** antes do deploy dessa funcionalidade (ver 4.13) — hoje só funciona localmente.
+2. **Confirmar correção do bug de reset de campos ao digitar duas buscas seguidas** (ver 4.14) — corrigido via `key=` explícita, mas não confirmado em uso real.
+3. **Confirmar com a área de extração de dados** a unicidade de `masp_admissao` (ver 4.11) e os valores válidos de carga horária (ver 4.12).
+4. `calculadoras/faltas_horas.py` sem proteção contra divisão por zero em `carga_horaria_mensal` (ver 4.12) — não corrigido, só identificado.
+5. Avaliar se `app_hem.py` (app de teste na raiz, criado para testar deploy de múltiplos apps no mesmo repo) ainda é necessário ou pode ser removido (ver 4.13).
+6. `teste_supabase.py` (raiz do repo, não commitado) parece ser um script exploratório do usuário para testar a conexão com Supabase — avaliar se deve ser movido para `scripts/`, formalizado, ou descartado antes do commit.
 

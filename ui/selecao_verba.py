@@ -131,8 +131,6 @@ class SelecaoVerba:
                 valor_default = persistidos.get(campo, ds.get("vencimento_basico"))
             elif campo == "carga_horaria_mensal":
                 valor_default = persistidos.get(campo, ds.get("ch_mensal"))
-                opcoes_ch = [120, 180, 240, 264]
-                indice_default = opcoes_ch.index(valor_default) if valor_default in opcoes_ch else 0
             elif campo == "valor_base_aumento":
                 valor_default = persistidos.get(campo, ds.get("vencimento_basico"))
             ## Campos de selectbox → índice vem do persistido (se a opção existir)
@@ -216,13 +214,6 @@ class SelecaoVerba:
                         config["label"],
                         options=opcoes_grs,
                         index=indice_default_grs,
-                        key=campo_key,
-                    )
-                elif campo == "carga_horaria_mensal":
-                    valores[campo] = st.selectbox(
-                        config["label"],
-                        options=opcoes_ch, # [120, 180, 240, 264]
-                        index=indice_default, # já vem pré-selecionado de acordo com o cabeçalho
                         key=campo_key,
                     )
                 elif campo in ("dias_trabalhados", "dias_ferias_indenizadas", "faltas_dias"):
