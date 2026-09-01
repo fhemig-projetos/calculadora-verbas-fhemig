@@ -511,6 +511,22 @@ Observações do levantamento:
   - Validação desta rodada foi só por revisão de código (sem Playwright) — segue valendo o mesmo aviso da linha 505: confirmação em uso real ainda pendente.
   - **Achado à parte, não tratado:** `ui/form_servidor.py` ainda importa `FormatadorCampos` e `on_change_masp` (linha 3) sem usar nenhum dos dois — sobra de uma versão anterior do arquivo. Cleanup trivial, não bloqueia nada.
 
+### 4.15 🟡 Pendente — ajustes nos cálculos de verbas conforme repasses da equipe do HEM
+
+- Aguardando detalhamento específico da equipe do HEM sobre quais fórmulas/regras precisam de ajuste. Registrado aqui só como lembrete de que revisões nas calculadoras (`calculadoras/*.py`) estão a caminho — sem escopo definido ainda.
+
+### 4.16 🟡 Pendente — Nível: converter algarismo arábico para romano ao preencher manualmente
+
+- Hoje a conversão só acontece num sentido: `data/provedor_servidores.py` (`NIVEL_ROMANO_PARA_ARABICO`) converte o `nivel` vindo do Supabase (romano, ex. "II") para arábico (ex. "2"), porque `data/tabelas.json` (`tabela_cargos`) usa arábico na busca de cargo.
+- Quando o usuário **digita** o Nível manualmente (cargo não encontrado automaticamente), o campo aceita o algarismo arábico como está — não há conversão de volta pra romano em nenhum ponto do fluxo (tela, PDF, etc.).
+- Falta avaliar: converter pra romano só na exibição (mantendo arábico internamente pra bater com `tabela_cargos`), ou se o pedido é sobre outro ponto do fluxo (ex. PDF exportado). Confirmar com o usuário o comportamento exato esperado antes de implementar.
+
+### 4.17 🟡 Pendente — GRS: trocar de selectbox por preenchimento manual do valor
+
+- Hoje o campo `grs_risco` (`ui/selecao_verba.py`) é um `selectbox` com opções textuais ("Risco Médio", "Risco Alto", "Não faz jus" — 2 ou 3 opções dependendo da verba, ver `_render` linha ~145), resolvido pra valor numérico via `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` (parser centralizado, puxa de `tabela_grs` em `data/tabelas.json`).
+- Pedido: substituir esse selectbox por um campo de valor livre (o usuário digita o valor da GRS diretamente, em vez de escolher risco médio/alto/não faz jus e deixar o sistema resolver o valor).
+- Impacto a mapear antes de implementar: todas as calculadoras que hoje recebem `grs_risco` (`grs_dias.py`, `grs_meses.py`, `grs_13.py`, `grs_desconto_horas.py`, `ferias_terco.py`, `ferias_indenizadas.py`, `faltas_horas.py`, `faltas_dias.py`, `ipsemg.py`, `licenca_maternidade.py`) usam `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` internamente — precisam passar a receber o valor já numérico direto, sem o parser. Também mexe em `CONFIG_CAMPOS` (`ui/config.py`) e na lógica dinâmica de exibição de 2 vs 3 opções (que deixa de fazer sentido).
+
 ---
 
 ## 5. Observações sobre regras de negócio
