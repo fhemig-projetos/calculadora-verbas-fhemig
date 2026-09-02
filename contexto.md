@@ -57,6 +57,7 @@ calculadora-verbas-fhemig/
 │   ├── __init__.py
 │   ├── provedor_dados.py      # ProvedorDadosFhemig (cache + acesso JSON)
 │   ├── provedor_servidores.py # ProvedorServidoresSupabase (busca servidor por MASP+Admissão — ver 15.2)
+│   ├── provedor_usuarios.py   # ProvedorUsuarios — login/sessão (branch feature/login-persistencia-historico — ver seção 16)
 │   └── tabelas.json           # Cargos, INSS, verbas, GRS, reajustes
 │
 ├── ui/                        # Componentes de interface Streamlit
@@ -64,6 +65,7 @@ calculadora-verbas-fhemig/
 │   ├── cabecalho.py           # Cabeçalho institucional
 │   ├── config.py              # CONFIG_CAMPOS (labels dos campos dinâmicos)
 │   ├── form_servidor.py       # Formulário de dados do servidor
+│   ├── login.py               # Login + sessão persistente via cookie (branch feature/login-persistencia-historico — ver seção 16)
 │   └── selecao_verba.py       # Seleção + cálculo + histórico
 │
 └── utils/                     # Utilitários
@@ -503,7 +505,7 @@ Observações do levantamento:
   - Testado (Playwright): busca válida preenche Nome/Cargo/Nível; busca seguinte com combinação inexistente limpa os 3 campos para `''`. Fluxo completo (busca → edição manual → nova busca) e normalização continuam funcionando sem regressão; nenhum warning/erro no log do servidor.
 - **Testado (Playwright, 3 passos em sequência):** 1) primeira busca preenche Cargo=PENF/Nível=2 corretamente; 2) edição manual do campo Cargo (digitação char-a-char) persiste como "TOS", sem reverter; 3) segunda busca com servidor diferente (60h, MEDRE) sobrescreve corretamente para Cargo=MEDRE/Nível=1/CH=60. Os três cenários confirmados sem erros de console.
 - **Ainda não confirmado em uso real:** o sintoma original relatado pelo usuário (revert ao digitar MASP/Admissão) não foi replicável em teste automatizado (Playwright não recria com fidelidade o timing de foco/digitação humana). A correção de MASP/Admissão (`key="masp"`/`key="admissao"`, estável — não usa nonce, pois esses dois campos nunca são sobrescritos por código) segue de pé, mas pede confirmação do usuário em uso real.
-- **Reimplementação (27/08) — guarda condicional substitui a semente dentro do bloco de busca:** o usuário reverteu `ui/form_servidor.py` pra uma versão anterior a essa pendência (pra reduzir volume de mudanças acumuladas) e reimplementou a lógica de nonce do zero, com o mesmo objetivo mas uma variação mais simples pro problema do 2º efeito colateral (linha 499 acima): em vez de escrever a semente de `cargo_classe`/`cargo_nivel`/`cargo_grau` **dentro** do bloco `if busca_atual != ultima_busca_servidor` (acoplado à lógica de busca), a semente agora é escrita **logo antes de cada widget renderizar**, protegida por `if key not in st.session_state: st.session_state[key] = ds[campo]`. Efeito prático idêntico (a guarda só dispara na primeira aparição de cada key, ou seja, exatamente quando o nonce muda), mas desacopla a semeadura da lógica de busca — não precisa calcular `nonce_novo` dentro do bloco de busca nem duplicar a atribuição lá.
+- **Reimplementação (01-02/09) — guarda condicional substitui a semente dentro do bloco de busca:** o usuário reverteu `ui/form_servidor.py` pra uma versão anterior a essa pendência (pra reduzir volume de mudanças acumuladas) e reimplementou a lógica de nonce do zero, com o mesmo objetivo mas uma variação mais simples pro problema do 2º efeito colateral (linha 499 acima): em vez de escrever a semente de `cargo_classe`/`cargo_nivel`/`cargo_grau` **dentro** do bloco `if busca_atual != ultima_busca_servidor` (acoplado à lógica de busca), a semente agora é escrita **logo antes de cada widget renderizar**, protegida por `if key not in st.session_state: st.session_state[key] = ds[campo]`. Efeito prático idêntico (a guarda só dispara na primeira aparição de cada key, ou seja, exatamente quando o nonce muda), mas desacopla a semeadura da lógica de busca — não precisa calcular `nonce_novo` dentro do bloco de busca nem duplicar a atribuição lá.
   - Também corrigido nesta reimplementação: os 3 `on_change` (Cargo/Nível/Grau) precisam de `args=(key,)` explícito — sem isso o Streamlit chama o callback sem argumento e lança `TypeError` (`on_change_maiusculo_strip() missing 1 required positional argument: 'key'`) assim que o usuário edita o campo. Bug introduzido numa iteração intermediária (key adicionada antes do `args=`) e pego em revisão antes de ir pra teste.
   - Nível usa `on_change_strip` (sem forçar maiúsculas — valor costuma ser numérico/romano, ex. "2" ou "II", ver `data/provedor_servidores.py`), Cargo e Grau usam `on_change_maiusculo_strip`.
   - **Decisão registrada:** o warning do Streamlit sobre `value=` + Session State API (linha 499) foi avaliado e considerado aceitável de ignorar caso reapareça em algum campo no futuro — funcionalmente o `session_state` sempre prevalece sobre `value=` quando os dois coexistem, então não há bug real, só ruído no terminal. Se for necessário silenciar, a opção mais cirúrgica é um `logging.Filter` no logger `"streamlit"` filtrando pela mensagem específica (em vez de `[logger] level = "error"` no `.streamlit/config.toml`, que esconde todo warning do Streamlit, não só esse).
@@ -889,4 +891,78 @@ Ver detalhamento completo em 4.12. Resumo: `selectbox` com opções fixas (que n
 4. `calculadoras/faltas_horas.py` sem proteção contra divisão por zero em `carga_horaria_mensal` (ver 4.12) — não corrigido, só identificado.
 5. Avaliar se `app_hem.py` (app de teste na raiz, criado para testar deploy de múltiplos apps no mesmo repo) ainda é necessário ou pode ser removido (ver 4.13).
 6. `teste_supabase.py` (raiz do repo, não commitado) parece ser um script exploratório do usuário para testar a conexão com Supabase — avaliar se deve ser movido para `scripts/`, formalizado, ou descartado antes do commit.
+
+## 16. Plano de desenvolvimento — sessão 01-02/09
+
+> **Sessão:** sistema de login (tabela própria, sem Supabase Auth) + sessão persistente via cookie, na branch **`feature/login-persistencia-historico`** (criada a partir do `main` nesta sessão — ver 16.5). Objetivo maior por trás disso: permitir manutenção de valores preenchidos e histórico por usuário (login é o meio, não o fim — a persistência do histórico em si ainda não foi implementada, ver 16.6).
+
+### 16.1 ✅ Concluído — Decisão de arquitetura: tabela própria em vez de Supabase Auth ou `st.login()`
+
+- Avaliadas 3 rotas: (A) Supabase Auth (`auth.users`, gerenciado pelo Supabase), (B) `st.login()` nativo do Streamlit (OIDC, exige provedor de identidade externo tipo Google/Microsoft), (C) tabela própria (`usuarios`) no mesmo Postgres do Supabase, com hash de senha calculado em Python.
+- **Escolhida a rota C**, motivado por um plano futuro de migração do banco para MySQL — tanto Supabase Auth quanto RLS são features proprietárias do Supabase/Postgres, sem equivalente direto fora dele; uma tabela simples + hash em Python (bcrypt) é portável pra qualquer banco relacional sem reescrever a lógica de autenticação.
+- **Nota de arquitetura registrada:** como o app usa (hoje, em dev) a chave `service-role` do Supabase — que ignora RLS completamente — e em produção usará uma chave *publishable* (anon), o isolamento de dados por usuário (histórico, etc.) precisa ser feito **manualmente no código** (`.eq("usuario_id", ...)`), independente da rota escolhida — RLS só filtraria automaticamem se o app usasse o JWT de sessão do próprio Supabase Auth, o que não é o caso na rota C.
+
+### 16.2 ✅ Concluído — Tabela `usuarios`
+
+```sql
+create table public.usuarios (
+    id bigint generated always as identity primary key,
+    email text not null unique,
+    senha_hash text not null,
+    nome text not null,
+    unidade text,
+    ativo boolean not null default true,
+    criado_em timestamptz not null default now()
+);
+```
+- `unidade` (texto livre, opcional): coluna só informativa por decisão do usuário — não filtra/agrupa nada hoje. Se algum dia precisar filtrar por unidade, vale revisitar como tabela `unidades` separada (FK) pra evitar inconsistência de grafia.
+- E-mail é normalizado (`strip().lower()`) só do lado do código (`data/provedor_usuarios.py`), não no banco — `unique` do Postgres é case-sensitive.
+- **SQL rodado manualmente pelo usuário no Supabase** (não versionado como migration formal — sem ferramenta de migração no projeto ainda).
+
+### 16.3 ✅ Concluído — `data/provedor_usuarios.py` (novo arquivo, classe `ProvedorUsuarios`)
+
+Segue o mesmo padrão dos outros provedores (`_cliente()` cacheado via `@st.cache_resource`, lendo `st.secrets["supabase_admin"]`):
+- **`gerar_hash(senha)`** — `bcrypt.hashpw(..., bcrypt.gensalt())`. Uso: só em criação/reset de usuário (ainda não existe um script formal pra isso — ver pendência 16.6).
+- **`autenticar(email, senha)`** — busca por e-mail normalizado + `ativo=True` já filtrado na query (não distingue "e-mail não existe" de "senha errada" na resposta, evita user enumeration), confere com `bcrypt.checkpw` (com `try/except ValueError` pra hash corrompido), remove `senha_hash` do dicionário antes de retornar. **Não usa `@st.cache_data`** (diferente dos outros provedores) — cachear autenticação permitiria login com senha revogada até o cache expirar.
+- **`criar_sessao(usuario_id, validade_horas=1)`** — gera token opaco via `secrets.token_urlsafe(32)`, insere na tabela `sessoes` (ver 16.4) com `expira_em`.
+- **`validar_sessao(token)`** — busca a sessão com *embedding* do Supabase (`.select("expira_em, usuarios(id, email, nome, unidade, ativo)")`, aproveitando a FK `sessoes.usuario_id → usuarios.id` num select só). Retorna `None` se token não existe, expirou, ou usuário foi desativado depois de a sessão ter sido criada. **Limpeza "de passagem":** se encontra uma sessão expirada, já deleta a linha antes de retornar `None` (não cobre sessões nunca mais consultadas — ver pendência 4.18, `pg_cron`).
+- **`encerrar_sessao(token)`** — deleta a linha da sessão (usado no logout; mata a sessão no banco, não só o cookie local).
+- Dependência nova: `bcrypt>=4.0.0` (`requirements.txt`).
+
+### 16.4 ✅ Concluído — Tabela `sessoes`
+
+```sql
+create table public.sessoes (
+    token text primary key,
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    expira_em timestamptz not null,
+    criado_em timestamptz not null default now()
+);
+```
+`token` como chave primária (não um `id` sequencial) porque é ele mesmo que é buscado — precisa ser imprevisível, diferente de um id incremental. `on delete cascade`: remover um usuário já limpa as sessões dele.
+
+### 16.5 ✅ Concluído — `ui/login.py` (novo) + gate em `app.py` + branch dedicada
+
+- **Branch `feature/login-persistencia-historico`** criada a partir do `main` nesta sessão, especificamente para não influenciar o app já publicado no Streamlit Cloud. **Achado importante:** o commit `3ca5b9a` ("implementa provedor_usuarios", de uma sessão anterior) já estava no `main` **e já tinha sido empurrado pro `origin/main`** antes desta sessão começar — decisão do usuário foi deixar como está (é código morto hoje, nada no `main` atual chama essas funções), em vez de reescrever histórico já publicado.
+- **`ui/login.py`** — classe `Login`, mesmo padrão dos outros componentes de `ui/`:
+  - `__init__`: inicializa `session_state["usuario_logado"]`, instancia `CookieController()` (lib `streamlit-cookies-controller`, nova dependência), e chama `_restaurar_sessao()` se ainda não autenticado.
+  - `_restaurar_sessao()`: lê o cookie `token_sessao`, valida via `ProvedorUsuarios.validar_sessao`, restaura `usuario_logado` — é isso que mantém o login após F5 (que por padrão zera `st.session_state`).
+  - `autenticado()`, `render_formulario()` (form de e-mail/senha), `render_logout()` (mostra "Logado como X" + botão "Sair").
+- **`app.py`**: portão simples — se não autenticado, mostra só cabeçalho + login e `st.stop()`; se autenticado, segue o fluxo normal (form servidor + seleção de verba), com `render_logout()` visível.
+- **Validade da sessão:** `VALIDADE_SESSAO_HORAS = 1` (decisão do usuário — inicialmente cogitado 7 dias no plano, reduzido pra 1 hora).
+
+### 16.6 🐛 Dois bugs de corrida (race condition) encontrados e corrigidos — leitura/escrita assíncrona de cookie
+
+`streamlit-cookies-controller` lê/escreve cookies via componente customizado (JS no navegador) de forma **assíncrona** — o valor só fica disponível pro Python numa rodada *seguinte* à que disparou a leitura/escrita, nunca na mesma execução do script.
+1. **Escrita (bug real, confirmado via DevTools — cookie `token_sessao` não aparecia após login):** `self._cookies.set(...)` seguido de `st.rerun()` imediato não dava tempo do JS executar `document.cookie = ...` antes da tela mudar. Corrigido com `time.sleep(0.3)` entre o `.set()`/`.remove()` e o `st.rerun()`, em `render_formulario` e `render_logout`.
+2. **Leitura (defensivo, não isolado/confirmado como causa raiz de sintoma real — ver nota abaixo):** logo após F5, a primeira leitura de `self._cookies.getAll()` vem vazia mesmo com o cookie existindo de verdade (round-trip ainda não completou). Mitigado em `_restaurar_sessao` com uma espera + `st.rerun()` guardado por uma flag em `session_state` (evita loop infinito).
+- **Nota em aberto:** o bug confirmado por evidência (DevTools) foi o da escrita; a mitigação de leitura foi adicionada de forma defensiva, sem isolar se o Streamlit já resolveria isso sozinho via seu próprio mecanismo de rerun automático em widgets com `key=`. Não testado em isolamento — fica como possível simplificação futura, se alguém quiser confirmar removendo o bloco e testando o F5 sem ele.
+
+### 16.7 🟡 Pendências geradas nesta sessão
+
+1. **Script de criação de usuários** — hoje não existe nenhuma forma de inserir um usuário na tabela `usuarios` além de fazer manualmente no Supabase (usando `ProvedorUsuarios.gerar_hash(...)` pra gerar o hash certo). Cogitado um script tipo `scripts/populate_servidores.py`, não implementado.
+2. **Faxina de sessões órfãs via `pg_cron`** — ver 4.18.
+3. **Persistência de fato do histórico por usuário** — o objetivo final por trás do login (ver introdução desta seção). Login funciona, mas `st.session_state["historico"]` (`ui/selecao_verba.py`) continua em memória, não persistido em nenhuma tabela ainda. Também em aberto: se "valores preenchidos" deve incluir o formulário do cabeçalho (`dados_servidor`), não só o histórico de cálculos.
+4. **Confirmação em uso real** do fluxo completo (login → F5 → continua logado → Sair → F5 → volta pro login) — testado durante a sessão via DevTools/observação direta, mas sem um teste automatizado (Playwright) cobrindo esse fluxo.
+5. **Nota de segurança não tratada:** se em produção a tabela `usuarios` ficar acessível pela chave *publishable* (anon) com RLS habilitado sem policy, a própria consulta de login do app seria bloqueada — precisa decidir entre manter uma chave com mais privilégio só pra essa tabela, ou modelar policies específicas (discutido em conversa, não decidido/implementado).
 
