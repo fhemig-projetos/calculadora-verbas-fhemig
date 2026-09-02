@@ -527,6 +527,13 @@ Observações do levantamento:
 - Pedido: substituir esse selectbox por um campo de valor livre (o usuário digita o valor da GRS diretamente, em vez de escolher risco médio/alto/não faz jus e deixar o sistema resolver o valor).
 - Impacto a mapear antes de implementar: todas as calculadoras que hoje recebem `grs_risco` (`grs_dias.py`, `grs_meses.py`, `grs_13.py`, `grs_desconto_horas.py`, `ferias_terco.py`, `ferias_indenizadas.py`, `faltas_horas.py`, `faltas_dias.py`, `ipsemg.py`, `licenca_maternidade.py`) usam `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` internamente — precisam passar a receber o valor já numérico direto, sem o parser. Também mexe em `CONFIG_CAMPOS` (`ui/config.py`) e na lógica dinâmica de exibição de 2 vs 3 opções (que deixa de fazer sentido).
 
+### 4.18 🟡 Pendente — faxina periódica de sessões expiradas via `pg_cron`
+
+- Contexto: a branch `feature/login-persistencia-historico` implementa login (tabela `usuarios`, caminho "tabela própria" — ver decisão na seção de login) e sessão persistente via cookie (tabela `sessoes`, `data/provedor_usuarios.py`: `criar_sessao`/`validar_sessao`/`encerrar_sessao`), pra manter o usuário logado após F5 (que por padrão limpa `st.session_state`).
+- `encerrar_sessao` (logout) deleta a linha da sessão no banco. `validar_sessao` também deleta a linha quando encontra uma sessão **expirada sendo consultada** (limpeza "de passagem", implementada). O que falta: sessões que expiram e **nunca mais são consultadas** (usuário fechou o navegador, trocou de máquina, apagou o cookie) ficam órfãs na tabela `sessoes` para sempre — nenhuma limpeza automática cobre esse caso.
+- **Solução proposta:** um job agendado no Postgres via extensão `pg_cron` (geralmente disponível no Supabase), rodando periodicamente algo como `delete from sessoes where expira_em < now()`. Preferível a agendar a limpeza dentro do próprio app Streamlit porque o Streamlit Community Cloud hiberna apps sem uso — não dá pra confiar que o processo vai estar de pé na hora agendada.
+- Não implementado ainda — só a limpeza "de passagem" (dentro de `validar_sessao`) está no código até o momento.
+
 ---
 
 ## 5. Observações sobre regras de negócio
