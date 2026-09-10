@@ -66,6 +66,39 @@ class ProvedorUsuarios:
         return usuario
 
     @staticmethod
+    def criar_usuario(email: str, senha: str, nome: str, unidade: Optional[str] = None) -> Optional[str]:
+        """Cria um novo usuário via autocadastro.
+
+        Retorna None em caso de sucesso, ou uma mensagem de erro (ex: e-mail
+        já cadastrado) para exibir ao usuário. A conta já entra ativa
+        (`ativo=True`, default da tabela) — não há fluxo de aprovação.
+        """
+        email_normalizado = email.strip().lower()
+
+        try:
+            resposta = (
+                _cliente()
+                .table("usuarios")
+                .select("id")
+                .eq("email", email_normalizado)
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            return "Não foi possível criar a conta agora. Tente novamente."
+
+        if resposta.data:
+            return "Já existe uma conta com esse e-mail."
+
+        _cliente().table("usuarios").insert({
+            "email": email_normalizado,
+            "senha_hash": ProvedorUsuarios.gerar_hash(senha),
+            "nome": nome.strip(),
+            "unidade": unidade.strip() if unidade else None,
+        }).execute()
+        return None
+
+    @staticmethod
     def criar_sessao(usuario_id, validade_horas: float = 1) -> str:
         """Cria uma sessão persistente (mantém o login após F5/fechar o navegador).
 

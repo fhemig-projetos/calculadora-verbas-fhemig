@@ -966,3 +966,79 @@ create table public.sessoes (
 4. **Confirmação em uso real** do fluxo completo (login → F5 → continua logado → Sair → F5 → volta pro login) — testado durante a sessão via DevTools/observação direta, mas sem um teste automatizado (Playwright) cobrindo esse fluxo.
 5. **Nota de segurança não tratada:** se em produção a tabela `usuarios` ficar acessível pela chave *publishable* (anon) com RLS habilitado sem policy, a própria consulta de login do app seria bloqueada — precisa decidir entre manter uma chave com mais privilégio só pra essa tabela, ou modelar policies específicas (discutido em conversa, não decidido/implementado).
 
+---
+
+## 17. Plano de desenvolvimento — sessão 09/09
+
+> **Sessão:** fechar a pendência 16.7.1 (criação de usuários) e avaliar autocadastro/reset de senha pela própria aplicação. Trabalho **não commitado ainda** nesta sessão.
+
+### 17.1 🔁 Criado e depois descartado — Script administrativo de gerenciamento de usuários
+
+- Chegou a ser criado `scripts/gerenciar_usuarios.py` (mesmo padrão de `populate_servidores.py`: standalone, sem depender do runtime do Streamlit) com dois comandos via CLI: `criar <email> <nome> [--unidade ...]` e `resetar-senha <email>`.
+- **Descartado pelo usuário** logo em seguida (arquivo nunca chegou a ser commitado nem usado de fato) — a criação de usuário já ficou coberta pelo autocadastro no app (ver 17.2), e resetar senha por esse script deixou de ser prioridade nesta sessão.
+- Pendência 16.7.1 (script de criação de usuários) **volta a ficar em aberto** — se precisar de um caminho administrativo de criar/resetar usuário fora do app, terá que ser refeito.
+
+### 17.2 ✅ Concluído — Autocadastro pela própria aplicação ("Criar conta")
+
+- **Decisão do usuário:** conta criada por autocadastro já nasce **ativa** (`ativo=True`, default da tabela) — sem fluxo de aprovação manual. **Sem restrição de domínio de e-mail** (aceita qualquer e-mail, não só `@fhemig.mg.gov.br`).
+- `data/provedor_usuarios.py`: novo método `criar_usuario(email, senha, nome, unidade)` — checa duplicidade de e-mail, insere com hash da senha, retorna `None` (sucesso) ou mensagem de erro.
+- `ui/login.py`: `render_formulario()` agora mostra duas abas (`st.tabs`) — "Entrar" (fluxo antigo, extraído para `_render_login`) e "Criar conta" (`_render_cadastro`, novo: nome, e-mail, unidade opcional, senha + confirmação). Em sucesso, não loga automaticamente — pede pra ir na aba "Entrar".
+- Placeholder `"exemplo@fhemig.mg.gov.br"` adicionado nos campos de e-mail (login e cadastro), a pedido do usuário.
+
+### 17.3 🟡 Avaliado e adiado — "Esqueci minha senha" (reset via e-mail)
+
+Chegou a ser **implementado e depois revertido** nesta sessão (tabela `redefinicoes_senha`, `ProvedorUsuarios.solicitar_redefinicao_senha`/`validar_token_redefinicao`/`redefinir_senha`, envio via SMTP com `smtplib`, tela de redefinição em `ui/login.py` acionada por `?token_reset=` na URL). **Usuário decidiu recuar** porque a funcionalidade depende de decisões que não estão sob seu controle sozinho:
+
+1. **Qual serviço de envio de e-mail usar** — SMTP direto (Gmail com "senha de app", Office 365/Outlook institucional, SMTP próprio da FHEMIG) ou uma API de e-mail transacional (SendGrid, Resend, Mailgun, SES). Cada opção tem custo/confiabilidade/setup diferentes.
+2. **Credenciais de uma conta de e-mail dedicada** para ser o remetente (`no-reply@...`) — não deveria ser o e-mail pessoal de ninguém.
+3. Depende de descobrir se a FHEMIG já tem infraestrutura de e-mail institucional disponível (SMTP corporativo) antes de optar por uma alternativa externa (Gmail/SendGrid/etc.).
+
+**Quando retomar:** o design já foi pensado e pode ser reimplementado rapidamente (a lógica de tokens de redefinição é análoga à de `sessoes`/`criar_sessao`/`validar_sessao`, já existente). Falta só:
+- Confirmar com quem de direito na FHEMIG qual canal de e-mail usar.
+- Criar a tabela `redefinicoes_senha` (schema: `token` PK, `usuario_id` FK, `expira_em`, `usado`, `criado_em`).
+- Preencher a seção `[smtp]` em `.streamlit/secrets.toml` (`host`, `port`, `usuario`, `senha`, `remetente`, `url_base`) — ou trocar `_enviar_email_redefinicao` por uma chamada HTTP à API do serviço escolhido, se não for SMTP.
+
+**Enquanto isso não é decidido**, não há nenhum caminho de reset de senha disponível — nem via app, nem via script administrativo (ver 17.1, descartado). Só resta editar `senha_hash` manualmente no Supabase, usando `ProvedorUsuarios.gerar_hash(...)` pra gerar o valor certo.
+
+### 17.4 ✅ Concluído — Persistência da análise ativa (cabeçalho + histórico) por usuário
+
+Objetivo final por trás de todo o trabalho de login (pendência 16.7.3, agora resolvida): o cabeçalho e o histórico de cálculos deixam de existir só em `st.session_state` e passam a sobreviver a F5/fechar o navegador, por usuário logado.
+
+**Decisões do usuário (escopo):**
+- Persiste **cabeçalho (`dados_servidor`) + histórico**, não só o histórico — resolve de vez o problema original que motivou a migração de Streamlit puro pra essa arquitetura com login.
+- **Só uma análise ativa por usuário** (não várias análises salvas simultaneamente) — cada nova análise sobrescreve a anterior. Mais simples, sem precisar de tela de "minhas análises salvas".
+
+**Tabela nova (rodar manualmente no Supabase, como as demais):**
+```sql
+create table public.analises (
+    usuario_id bigint primary key references public.usuarios(id) on delete cascade,
+    dados_servidor jsonb not null default '{}'::jsonb,
+    historico jsonb not null default '[]'::jsonb,
+    atualizado_em timestamptz not null default now()
+);
+```
+`usuario_id` como chave primária (não um `id` próprio) é o que garante "só uma análise por usuário" — `salvar` sempre faz `upsert(on_conflict="usuario_id")`.
+
+**Novo arquivo `data/provedor_analises.py`** — classe `ProvedorAnalises`:
+- `carregar(usuario_id)`: busca a análise salva, ou `None` se o usuário nunca salvou nada.
+- `salvar(usuario_id, dados_servidor, historico)`: upsert; falha silenciosa (não deve travar a aplicação por causa de persistência, já que os dados continuam íntegros em `session_state`).
+- `serializar_dados_servidor` / `desserializar_dados_servidor`: `dt_admissao`/`dt_fim_efetiva` são `datetime.date` em memória, mas precisam virar string ISO pra caber em `jsonb` — conversão isolada nesses dois métodos (idem na volta, de string pra `date`).
+
+**`app.py` — integração:**
+- Após confirmar `login.autenticado()`, restaura a análise salva **uma única vez por sessão de login** (flag `analise_carregada` em `session_state`) — sem essa guarda, cada rerun sobrescreveria edições em andamento com o que estava salvo no banco.
+- Ao final do script (depois de `form_servidor.render()` e `sv.render()`), chama `ProvedorAnalises.salvar(...)` a cada rerun — qualquer edição de campo do cabeçalho ou mudança no histórico (adicionar/remover/limpar) passa por um rerun do Streamlit, então isso garante que o banco fica sempre atualizado sem precisar de hooks espalhados pelo código.
+
+**Bug encontrado e corrigido na mesma sessão — vazamento de estado entre usuários no logout:** sem tratamento, se a Pessoa A fizesse logout e a Pessoa B logasse na mesma aba do navegador, `analise_carregada` continuaria `True` e `dados_servidor`/`historico` ainda em memória seriam da Pessoa A — o próximo `salvar()` sobrescreveria a análise da Pessoa B com os dados da Pessoa A. **Corrigido** em `ui/login.py` (`render_logout`): ao sair, `dados_servidor`, `historico` e `analise_carregada` são removidos de `session_state`, forçando uma carga limpa (do banco ou dos defaults) no próximo login.
+
+**Dois bugs encontrados durante teste real (usuário testou F5 com um MASP "não encontrado" na tabela `servidores`) e corrigidos em `ui/form_servidor.py`:**
+
+1. **Re-busca indevida após restaurar do banco:** `ultima_busca_servidor` (controle que evita repetir a consulta ao Supabase a cada rerun) não fazia parte do que era persistido — um F5 zerava esse controle, e o formulário achava que era uma busca nova, disparava `buscar_servidor` de novo e, não achando nada, **limpava o cabeçalho recém-restaurado**. **Corrigido em `app.py`:** ao restaurar a análise, `ultima_busca_servidor` também é pré-preenchido com o par `(masp, admissao)` restaurado, fazendo o formulário pular a re-busca inteira (consulta **e** preenchimento/limpeza, que estão aninhados no mesmo bloco).
+2. **Preenchimento/limpeza rodava em todo rerun, não só na busca nova:** o bloco que decide "encontrado" vs. "não encontrado" ficava fora do `if` que checa se a busca é nova — então ele executava (e limpava os campos) em **qualquer** rerun, mascarado numa sessão contínua só porque os widgets com `key` estável ignoram o `value=` e preservam o que o usuário digitou por trás da limpeza. Num `session_state` fresco (pós-F5) esse "colchão" não existe, e a limpeza aparecia de verdade. **Corrigido:** todo o preenchimento/limpeza foi movido pra **dentro** do `if busca_atual != ultima_busca_servidor:`, rodando só quando há busca nova de fato. O resultado da busca (`servidor_encontrado`) passou a ser guardado dentro do próprio `ds` (não mais solto em `session_state`) — assim a mensagem "✅ encontrado"/"ℹ️ não encontrado" também sobrevive ao F5, lendo o valor real da última busca em vez de resetar pro padrão.
+
+**Testado e confirmado pelo usuário:** fluxo completo de F5 no meio de uma análise com servidor **não encontrado** (dados preenchidos manualmente) — cabeçalho, mensagem e histórico voltam corretos.
+
+**Pendências geradas:**
+1. Cenário de **servidor encontrado** (MASP que existe na tabela `servidores`) ainda não testado após F5 — o caminho de código é o mesmo do "não encontrado", mas não foi validado na prática.
+2. Cenário de **troca de usuário na mesma aba** (logout da Pessoa A → login da Pessoa B) ainda não testado na prática — só corrigido por leitura de código (ver bug de vazamento acima).
+3. Todo rerun do Streamlit dispara um `upsert` no Supabase (mesmo sem mudança de dado) — aceitável para o volume de uso interno esperado, mas fica registrado como possível otimização futura (comparar se o conteúdo mudou antes de gravar) se algum dia o tráfego justificar.
+

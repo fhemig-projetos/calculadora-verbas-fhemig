@@ -8,6 +8,7 @@ from .config import CONFIG_CAMPOS
 class SelecaoVerba:
 
     def __init__(self):
+        # Carrega o session_state["historico"] vazio se não houver dados salvos no banco
         if "historico" not in st.session_state:
             st.session_state["historico"] = []
 
@@ -346,6 +347,8 @@ class SelecaoVerba:
         return observacao
 
     def _render_historico(self):
+        # Carrega os dados do histórico com os dados do session_state["historico"]
+        # Vazio se não houver dados salvos no banco, ou pré-preenchido se houver dados
         historico = st.session_state.get("historico")
 
         if not historico:
