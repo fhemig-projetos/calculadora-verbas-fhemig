@@ -15,30 +15,34 @@ if not login.autenticado():
     login.render_formulario()
     st.stop()
 
-# session_state["usuario_logado"] é populado quando a classe Login é instanciada
-# Puxa o id do usuário na tabela correspondente do banco 
+# Após validar o login do usuário, busca o id associado a ele
 usuario_id = st.session_state["usuario_logado"]["id"]
 
-# Restaura a análise salva no banco (cabeçalho + histórico) 
-# Aciona o if e cria o session_state["analise_carregada"] uma única vez a cada nova sessão ou atualização da página (F5) 
-# Essa lógica evita de fazer consulta no banco a cada clique ou troca de botão 
-# (lógica do streamlit de executar o script da página todo de novo)
-if not st.session_state.get("analise_carregada"):
+if "analise_carregada" not in st.session_state:
+    """
+    Carregar análise salva na última sessão do usuário.
+    
+    A checagem dessa flag no session_state é p/ garantir que a busca no banco só acontece
+    uma vez após login ou F5 (já que o streamlit roda inteiro a cada interação).
+    """
     # Carrega do banco se tiver análise salva 
     analise = ProvedorAnalises.carregar(usuario_id)
     if analise:
         # Carrega o session_state com os dados salvos no banco 
         ds_restaurado = ProvedorAnalises.desserializar_dados_servidor(analise["dados_servidor"])
-        st.session_state["dados_servidor"] = ds_restaurado # utilizado em form_servidor.py
-        st.session_state["historico"] = analise["historico"] # utilizado em selecao_verba.py
 
-        # Restaura o session_state["ultima_busca_servidor"] usado em form_servidor.py #55
-        # Dessa forma MASP/Admissão são restaurados como "já buscados" 
-        # Sem isso, aciona uma busca nova a cada F5 (ultima_busca_servidor zerado) e limpa o cabeçalho se não achar correspondência
+        # Carrega os session_state c/ os dados de cada formulário
+        st.session_state["dados_servidor"] = ds_restaurado # usado em form_servidor.py
+        st.session_state["historico"] = analise["historico"] # usado em selecao_verba.py
+
+        # Correção de bug que limpa o cabeçalho recém-restaurado
         if ds_restaurado.get("masp") and ds_restaurado.get("admissao"):
             st.session_state["ultima_busca_servidor"] = (ds_restaurado["masp"], ds_restaurado["admissao"])
+
+    # Trava consultas futuras nesta mesma sessão
     st.session_state["analise_carregada"] = True
 
+# Renderização dos formulários
 form_servidor = FormularioServidor()
 sv = SelecaoVerba()
 
@@ -47,6 +51,5 @@ login.render_logout()
 form_servidor.render()
 sv.render()
 
-# Salva a cada rerun - à cada interação na página passa por aqui (lógica do streamlit) 
-# Assim a analise sobrevive a F5/fechar o navegador
+# Salva os dados no banco a cada rerun (é o que persiste os dados)
 ProvedorAnalises.salvar(usuario_id, st.session_state["dados_servidor"], st.session_state["historico"])

@@ -36,8 +36,7 @@ class FormularioServidor:
     def render(self):
         with st.expander("Dados do Servidor", expanded=True):
             # Carrega os dados do cabeçalho com os dados do session_state["dados_servidor"]
-            # Vazio se não houver dados salvos no banco, ou pré-preenchido se houver dados
-            ds = st.session_state["dados_servidor"]
+            ds = st.session_state["dados_servidor"] 
 
             c1, c2, c3 = st.columns(3)
             c4, c5 = st.columns(2)
@@ -48,18 +47,25 @@ class FormularioServidor:
             if ds["masp"] and ds["admissao"]:
                 busca_atual = (ds["masp"], ds["admissao"])
 
-                # Pula a lógica de busca quando os campos masp e admissão não tiverem sido alterados
-                # Evita os campos de serem limpados após uma nova interação na tela 
-                # Ou após um F5 e carregamento dos dados do banco 
-                # 103-adiante
                 if busca_atual != st.session_state["ultima_busca_servidor"]:
+                    """
+                    - Lógica de alteração da busca por masp e admissão.                     
+                    - Ativa nova consulta no banco quando altera o masp ou admissão.
+                    - Na linha `ds["servidor_encontrado"] = servidor_encontrado is not None`,                    
+                    ds["servidor_encontrado"] aponta para o mesmo endereço da memória que 
+                    st.session_state["dados_servidor"]["servidor_encontrado"]. Por isso, 
+                    essa atribuição já reflete diretamente na variável de session_state.
+                    """
                     st.session_state["ultima_busca_servidor"] = busca_atual
                     servidor_encontrado = ProvedorServidoresSupabase.buscar_servidor(ds["masp"], ds["admissao"])
+
+                    # Incrementa o nonce que será usado nas chaves dos campos (evita bugs de preenchimento) 
                     st.session_state["servidor_nonce"] += 1
-                    # True se encontrou servidor, False se não
-                    # Salvo junto do session_state["dados_servidor"] no banco
-                    # Resolve o erro de mostrar a mensagem correta após carregar os dados do banco (#99-104)
+
+                    # Marca no session_state bool referente a se encontrou servidor ou não.
+                    # Usado abaixo para corrigir bug de display da mensagem de busca
                     ds["servidor_encontrado"] = servidor_encontrado is not None 
+
                     if servidor_encontrado:
                         ds["nome"] = servidor_encontrado["nome"]
                         ds["dt_admissao"] = (
@@ -116,9 +122,9 @@ class FormularioServidor:
             c6, c7, c8 = st.columns(3)
 
             # Campos com on_change não podem receber value= (Streamlit acusa
-            # warning de conflito entre os dois). A semente do valor é escrita
+            # warning de conflito entre os dois). O valor é escrito
             # direto em session_state[key], só na primeira vez que a key existe
-            # (ou seja, só quando o nonce muda) — por isso a guarda abaixo.
+            # (ou seja, só quando o nonce muda) — por isso o formato abaixo.
             key_cargo_classe = f"{nonce}::cargo_classe"
             key_cargo_nivel = f"{nonce}::cargo_nivel"
             key_cargo_grau = f"{nonce}::cargo_grau"

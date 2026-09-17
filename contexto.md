@@ -536,6 +536,32 @@ Observações do levantamento:
 - **Solução proposta:** um job agendado no Postgres via extensão `pg_cron` (geralmente disponível no Supabase), rodando periodicamente algo como `delete from sessoes where expira_em < now()`. Preferível a agendar a limpeza dentro do próprio app Streamlit porque o Streamlit Community Cloud hiberna apps sem uso — não dá pra confiar que o processo vai estar de pé na hora agendada.
 - Não implementado ainda — só a limpeza "de passagem" (dentro de `validar_sessao`) está no código até o momento.
 
+### 4.19 🟡 Pendente — Vencimento Básico não atualiza ao trocar Cargo/Nível/Grau/CH sem trocar MASP
+
+- **Sintoma:** a 1ª combinação de Cargo/Nível/Grau/CH Semanal que encontra um registro em `tabela_cargos` preenche corretamente o campo "Vencimento Básico" (`ui/form_servidor.py`, linhas 154-162). Se o usuário depois edita manualmente esses 4 campos pra outra combinação válida (sem trocar MASP/Admissão), `cargo_encontrado` é recalculado certo internamente, mas o campo "Vencimento Básico" na tela **continua mostrando o valor da 1ª busca**.
+- **Causa:** o `number_input` do Vencimento Básico usa `key=f"{nonce}::vencimento_basico"`, onde `nonce` é o `servidor_nonce` — que só é incrementado numa busca **nova de MASP/Admissão** (linha 58), não quando Cargo/Nível/Grau/CH mudam manualmente. Como a `key` fica estável entre essas trocas, o Streamlit ignora o novo `value=cargo_encontrado["vencimento_basico"]` a partir da 2ª renderização daquela `key` (mesmo bug de fundo já documentado na pendência 4.14 — "key estável ignora `value=` novo").
+- **Correção proposta (não aplicada ainda):** embutir a própria combinação de cargo na `key`, por exemplo `key=f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"`, nos dois `number_input` (linhas 158 e 162) — assim qualquer mudança em cargo/nível/grau/CH também gera `key` nova, sem precisar alterar o `servidor_nonce` (que continua só para troca de MASP).
+
+### 4.20 🟡 Pendente — "Esqueci minha senha" (reset via e-mail)
+
+- Já detalhado na seção 17.3: chegou a ser **implementado e depois revertido** na sessão de 09/09, porque depende de decisões fora do controle do usuário sozinho (qual serviço de e-mail usar — SMTP institucional da FHEMIG vs. API transacional externa — e credenciais de uma conta remetente dedicada).
+- **Enquanto não implementado:** não há nenhum caminho de reset de senha disponível, nem via app nem via script administrativo — só editando `senha_hash` manualmente no Supabase via `ProvedorUsuarios.gerar_hash(...)`.
+- **Quando retomar:** design já pensado (tokens de redefinição análogos a `sessoes`/`criar_sessao`/`validar_sessao`); falta confirmar canal de e-mail com a FHEMIG, criar tabela `redefinicoes_senha` e preencher `[smtp]` em `.streamlit/secrets.toml` (ou trocar por chamada a uma API de e-mail).
+
+### 4.21 🟡 Pendente — Migrar tabela de cargos/vencimentos (`tabela_cargos`) para o Supabase
+
+- Hoje `data/tabelas.json` (`tabela_cargos`) tem só **4 registros** (PENF nível 2/4, TOS nível 1, AGAS nível 1 — todos com CH 40h), usados pela busca local em `ProvedorDadosFhemig.buscar_cargo` (`data/provedor_dados.py`) pra pré-preencher o Vencimento Básico a partir de Cargo/Nível/Grau/CH.
+- Essa tabela é **diferente** da tabela `servidores` já migrada pro Supabase (~2861 registros reais, usada por `ProvedorServidoresSupabase.buscar_servidor` pra achar nome/cargo/CH pelo MASP) — a de vencimentos continua só local, manual, e cobre pouquíssimas combinações reais, o que explica boa parte dos casos de "cargo não encontrado" (ver também 4.19, relacionado mas é bug diferente).
+- **Proposta:** seguir o mesmo caminho já usado pra `servidores` (script tipo `scripts/populate_servidores.py`) — levantar a tabela oficial de vencimentos por classe/nível/grau/CH com a área de RH/taxação e importar pro Supabase, substituindo a busca local por uma consulta remota (mesmo padrão de `ProvedorServidoresSupabase`).
+- Não iniciado — depende de ter a fonte de dados completa (planilha oficial) disponível, o que ainda não foi levantado com a área.
+
+### 4.22 🟡 Pendente — Modularizar melhor o `app.py` (bloco de restauração da análise)
+
+- Hoje o `app.py` (entrypoint) tem, além da orquestração de alto nível (login → restaura análise → renderiza componentes → salva), um bloco de lógica bem específica embutido direto no script (linhas ~21-39): busca a análise salva no Supabase, desserializa `dados_servidor`, popula `session_state["historico"]` e reconstrói `ultima_busca_servidor` pra evitar rebusca indevida (ver explicação detalhada dada nesta sessão).
+- Isso foge um pouco do padrão do resto do projeto, onde cada `ui/*.py` encapsula sua própria lógica de estado (ex.: `FormularioServidor.__init__`, `Login._restaurar_sessao`) e o `app.py` só orquestra chamadas de alto nível.
+- **Proposta:** extrair esse bloco pra um método próprio — por exemplo `ProvedorAnalises.restaurar_sessao(usuario_id)` (mesmo padrão de nome usado em `Login._restaurar_sessao`), encapsulando a checagem da flag `analise_carregada`, a chamada a `carregar`/`desserializar_dados_servidor` e a reconstrução de `ultima_busca_servidor` — deixando o `app.py` só com uma chamada de uma linha, como já acontece com `Login()`.
+- Não implementado ainda — ajuste de organização/legibilidade, sem mudança de comportamento esperada.
+
 ---
 
 ## 5. Observações sobre regras de negócio

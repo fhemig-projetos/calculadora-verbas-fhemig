@@ -15,40 +15,45 @@ class Login:
         if "usuario_logado" not in st.session_state:
             st.session_state["usuario_logado"] = None
 
-        # Se não tem usuário logado, checa se tem cookies de sessão p/ tentar restaurar sessão
         if not self.autenticado():
+            """
+            Se ainda não tem ninguém logado pelo session_state, tenta descobrir se tinha
+            alguém logado pelo cookie.
+            """
             self._restaurar_sessao()
 
     def _restaurar_sessao(self):
         """Restaura o login a partir do cookie de sessão, se houver um válido.
 
-        É isso que mantém o usuário logado após um F5 — por padrão, um
-        refresh de página zera o st.session_state, então sem essa restauração
-        o usuário cairia na tela de login de novo a cada F5.
-
-        Logo após um F5, o CookieController ainda não teve tempo de receber
-        os cookies de volta do navegador (é assíncrono) — a 1ª leitura vem
-        vazia mesmo com o cookie existindo de verdade. Por isso, se ainda não
-        temos nenhum cookie carregado, forçamos um único rerun (guardado por
-        uma flag, pra não entrar em loop) pra dar tempo do valor chegar.
+        É isso que mantém o usuário logado após um F5 — por padrão, um refresh de página
+        zera o st.session_state, então sem essa restauração o usuário cairia na tela de
+        login de novo a cada F5.
         """
+        # Delay proposital para carregar o cookie
         if not self._cookies.getAll() and not st.session_state.get("_aguardando_cookies"):
             st.session_state["_aguardando_cookies"] = True
             time.sleep(0.3)  # dá tempo do round-trip JS (ler cookie -> devolver pro Python) completar
             st.rerun()
         st.session_state["_aguardando_cookies"] = False
 
+        # Busca o cookie
         token = self._cookies.get(CHAVE_COOKIE_SESSAO)
         if not token:
             return
 
-        # Confere se tem usuário correspondente com o cookie de sessão no banco
+        # Se achar o cookie, confere se tem usuário correspondente com sessão no banco
         usuario = ProvedorUsuarios.validar_sessao(token)
         if usuario:
             st.session_state["usuario_logado"] = usuario
 
     def autenticado(self) -> bool:
-        # Se tem usuário logado retorna True, senão retorna False
+        """
+        Retorna True se já existe um usuário guardado em session_state["usuario_logado"]
+        , False se está vazio (None). 
+        
+        Em outras palavras, se tiver usuário logado no session_state retorna True, 
+        senão False.
+        """
         return st.session_state["usuario_logado"] is not None
 
     def render_formulario(self):
@@ -63,6 +68,9 @@ class Login:
             self._render_cadastro()
 
     def _render_login(self):
+        """
+        Grava no session_state, no banco e nos cookies do navegador o login do usuário.
+        """
         with st.form("form_login"):
             email = st.text_input("E-mail", type="email", placeholder="exemplo@fhemig.mg.gov.br")
             senha = st.text_input("Senha", type="password")
