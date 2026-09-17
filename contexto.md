@@ -536,11 +536,11 @@ Observações do levantamento:
 - **Solução proposta:** um job agendado no Postgres via extensão `pg_cron` (geralmente disponível no Supabase), rodando periodicamente algo como `delete from sessoes where expira_em < now()`. Preferível a agendar a limpeza dentro do próprio app Streamlit porque o Streamlit Community Cloud hiberna apps sem uso — não dá pra confiar que o processo vai estar de pé na hora agendada.
 - Não implementado ainda — só a limpeza "de passagem" (dentro de `validar_sessao`) está no código até o momento.
 
-### 4.19 🟡 Pendente — Vencimento Básico não atualiza ao trocar Cargo/Nível/Grau/CH sem trocar MASP
+### 4.19 ✅ Resolvido — Vencimento Básico não atualizava ao trocar Cargo/Nível/Grau/CH sem trocar MASP
 
-- **Sintoma:** a 1ª combinação de Cargo/Nível/Grau/CH Semanal que encontra um registro em `tabela_cargos` preenche corretamente o campo "Vencimento Básico" (`ui/form_servidor.py`, linhas 154-162). Se o usuário depois edita manualmente esses 4 campos pra outra combinação válida (sem trocar MASP/Admissão), `cargo_encontrado` é recalculado certo internamente, mas o campo "Vencimento Básico" na tela **continua mostrando o valor da 1ª busca**.
-- **Causa:** o `number_input` do Vencimento Básico usa `key=f"{nonce}::vencimento_basico"`, onde `nonce` é o `servidor_nonce` — que só é incrementado numa busca **nova de MASP/Admissão** (linha 58), não quando Cargo/Nível/Grau/CH mudam manualmente. Como a `key` fica estável entre essas trocas, o Streamlit ignora o novo `value=cargo_encontrado["vencimento_basico"]` a partir da 2ª renderização daquela `key` (mesmo bug de fundo já documentado na pendência 4.14 — "key estável ignora `value=` novo").
-- **Correção proposta (não aplicada ainda):** embutir a própria combinação de cargo na `key`, por exemplo `key=f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"`, nos dois `number_input` (linhas 158 e 162) — assim qualquer mudança em cargo/nível/grau/CH também gera `key` nova, sem precisar alterar o `servidor_nonce` (que continua só para troca de MASP).
+- **Sintoma:** a 1ª combinação de Cargo/Nível/Grau/CH Semanal que encontrava um registro em `tabela_cargos` preenchia corretamente o campo "Vencimento Básico" (`ui/form_servidor.py`). Se o usuário depois editava manualmente esses 4 campos pra outra combinação válida (sem trocar MASP/Admissão), `cargo_encontrado` era recalculado certo internamente, mas o campo "Vencimento Básico" na tela continuava mostrando o valor da 1ª busca.
+- **Causa:** o `number_input` do Vencimento Básico usava `key=f"{nonce}::vencimento_basico"`, onde `nonce` é o `servidor_nonce` — que só é incrementado numa busca **nova de MASP/Admissão**, não quando Cargo/Nível/Grau/CH mudam manualmente. Como a `key` ficava estável entre essas trocas, o Streamlit ignorava o novo `value=cargo_encontrado["vencimento_basico"]` a partir da 2ª renderização daquela `key` (mesmo bug de fundo já documentado na pendência 4.14 — "key estável ignora `value=` novo").
+- **Correção aplicada:** a combinação de cargo passou a fazer parte da `key`: `key=f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"`, nos dois `number_input` (encontrado/não encontrado) — assim qualquer mudança em cargo/nível/grau/CH também gera `key` nova, sem precisar alterar o `servidor_nonce` (que continua só para troca de MASP).
 
 ### 4.20 🟡 Pendente — "Esqueci minha senha" (reset via e-mail)
 
@@ -1067,4 +1067,73 @@ create table public.analises (
 1. Cenário de **servidor encontrado** (MASP que existe na tabela `servidores`) ainda não testado após F5 — o caminho de código é o mesmo do "não encontrado", mas não foi validado na prática.
 2. Cenário de **troca de usuário na mesma aba** (logout da Pessoa A → login da Pessoa B) ainda não testado na prática — só corrigido por leitura de código (ver bug de vazamento acima).
 3. Todo rerun do Streamlit dispara um `upsert` no Supabase (mesmo sem mudança de dado) — aceitável para o volume de uso interno esperado, mas fica registrado como possível otimização futura (comparar se o conteúdo mudou antes de gravar) se algum dia o tráfego justificar.
+
+---
+
+## 18. Plano de desenvolvimento — sessão 16/09
+
+> **Sessão:** revisão do fluxo geral do app (didática, sem mudanças) + correção de bug de pré-preenchimento + planejamento do "Esqueci minha senha". Trabalho desta sessão **não commitado ainda**.
+
+### 18.1 ✅ Concluído — Vencimento Básico não atualizava ao trocar Cargo/Nível/Grau/CH sem trocar MASP
+
+Ver detalhamento completo na pendência **4.19** (já atualizada pra ✅ Resolvido). Resumo: `key` do `number_input` de Vencimento Básico (`ui/form_servidor.py`) passou a incluir a combinação de cargo/nível/grau/CH, além do `servidor_nonce` — corrige o campo ficando "travado" no valor da 1ª combinação encontrada quando o usuário edita cargo manualmente sem trocar MASP/Admissão.
+
+### 18.2 🟡 Pendências registradas nesta sessão (sem implementação ainda)
+
+- **4.20** — "Esqueci minha senha" (retomada do desenho da seção 17.3, ver plano detalhado abaixo em 18.3).
+- **4.21** — Migrar `tabela_cargos` (hoje só 4 registros locais em `data/tabelas.json`) para o Supabase, no mesmo padrão da tabela `servidores`.
+- **4.22** — Modularizar o bloco de restauração da análise salva, hoje embutido direto no `app.py` (linhas ~21-39) — extrair pra um método próprio (ex.: `ProvedorAnalises.restaurar_sessao(usuario_id)`), no padrão de encapsulamento já usado em `Login._restaurar_sessao`.
+
+### 18.3 📋 Plano detalhado — "Esqueci minha senha" (próximo passo, a começar amanhã)
+
+**Decisão do usuário:** usar **Gmail com senha de app** como canal de envio por enquanto (gratuito, limite de ~500 e-mails/dia — bem acima do necessário), com plano de trocar para SMTP institucional da FHEMIG mais adiante. Recomendado usar uma conta Gmail **dedicada** (ex.: `noreply.calculadorafhemig@gmail.com`), não a pessoal, com verificação em duas etapas ativada pra gerar a senha de app.
+
+**1. Tabela nova no Supabase** (rodar manualmente, como as demais):
+```sql
+create table public.redefinicoes_senha (
+    token text primary key,
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    expira_em timestamptz not null,
+    usado boolean not null default false,
+    criado_em timestamptz not null default now()
+);
+```
+Mesmo padrão de `sessoes` (token opaco como PK). Validade curta sugerida: **30 minutos**. `usado` impede reaproveitar o mesmo link duas vezes.
+
+**2. Três métodos novos em `data/provedor_usuarios.py`:**
+- `solicitar_redefinicao_senha(email)` — busca o usuário pelo e-mail; se existir, gera token (`secrets.token_urlsafe`), insere em `redefinicoes_senha`, chama o envio de e-mail. **Sempre retorna a mesma mensagem genérica**, ache ou não o e-mail — evita user enumeration (mesmo padrão já usado em `autenticar`).
+- `validar_token_redefinicao(token)` — confere se o token existe, não expirou e não foi usado.
+- `redefinir_senha(token, nova_senha)` — revalida o token, atualiza `senha_hash` do usuário, marca `usado=True`.
+
+**3. Envio de e-mail — função isolada, plugável:**
+```python
+def _enviar_email_redefinicao(email, token):
+    url = f"{st.secrets['app']['url_base']}?token_reset={token}"
+    # smtplib.SMTP_SSL("smtp.gmail.com", 465) + login com secrets["smtp"]
+```
+Isolar essa função é o que vai tornar a troca futura pra SMTP institucional (ou uma API tipo Resend/SendGrid) só uma questão de reescrever essa função sozinha, sem tocar no resto do fluxo.
+
+**4. `secrets.toml`** — novas seções:
+```toml
+[smtp]
+host = "smtp.gmail.com"
+port = 465
+usuario = "noreply.calculadorafhemig@gmail.com"
+senha = "xxxx xxxx xxxx xxxx"  # senha de app, não a senha normal da conta
+remetente = "noreply.calculadorafhemig@gmail.com"
+
+[app]
+url_base = "https://sua-url.streamlit.app"
+```
+
+**5. UI em `ui/login.py`:**
+- Aba "Entrar" ganha um link/botão "Esqueci minha senha" → formulário simples (só e-mail) → chama `solicitar_redefinicao_senha`.
+- `app.py` (ou o próprio `login.py`) verifica `st.query_params.get("token_reset")` no início — se presente, mostra a tela de "Nova senha" (2 campos: senha + confirmação) em vez do formulário normal de login, chamando `redefinir_senha` ao confirmar.
+
+**Ordem de implementação sugerida (retomar por aqui amanhã):**
+1. Criar a tabela `redefinicoes_senha` no Supabase.
+2. Implementar os 3 métodos em `provedor_usuarios.py` **sem** e-mail ainda (token exibido no console/tela pra teste manual).
+3. Validar o fluxo de token ponta a ponta (solicitar → token válido → redefinir → token não pode ser reusado → token expirado é rejeitado).
+4. Só então plugar o envio via Gmail (`secrets.toml` + `smtplib`).
+5. Construir a UI (`ui/login.py` + leitura de `?token_reset=` no `app.py`).
 

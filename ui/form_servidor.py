@@ -156,13 +156,19 @@ class FormularioServidor:
             if ds["cargo_classe"] and ds["cargo_nivel"] and ds["cargo_grau"] and ds["ch_semanal"]:
                 # Busca o cargo
                 cargo_encontrado = ProvedorDadosFhemig.buscar_cargo(ds["cargo_classe"], ds["cargo_nivel"], ds["cargo_grau"], ds["ch_semanal"])
+
+                # Combinação de cargo/nível/grau/CH entra na key p/ o vencimento atualizar ao 
+                # trocar qualquer um dos campos (resolve bug de não ser disparada nova busca
+                # do valor do vencimento básico)  
+                key_vencimento = f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"
+
                 # Se cargo encontrado retorna valor do vencimento básico e deixa o campo editável
                 if cargo_encontrado:
                     st.success(
                         f"✅ Cargo encontrado. Vencimento básico pré-preenchido!\n\n"
                     )
-                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=cargo_encontrado["vencimento_basico"], format="%.2f", key=f"{nonce}::vencimento_basico")
+                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=cargo_encontrado["vencimento_basico"], format="%.2f", key=key_vencimento)
                 # Se cargo não encontrado abre campos para preenchimento
                 else:
                     st.warning("⚠️ Cargo não encontrado na tabela. Preencha o vencimento básico manualmente abaixo.")
-                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=0.0, format="%.2f", key=f"{nonce}::vencimento_basico")
+                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=0.0, format="%.2f", key=key_vencimento)

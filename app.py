@@ -19,12 +19,11 @@ if not login.autenticado():
 usuario_id = st.session_state["usuario_logado"]["id"]
 
 if "analise_carregada" not in st.session_state:
-    """
-    Carregar análise salva na última sessão do usuário.
-    
-    A checagem dessa flag no session_state é p/ garantir que a busca no banco só acontece
-    uma vez após login ou F5 (já que o streamlit roda inteiro a cada interação).
-    """
+    # Carregar análise salva na última sessão do usuário.
+
+    # A checagem dessa flag no session_state é p/ garantir que a busca no banco só acontece
+    # uma vez após login ou F5 (já que o streamlit roda inteiro a cada interação).
+
     # Carrega do banco se tiver análise salva 
     analise = ProvedorAnalises.carregar(usuario_id)
     if analise:
