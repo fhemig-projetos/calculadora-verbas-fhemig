@@ -156,6 +156,118 @@ class ProvedorUsuarios:
         return usuario
 
     @staticmethod
+    def solicitar_redefinicao_senha(email: str) -> str:
+        """Gera um token de redefinição de senha para o e-mail informado.
+
+        Sempre retorna uma mensagem genérica de sucesso, independente de o
+        e-mail existir ou não na base — evita que alguém descubra quais
+        e-mails estão cadastrados (mesmo padrão de `autenticar`).
+
+        Por enquanto (sem envio de e-mail plugado ainda), retorna também o
+        token gerado embutido na mensagem, só para teste manual do fluxo.
+
+        1. Normaliza o e-mail (strip().lower()) — evita duplicidade por maiúscula/espaço
+        2. Busca na tabela usuarios se existe alguém ativo com esse e-mail
+        3. Se não existir (ou der erro de conexão): retorna a mesma mensagem genérica — de propósito, pra ninguém conseguir "testar" quais e-mails existem no seu sistema só chamando essa função repetidamente
+        4. Se existir: gera um token aleatório de 32 bytes (impossível de adivinhar), define validade de 30 minutos, e insere uma linha na tabela redefinicoes_senha ligando esse token ao usuario_id
+        5. Por enquanto (sem SMTP ainda), devolve o token junto na mensagem — só pra você ver ele sem precisar abrir o banco
+        """
+        email_normalizado = email.strip().lower()
+        mensagem_generica = "Se esse e-mail estiver cadastrado, você receberá um link para redefinir sua senha."
+
+        try:
+            resposta = (
+                _cliente()
+                .table("usuarios")
+                .select("id")
+                .eq("email", email_normalizado)
+                .eq("ativo", True)
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            return mensagem_generica
+
+        if not resposta.data:
+            return mensagem_generica
+
+        usuario_id = resposta.data[0]["id"]
+        token = secrets.token_urlsafe(32)
+        expira_em = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+        _cliente().table("redefinicoes_senha").insert({
+            "token": token,
+            "usuario_id": usuario_id,
+            "expira_em": expira_em.isoformat(),
+        }).execute()
+
+        # TODO: substituir por envio real de e-mail (passo 4 do plano — SMTP).
+        # Por ora, devolve o token na própria mensagem pra teste manual.
+        return f"{mensagem_generica} (DEBUG — token: {token})"
+
+    @staticmethod
+    def validar_token_redefinicao(token: str) -> Optional[dict]:
+        """Confere se um token de redefinição existe, não expirou e não foi usado.
+
+        Retorna o registro da redefinição (com usuario_id) se válido, ou
+        None caso contrário.
+
+        1. Busca na tabela redefinicoes_senha a linha com esse token
+        2. Se não achar nada → None (token inválido/inexistente)
+        3. Se achar mas usado=True → None (já foi consumido antes, não deixa reusar)
+        4. Se achar e expira_em já passou → None (expirou)
+        5. Só se passar por essas 3 checagens → retorna o registro (o "sim, pode prosseguir")
+        """
+        if not token:
+            return None
+
+        try:
+            resposta = (
+                _cliente()
+                .table("redefinicoes_senha")
+                .select("token, usuario_id, expira_em, usado")
+                .eq("token", token)
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            return None
+
+        if not resposta.data:
+            return None
+
+        redefinicao = resposta.data[0]
+        if redefinicao["usado"]:
+            return None
+
+        expira_em = datetime.fromisoformat(redefinicao["expira_em"])
+        if expira_em < datetime.now(timezone.utc):
+            return None
+
+        return redefinicao
+
+    @staticmethod
+    def redefinir_senha(token: str, nova_senha: str) -> bool:
+        """Revalida o token e, se válido, atualiza a senha do usuário associado.
+
+        Marca o token como usado (impede reaproveitar o mesmo link). Retorna
+        True em caso de sucesso, False se o token não for (mais) válido.
+        """
+        redefinicao = ProvedorUsuarios.validar_token_redefinicao(token)
+        if not redefinicao:
+            return False
+
+        _cliente().table("usuarios").update({
+            "senha_hash": ProvedorUsuarios.gerar_hash(nova_senha),
+        }).eq("id", redefinicao["usuario_id"]).execute()
+
+        _cliente().table("redefinicoes_senha").update({
+            "usado": True,
+        }).eq("token", token).execute()
+
+        return True
+
+    @staticmethod
     def encerrar_sessao(token: str) -> None:
         """Invalida um token de sessão — usado no logout, mata a sessão no
         banco (não só o cookie local, que sozinho não impediria reuso do token)."""

@@ -542,11 +542,11 @@ Observações do levantamento:
 - **Causa:** o `number_input` do Vencimento Básico usava `key=f"{nonce}::vencimento_basico"`, onde `nonce` é o `servidor_nonce` — que só é incrementado numa busca **nova de MASP/Admissão**, não quando Cargo/Nível/Grau/CH mudam manualmente. Como a `key` ficava estável entre essas trocas, o Streamlit ignorava o novo `value=cargo_encontrado["vencimento_basico"]` a partir da 2ª renderização daquela `key` (mesmo bug de fundo já documentado na pendência 4.14 — "key estável ignora `value=` novo").
 - **Correção aplicada:** a combinação de cargo passou a fazer parte da `key`: `key=f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"`, nos dois `number_input` (encontrado/não encontrado) — assim qualquer mudança em cargo/nível/grau/CH também gera `key` nova, sem precisar alterar o `servidor_nonce` (que continua só para troca de MASP).
 
-### 4.20 🟡 Pendente — "Esqueci minha senha" (reset via e-mail)
+### 4.20 🟡 Pendente (em andamento, 23/09) — "Esqueci minha senha" (reset via e-mail)
 
 - Já detalhado na seção 17.3: chegou a ser **implementado e depois revertido** na sessão de 09/09, porque depende de decisões fora do controle do usuário sozinho (qual serviço de e-mail usar — SMTP institucional da FHEMIG vs. API transacional externa — e credenciais de uma conta remetente dedicada).
-- **Enquanto não implementado:** não há nenhum caminho de reset de senha disponível, nem via app nem via script administrativo — só editando `senha_hash` manualmente no Supabase via `ProvedorUsuarios.gerar_hash(...)`.
-- **Quando retomar:** design já pensado (tokens de redefinição análogos a `sessoes`/`criar_sessao`/`validar_sessao`); falta confirmar canal de e-mail com a FHEMIG, criar tabela `redefinicoes_senha` e preencher `[smtp]` em `.streamlit/secrets.toml` (ou trocar por chamada a uma API de e-mail).
+- **Retomado em 23/09** seguindo o plano detalhado da seção 18.3 — ver seção 19 para o detalhamento do que foi concluído (passos 1-3 do plano: tabela + 3 métodos + validação ponta a ponta) e do que falta (passos 4-5: SMTP + UI).
+- **Enquanto a UI não existir:** não há nenhum caminho de reset de senha disponível para o usuário final dentro do app — os métodos já existem em `provedor_usuarios.py`, mas só são chamáveis via script/console.
 
 ### 4.21 🟡 Pendente — Migrar tabela de cargos/vencimentos (`tabela_cargos`) para o Supabase
 
@@ -1136,4 +1136,35 @@ url_base = "https://sua-url.streamlit.app"
 3. Validar o fluxo de token ponta a ponta (solicitar → token válido → redefinir → token não pode ser reusado → token expirado é rejeitado).
 4. Só então plugar o envio via Gmail (`secrets.toml` + `smtplib`).
 5. Construir a UI (`ui/login.py` + leitura de `?token_reset=` no `app.py`).
+
+---
+
+## 19. Plano de desenvolvimento — sessão 23/09
+
+> **Sessão:** ajuste de ambiente local (secrets do Supabase, autoreload) + correção de bug no cabeçalho + passos 1-3 do plano de "Esqueci minha senha" (seção 18.3). Trabalho desta sessão **não commitado ainda**.
+
+### 19.1 ✅ Concluído — Ambiente local configurado
+
+- Criado `.streamlit/secrets.toml` local (gitignored) com a seção `[supabase_admin]` (url + `service_role` key), obtida em Project Settings → API Keys no painel do Supabase. Sem esse arquivo, o app não conseguia consultar nenhuma tabela.
+- `runOnSave` do Streamlit explicado (Settings → Run on save, ou `[server] runOnSave = true` em `.streamlit/config.toml`) para reload automático ao salvar `.py`.
+
+### 19.2 ✅ Concluído — CH Mensal do cabeçalho não atualizava automaticamente
+
+- Mesma causa raiz do bug já documentado e corrigido para o Vencimento Básico (seções 4.14/4.19/18.1): `ui/form_servidor.py` recalculava `ds["ch_mensal"]` corretamente a cada execução, mas o `st.number_input` que o exibe usava `key=f"{nonce}::ch_mensal"` — como o Streamlit ignora `value=` quando a `key` já existe em `session_state`, o campo ficava travado no primeiro valor calculado sob aquele nonce (só voltava a atualizar numa nova busca de servidor, não ao editar CH Semanal manualmente).
+- **Corrigido:** `key` do campo passou a incluir `ds["ch_semanal"]` (`f"{nonce}::ch_mensal::{ds['ch_semanal']}"`), forçando o widget a remontar sempre que a CH Semanal mudar — mesmo padrão já usado no Vencimento Básico.
+
+### 19.3 ✅ Concluído — Passos 1-3 do plano de "Esqueci minha senha" (ver seção 18.3)
+
+- **Tabela `redefinicoes_senha`** criada manualmente no Supabase (SQL da seção 18.3, sem alteração).
+- **3 métodos novos em `data/provedor_usuarios.py`:**
+  - `solicitar_redefinicao_senha(email)` — busca usuário ativo pelo e-mail, gera token (`secrets.token_urlsafe(32)`), grava em `redefinicoes_senha` com validade de 30 min, retorna sempre mensagem genérica (evita user enumeration, mesmo padrão de `autenticar`). **Temporário:** enquanto o SMTP não é plugado (passo 4), o token vai embutido na própria mensagem de retorno (`(DEBUG — token: ...)`) só para permitir teste manual — remover antes de ir pra produção.
+  - `validar_token_redefinicao(token)` — checagem pura (sem side effects): existe? não `usado`? não expirado? Retorna o registro ou `None`.
+  - `redefinir_senha(token, nova_senha)` — revalida via `validar_token_redefinicao`, atualiza `senha_hash` do usuário (bcrypt) e marca o token como `usado=True`. Retorna `bool`.
+- **Validado ponta a ponta** manualmente via script (`solicitar → validar → redefinir → tentar reusar (bloqueado) → login com senha nova (funciona) → token expirado é rejeitado (confirmado ao vivo: token gerado há mais de 30 min falhou em `redefinir_senha`, como esperado)`).
+
+### 19.4 🟡 Pendências para a próxima sessão
+
+- **Passo 4 do plano (18.3):** plugar envio real de e-mail via Gmail/SMTP — criar a conta Gmail dedicada, gerar senha de app, preencher `[smtp]` em `secrets.toml`, implementar `_enviar_email_redefinicao` e remover o token da mensagem de debug em `solicitar_redefinicao_senha`.
+- **Passo 5 do plano (18.3):** construir a UI em `ui/login.py` (link/formulário "Esqueci minha senha" na aba de login) + leitura de `?token_reset=` no `app.py` (ou no próprio `login.py`) para mostrar a tela de "Nova senha".
+- Demais pendências da sessão de 16/09 (seção 18.2) continuam em aberto: **4.21** (migrar `tabela_cargos` pro Supabase) e **4.22** (modularizar restauração de análise do `app.py`).
 

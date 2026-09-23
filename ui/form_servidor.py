@@ -149,7 +149,11 @@ class FormularioServidor:
 
             # Calcula a ch mensal com base na ch semanal informada
             ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
-            c10.number_input("Carga Horária Mensal", value=ds["ch_mensal"], disabled=True, key=f"{nonce}::ch_mensal")
+
+            # CH semanal entra na key p/ o campo ch mensal atualizar ao trocar a ch semanal 
+            # manualmente (correção de bug do campo ch mensal ficar travado)
+            key_ch_mensal = f"{nonce}::ch_mensal::{ds['ch_semanal']}"
+            c10.number_input("Carga Horária Mensal", value=ds["ch_mensal"], disabled=True, key=key_ch_mensal)
 
             cargo_encontrado = None
             # Se campos preenchidos
