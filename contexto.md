@@ -562,6 +562,18 @@ Observações do levantamento:
 - **Proposta:** extrair esse bloco pra um método próprio — por exemplo `ProvedorAnalises.restaurar_sessao(usuario_id)` (mesmo padrão de nome usado em `Login._restaurar_sessao`), encapsulando a checagem da flag `analise_carregada`, a chamada a `carregar`/`desserializar_dados_servidor` e a reconstrução de `ultima_busca_servidor` — deixando o `app.py` só com uma chamada de uma linha, como já acontece com `Login()`.
 - Não implementado ainda — ajuste de organização/legibilidade, sem mudança de comportamento esperada.
 
+### 4.23 🟡 Pendente — Testar fluxo de login/reset de senha em produção (Streamlit Cloud)
+
+- O fluxo completo (login, autocadastro, persistência de sessão via cookie, e agora "Esqueci minha senha" — seções 16, 17 e 20/21) só foi testado **localmente** até aqui.
+- **Achado já registrado (seção 4.13), ainda pendente:** os secrets do Supabase (`[supabase_admin]`) não estão configurados no painel do Streamlit Cloud — sem isso, nada que dependa do banco funciona em produção, login incluso.
+- **Ponto novo, a investigar quando for testar em produção:** hoje o projeto usa a chave `service_role` do Supabase (`st.secrets["supabase_admin"]["key"]`, ver `data/provedor_usuarios.py` e demais provedores) — chave que ignora RLS e tem acesso total ao banco. Pode ser necessário revisar isso para produção, possivelmente migrando para a chave **publishable** (`anon`/`public`) combinada com políticas de RLS adequadas nas tabelas (`usuarios`, `sessoes`, `redefinicoes_senha`, `analises`, `servidores`), em vez de expor uma chave admin completa no ambiente de produção. Avaliar o que muda no código dos provedores (`_cliente()` em cada um) e se as políticas de RLS precisam ser criadas do zero.
+- Também vale testar especificamente o envio de e-mail (passo 4, seção 20) em produção — o código já foi feito pra funcionar sem o túnel de proxy corporativo (que só existe na rede local de dev), mas isso nunca foi confirmado rodando de fato no Streamlit Cloud.
+
+### 4.24 🟡 Pendente — Ajustes de regras de negócio conforme retorno das unidades
+
+- Pendência genérica registrada para quando as unidades (RH/CCPT e demais áreas consultadas ao longo do projeto — ver dúvidas em aberto na seção 6) retornarem com confirmações ou correções sobre regras de cálculo.
+- Ver seção 6 (`dúvidas.md`) para a lista de dúvidas já registradas aguardando resposta das áreas.
+
 ---
 
 ## 5. Observações sobre regras de negócio
@@ -1227,5 +1239,7 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 
 - **4.21** — migrar `tabela_cargos` (hoje só 4 registros locais em `data/tabelas.json`) para o Supabase, no mesmo padrão da tabela `servidores`.
 - **4.22** — modularizar o bloco de restauração da análise salva, hoje embutido direto no `app.py` — extrair pra um método próprio (ex.: `ProvedorAnalises.restaurar_sessao(usuario_id)`).
+- **4.23** — testar o fluxo completo de login/reset de senha em produção (Streamlit Cloud) — inclui configurar os secrets do Supabase lá (seção 4.13) e avaliar a troca da chave `service_role` pela chave **publishable**, com políticas de RLS adequadas.
+- **4.24** — implementar ajustes de regras de negócio conforme retorno das unidades (RH/CCPT e demais áreas — ver dúvidas em aberto na seção 6).
 - Revisar/remover o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário.
 
