@@ -542,11 +542,11 @@ Observações do levantamento:
 - **Causa:** o `number_input` do Vencimento Básico usava `key=f"{nonce}::vencimento_basico"`, onde `nonce` é o `servidor_nonce` — que só é incrementado numa busca **nova de MASP/Admissão**, não quando Cargo/Nível/Grau/CH mudam manualmente. Como a `key` ficava estável entre essas trocas, o Streamlit ignorava o novo `value=cargo_encontrado["vencimento_basico"]` a partir da 2ª renderização daquela `key` (mesmo bug de fundo já documentado na pendência 4.14 — "key estável ignora `value=` novo").
 - **Correção aplicada:** a combinação de cargo passou a fazer parte da `key`: `key=f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"`, nos dois `number_input` (encontrado/não encontrado) — assim qualquer mudança em cargo/nível/grau/CH também gera `key` nova, sem precisar alterar o `servidor_nonce` (que continua só para troca de MASP).
 
-### 4.20 🟡 Pendente (em andamento, 23/09) — "Esqueci minha senha" (reset via e-mail)
+### 4.20 ✅ Resolvido (24/09) — "Esqueci minha senha" (reset via e-mail)
 
-- Já detalhado na seção 17.3: chegou a ser **implementado e depois revertido** na sessão de 09/09, porque depende de decisões fora do controle do usuário sozinho (qual serviço de e-mail usar — SMTP institucional da FHEMIG vs. API transacional externa — e credenciais de uma conta remetente dedicada).
-- **Retomado em 23/09** seguindo o plano detalhado da seção 18.3 — ver seção 19 para o detalhamento do que foi concluído (passos 1-3 do plano: tabela + 3 métodos + validação ponta a ponta) e do que falta (passos 4-5: SMTP + UI).
-- **Enquanto a UI não existir:** não há nenhum caminho de reset de senha disponível para o usuário final dentro do app — os métodos já existem em `provedor_usuarios.py`, mas só são chamáveis via script/console.
+- Já detalhado na seção 17.3: chegou a ser **implementado e depois revertido** na sessão de 09/09, porque dependia de decisões fora do controle do usuário sozinho (qual serviço de e-mail usar — SMTP institucional da FHEMIG vs. API transacional externa — e credenciais de uma conta remetente dedicada).
+- **Retomado em 23/09** seguindo o plano detalhado da seção 18.3, concluído em 24/09 — ver seções 19, 20 e 21 para o detalhamento completo (tabela `redefinicoes_senha`, 3 métodos em `provedor_usuarios.py`, envio real via Gmail/SMTP com achado de proxy corporativo, e UI em `ui/login.py`).
+- **Fluxo completo e testado ponta a ponta** pelo usuário na UI: aba "Entrar" → expander "Esqueci minha senha" → e-mail recebido → link → tela "Definir nova senha" → login com a senha nova.
 
 ### 4.21 🟡 Pendente — Migrar tabela de cargos/vencimentos (`tabela_cargos`) para o Supabase
 
@@ -1195,9 +1195,37 @@ Ver detalhamento completo na seção 20.
 - Token do link recebido no e-mail conferido contra o registro gravado em `redefinicoes_senha` — bateu.
 - Cenário de falha testado (mock de `_enviar_email_redefinicao` lançando exceção) — confirmado que `solicitar_redefinicao_senha` não propaga o erro, loga no console e retorna a mensagem genérica normalmente.
 
-### 20.4 🟡 Pendências para a próxima sessão
+### 20.4 ✅ Concluído (24/09) — Passo 5 do plano (18.3): UI de "Esqueci minha senha"
 
-- **Passo 5 do plano (18.3):** construir a UI em `ui/login.py` (link/formulário "Esqueci minha senha" na aba de login) + leitura de `?token_reset=` no `app.py` (ou no próprio `login.py`) para mostrar a tela de "Nova senha".
+Ver detalhamento completo na seção 21. Fecha a pendência 4.20 por completo — fluxo de reset de senha 100% funcional de ponta a ponta pela interface.
+
 - Remover/revisar o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário (ou manter como conta de teste oficial do projeto).
 - Demais pendências da sessão de 16/09 (seção 18.2) continuam em aberto: **4.21** (migrar `tabela_cargos` pro Supabase) e **4.22** (modularizar restauração de análise do `app.py`).
+
+---
+
+## 21. Plano de desenvolvimento — sessão 24/09 (continuação)
+
+> **Sessão:** conclusão do passo 5 do plano de "Esqueci minha senha" (UI em `ui/login.py`) — fecha a pendência 4.20 por completo.
+
+### 21.1 ✅ Concluído — UI de "Esqueci minha senha" (`ui/login.py`)
+
+- **`_render_esqueci_senha`** (novo método, chamado no final de `_render_login`) — um `st.expander("Esqueci minha senha")` na própria aba "Entrar", com um mini-formulário (só e-mail) que chama `ProvedorUsuarios.solicitar_redefinicao_senha(email)` e exibe a mensagem genérica retornada diretamente.
+- **`render_formulario`** passou a checar `st.query_params.get("token_reset")` logo no início — se presente (usuário clicou no link do e-mail), pula as abas normais de login/cadastro e chama `_render_nova_senha(token)` em vez disso.
+- **`_render_nova_senha`** (novo método) — revalida o token via `validar_token_redefinicao` antes de mostrar qualquer formulário (token inválido/expirado → mensagem de erro + botão que limpa a URL e volta pro login); se válido, mostra formulário de senha + confirmação (mesma regra de mínimo 8 caracteres já usada em `_render_cadastro`), chama `redefinir_senha(token, senha)` ao submeter, e limpa `?token_reset=` da URL (`st.query_params.clear()`) tanto no sucesso quanto ao clicar em "voltar" no caso de erro — evita reprocessar o mesmo token num F5 subsequente.
+- `app.py` não precisou de nenhuma alteração — toda a lógica ficou contida em `ui/login.py`, que já era o único ponto de entrada da tela pré-login.
+
+### 21.2 ✅ Concluído — Validação ponta a ponta pela UI
+
+Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pela aba "Entrar" → e-mail recebido → clique no link → tela "Definir nova senha" exibida corretamente → redefinição → login com a senha nova funcionando. Sem problemas encontrados.
+
+### 21.3 🟡 Limitação conhecida, não tratada (fora de escopo)
+
+- Se o usuário já estiver com sessão válida (cookie) e clicar num link de reset antigo, a tela de reset não aparece — `app.py` só chama `login.render_formulario()` quando `not login.autenticado()`. Cenário considerado raro (reset normalmente é usado justamente por não conseguir logar) e deixado como está por decisão implícita de escopo.
+
+### 21.4 🟡 Pendências para a próxima sessão
+
+- **4.21** — migrar `tabela_cargos` (hoje só 4 registros locais em `data/tabelas.json`) para o Supabase, no mesmo padrão da tabela `servidores`.
+- **4.22** — modularizar o bloco de restauração da análise salva, hoje embutido direto no `app.py` — extrair pra um método próprio (ex.: `ProvedorAnalises.restaurar_sessao(usuario_id)`).
+- Revisar/remover o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário.
 

@@ -57,6 +57,11 @@ class Login:
         return st.session_state["usuario_logado"] is not None
 
     def render_formulario(self):
+        token = st.query_params.get("token_reset")
+        if token:
+            self._render_nova_senha(token)
+            return
+
         st.markdown("### Login")
 
         aba_login, aba_cadastro = st.tabs(["Entrar", "Criar conta"])
@@ -88,6 +93,50 @@ class Login:
                 st.rerun()
             else:
                 st.error("E-mail ou senha incorretos.")
+
+        self._render_esqueci_senha()
+
+    def _render_esqueci_senha(self):
+        with st.expander("Esqueci minha senha"):
+            with st.form("form_esqueci_senha"):
+                email = st.text_input("E-mail cadastrado", type="email", placeholder="exemplo@fhemig.mg.gov.br", key="esqueci_email")
+                enviado = st.form_submit_button("Enviar link de redefinição")
+            if enviado:
+                mensagem = ProvedorUsuarios.solicitar_redefinicao_senha(email)
+                st.info(mensagem)
+
+    def _render_nova_senha(self, token: str):
+        st.markdown("### Definir nova senha")
+
+        if not ProvedorUsuarios.validar_token_redefinicao(token):
+            st.error("Este link é inválido ou expirou. Solicite uma nova redefinição de senha.")
+            if st.button("Voltar para o login"):
+                st.query_params.clear()
+                st.rerun()
+            return
+
+        with st.form("form_nova_senha"):
+            senha = st.text_input("Nova senha", type="password")
+            confirmacao = st.text_input("Confirme a nova senha", type="password")
+            enviado = st.form_submit_button("Redefinir senha")
+
+        if not enviado:
+            return
+
+        if len(senha) < 8:
+            st.error("A senha deve ter pelo menos 8 caracteres.")
+            return
+        if senha != confirmacao:
+            st.error("As senhas não coincidem.")
+            return
+
+        if ProvedorUsuarios.redefinir_senha(token, senha):
+            st.query_params.clear()
+            st.success("Senha redefinida com sucesso! Faça login com a nova senha.")
+            if st.button("Ir para o login"):
+                st.rerun()
+        else:
+            st.error("Não foi possível redefinir a senha — o link pode ter expirado. Solicite um novo.")
 
     def _render_cadastro(self):
         with st.form("form_cadastro"):
