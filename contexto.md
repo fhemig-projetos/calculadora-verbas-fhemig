@@ -1162,9 +1162,42 @@ url_base = "https://sua-url.streamlit.app"
   - `redefinir_senha(token, nova_senha)` — revalida via `validar_token_redefinicao`, atualiza `senha_hash` do usuário (bcrypt) e marca o token como `usado=True`. Retorna `bool`.
 - **Validado ponta a ponta** manualmente via script (`solicitar → validar → redefinir → tentar reusar (bloqueado) → login com senha nova (funciona) → token expirado é rejeitado (confirmado ao vivo: token gerado há mais de 30 min falhou em `redefinir_senha`, como esperado)`).
 
-### 19.4 🟡 Pendências para a próxima sessão
+### 19.4 ✅ Concluído (24/09) — Passo 4 do plano (18.3): envio real de e-mail
 
-- **Passo 4 do plano (18.3):** plugar envio real de e-mail via Gmail/SMTP — criar a conta Gmail dedicada, gerar senha de app, preencher `[smtp]` em `secrets.toml`, implementar `_enviar_email_redefinicao` e remover o token da mensagem de debug em `solicitar_redefinicao_senha`.
+Ver detalhamento completo na seção 20.
+
+- Demais pendências da sessão de 16/09 (seção 18.2) continuam em aberto: **4.21** (migrar `tabela_cargos` pro Supabase) e **4.22** (modularizar restauração de análise do `app.py`).
+
+---
+
+## 20. Plano de desenvolvimento — sessão 24/09
+
+> **Sessão:** conclusão do passo 4 do plano de "Esqueci minha senha" (envio real via Gmail/SMTP) — incluindo um achado de infraestrutura de rede não previsto no plano original.
+
+### 20.1 ✅ Concluído — Envio real de e-mail via Gmail/SMTP (`data/provedor_usuarios.py`)
+
+- **`secrets.toml` local** ganhou as seções `[smtp]` (host, port, usuario, senha de app, remetente) e `[app]` (`url_base`), conforme desenhado na seção 18.3.
+- **Nova função `_enviar_email_redefinicao(email, token)`** — monta o link `{url_base}?token_reset={token}`, envia e-mail em texto puro via `smtplib.SMTP_SSL` + `MIMEText`. Isolada de propósito (trocar por SMTP institucional/API transacional no futuro é só reescrever essa função).
+- **`solicitar_redefinicao_senha`** atualizada: removido o retorno de debug com o token embutido (`(DEBUG — token: ...)`); agora chama `_enviar_email_redefinicao` dentro de um `try/except` e **sempre** retorna a mesma mensagem genérica — inclusive em caso de falha no envio (decisão do usuário: não diferenciar "e-mail não cadastrado" de "erro técnico no envio", pelos mesmos motivos de não vazar quais e-mails existem). Falha real fica só num `print` no console do servidor (projeto não tem logging estruturado ainda).
+
+### 20.2 🐛 Achado e resolvido — proxy corporativo (rede PRODEMGE) bloqueava `smtplib`
+
+- **Sintoma:** ao testar o envio pela primeira vez, a chamada travava indefinidamente (sem lançar exceção) até estourar timeout.
+- **Diagnóstico:** o ambiente de desenvolvimento local está atrás de um proxy HTTP corporativo obrigatório (`https_proxy` = `http://usuario:senha@proxyint.prodemge.gov.br:8080`). Bibliotecas como `requests`/`httpx` (usadas pelo cliente do Supabase) já leem essa variável de ambiente e usam o proxy automaticamente — mas `smtplib` (biblioteca padrão) não tem esse suporte, e tenta conexão direta, que a rede derruba silenciosamente.
+- **Corrigido:** nova função `_conectar_smtp(host, port)` em `provedor_usuarios.py` — se `https_proxy`/`HTTPS_PROXY` não estiver definido no ambiente (caso da produção, Streamlit Cloud), conecta direto, comportamento idêntico a antes. Se estiver definido (caso do dev local nesta rede), abre manualmente um túnel `CONNECT` HTTP até o proxy (mesmo mecanismo usado pelo `curl`), depois envelopa o socket resultante em TLS (`ssl.wrap_socket`) e "enxerta" esse socket já pronto num objeto `smtplib.SMTP_SSL` vazio (via atributo `.sock` + `.getreply()`), em vez de deixar o `smtplib` tentar conectar sozinho.
+- **Sub-achado:** a senha do proxy contém um caractere `@`, que chega codificado como `%40` na URL da variável de ambiente. `urlparse` não decodifica isso automaticamente — precisou de `urllib.parse.unquote()` nas credenciais do proxy antes de montar o cabeçalho `Proxy-Authorization`, senão o proxy recusava com `407 authenticationrequired`.
+- **Importante para sessões futuras:** esse proxy é específico desta rede/máquina (PRODEMGE) — não deve existir no deploy em produção (Streamlit Cloud), então o caminho de conexão direta (sem túnel) é o que roda lá. Se o envio de e-mail parar de funcionar em produção por algum motivo, **não é esse o código a suspeitar primeiro** (a branch do túnel nem deveria ativar sem a variável de ambiente presente).
+
+### 20.3 ✅ Concluído — Validação ponta a ponta (Parte E do plano)
+
+- Usuário de teste novo criado via autocadastro: `antonio.marcel@fhemig.mg.gov.br` (id 5) — os e-mails de teste anteriores (`xarope@wars.com`, `pdidi@fhemig.mg.gov.br`, `jubileu@fhemig.mg.gov.br`) não eram caixas reais acessíveis para conferir recebimento.
+- E-mail de redefinição enviado e **recebido com sucesso**, confirmado visualmente pelo usuário.
+- Token do link recebido no e-mail conferido contra o registro gravado em `redefinicoes_senha` — bateu.
+- Cenário de falha testado (mock de `_enviar_email_redefinicao` lançando exceção) — confirmado que `solicitar_redefinicao_senha` não propaga o erro, loga no console e retorna a mensagem genérica normalmente.
+
+### 20.4 🟡 Pendências para a próxima sessão
+
 - **Passo 5 do plano (18.3):** construir a UI em `ui/login.py` (link/formulário "Esqueci minha senha" na aba de login) + leitura de `?token_reset=` no `app.py` (ou no próprio `login.py`) para mostrar a tela de "Nova senha".
+- Remover/revisar o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário (ou manter como conta de teste oficial do projeto).
 - Demais pendências da sessão de 16/09 (seção 18.2) continuam em aberto: **4.21** (migrar `tabela_cargos` pro Supabase) e **4.22** (modularizar restauração de análise do `app.py`).
 

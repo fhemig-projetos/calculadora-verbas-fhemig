@@ -1,8 +1,15 @@
+import base64
+import os
+import smtplib
+import socket
+import ssl
 from typing import Optional
+from urllib.parse import unquote, urlparse
 import bcrypt
 import secrets
 import streamlit as st
 from datetime import datetime, timedelta, timezone
+from email.mime.text import MIMEText
 from supabase import create_client
 
 @st.cache_resource
@@ -11,6 +18,70 @@ def _cliente():
         st.secrets["supabase_admin"]["url"],
         st.secrets["supabase_admin"]["key"],
     )
+
+def _conectar_smtp(host: str, port: int, timeout: float = 15) -> smtplib.SMTP_SSL:
+    """Abre a conexão SMTP_SSL com o host informado.
+
+    Em produção (sem proxy configurado no ambiente), conecta direto. Em
+    dev local atrás do proxy corporativo (ex.: rede da PRODEMGE — variável
+    de ambiente `https_proxy`), o `smtplib` não sabe atravessar proxy HTTP
+    sozinho, então abrimos manualmente um túnel via `CONNECT` (mesmo
+    mecanismo que o `curl` usa) antes de estabelecer o TLS.
+    """
+    proxy_url = os.environ.get("https_proxy") or os.environ.get("HTTPS_PROXY")
+    if not proxy_url:
+        return smtplib.SMTP_SSL(host, port, timeout=timeout)
+
+    proxy = urlparse(proxy_url)
+    sock = socket.create_connection((proxy.hostname, proxy.port), timeout=timeout)
+
+    requisicao_connect = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n"
+    if proxy.username:
+        # urlparse não decodifica % da URL (ex.: senha com "@" vira "%40") — precisa de unquote
+        usuario_proxy = unquote(proxy.username)
+        senha_proxy = unquote(proxy.password or "")
+        credenciais = base64.b64encode(f"{usuario_proxy}:{senha_proxy}".encode()).decode()
+        requisicao_connect += f"Proxy-Authorization: Basic {credenciais}\r\n"
+    requisicao_connect += "\r\n"
+    sock.sendall(requisicao_connect.encode())
+
+    resposta = sock.recv(4096)
+    linha_status = resposta.split(b"\r\n", 1)[0]
+    if b" 200 " not in linha_status:
+        sock.close()
+        raise ConnectionError(f"Proxy recusou o túnel até {host}:{port}: {linha_status!r}")
+
+    sock_tls = ssl.create_default_context().wrap_socket(sock, server_hostname=host)
+
+    cliente_smtp = smtplib.SMTP_SSL(timeout=timeout)
+    cliente_smtp.sock = sock_tls
+    cliente_smtp.file = None
+    codigo, msg = cliente_smtp.getreply()
+    if codigo != 220:
+        raise smtplib.SMTPConnectError(codigo, msg)
+    return cliente_smtp
+
+def _enviar_email_redefinicao(email: str, token: str) -> None:
+    """Envia o e-mail de redefinição de senha via SMTP (Gmail por ora).
+
+    Isolada de propósito: trocar para SMTP institucional da FHEMIG ou uma
+    API transacional no futuro é só reescrever esta função, sem tocar no
+    resto do fluxo de redefinição.
+    """
+    url = f"{st.secrets['app']['url_base']}?token_reset={token}"
+    corpo = (
+        f"Recebemos uma solicitação para redefinir sua senha na Calculadora de Verbas FHEMIG.\n\n"
+        f"Clique no link abaixo para criar uma nova senha (válido por 30 minutos):\n{url}\n\n"
+        f"Se você não solicitou isso, ignore este e-mail."
+    )
+    mensagem = MIMEText(corpo, "plain", "utf-8")
+    mensagem["Subject"] = "Redefinição de senha — Calculadora de Verbas FHEMIG"
+    mensagem["From"] = st.secrets["smtp"]["remetente"]
+    mensagem["To"] = email
+
+    with _conectar_smtp(st.secrets["smtp"]["host"], st.secrets["smtp"]["port"]) as servidor:
+        servidor.login(st.secrets["smtp"]["usuario"], st.secrets["smtp"]["senha"])
+        servidor.send_message(mensagem)
 
 class ProvedorUsuarios:
     @staticmethod
@@ -157,20 +228,14 @@ class ProvedorUsuarios:
 
     @staticmethod
     def solicitar_redefinicao_senha(email: str) -> str:
-        """Gera um token de redefinição de senha para o e-mail informado.
+        """Gera um token de redefinição de senha e envia por e-mail (SMTP).
 
-        Sempre retorna uma mensagem genérica de sucesso, independente de o
-        e-mail existir ou não na base — evita que alguém descubra quais
-        e-mails estão cadastrados (mesmo padrão de `autenticar`).
-
-        Por enquanto (sem envio de e-mail plugado ainda), retorna também o
-        token gerado embutido na mensagem, só para teste manual do fluxo.
-
-        1. Normaliza o e-mail (strip().lower()) — evita duplicidade por maiúscula/espaço
-        2. Busca na tabela usuarios se existe alguém ativo com esse e-mail
-        3. Se não existir (ou der erro de conexão): retorna a mesma mensagem genérica — de propósito, pra ninguém conseguir "testar" quais e-mails existem no seu sistema só chamando essa função repetidamente
-        4. Se existir: gera um token aleatório de 32 bytes (impossível de adivinhar), define validade de 30 minutos, e insere uma linha na tabela redefinicoes_senha ligando esse token ao usuario_id
-        5. Por enquanto (sem SMTP ainda), devolve o token junto na mensagem — só pra você ver ele sem precisar abrir o banco
+        Sempre retorna a mesma mensagem genérica, independente de o e-mail
+        existir na base, de erro de conexão com o banco, ou de falha no
+        envio do e-mail — evita que alguém descubra quais e-mails estão
+        cadastrados (mesmo padrão de `autenticar`), e não expõe detalhes de
+        infraestrutura (SMTP fora do ar etc.) para o usuário final. Falhas
+        reais de envio ficam só no console (`print`), para depuração.
         """
         email_normalizado = email.strip().lower()
         mensagem_generica = "Se esse e-mail estiver cadastrado, você receberá um link para redefinir sua senha."
@@ -201,9 +266,12 @@ class ProvedorUsuarios:
             "expira_em": expira_em.isoformat(),
         }).execute()
 
-        # TODO: substituir por envio real de e-mail (passo 4 do plano — SMTP).
-        # Por ora, devolve o token na própria mensagem pra teste manual.
-        return f"{mensagem_generica} (DEBUG — token: {token})"
+        try:
+            _enviar_email_redefinicao(email_normalizado, token)
+        except Exception:
+            print(f"[ERRO] Falha ao enviar e-mail de redefinição para {email_normalizado}")
+
+        return mensagem_generica
 
     @staticmethod
     def validar_token_redefinicao(token: str) -> Optional[dict]:
