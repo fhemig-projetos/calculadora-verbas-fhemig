@@ -76,7 +76,7 @@ def _enviar_email_redefinicao(email: str, token: str) -> None:
     )
     mensagem = MIMEText(corpo, "plain", "utf-8")
     mensagem["Subject"] = "Redefinição de senha — Calculadora de Verbas FHEMIG"
-    mensagem["From"] = st.secrets["smtp"]["remetente"]
+    mensagem["From"] = st.secrets["smtp"]["usuario"]
     mensagem["To"] = email
 
     with _conectar_smtp(st.secrets["smtp"]["host"], st.secrets["smtp"]["port"]) as servidor:

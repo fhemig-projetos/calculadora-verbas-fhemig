@@ -1,3 +1,6 @@
+from .vencimento_basico_dias import CalculadoraVencimentoBasicoDias
+from .abono_emergencia_dias import CalculadoraAbonoEmergenciaDias
+from .plantao_medico_complementar import CalculadoraPlantaoMedicoComplementar
 from .hora_extra import CalculadoraHoraExtra
 from .adicional_noturno import CalculadoraAdicionalNoturno
 from .gratificacao_final_semana import CalculadoraGratificacaoFinalSemana
@@ -25,6 +28,9 @@ from .licenca_maternidade import CalculadoraLicencaMaternidade
 
 # Registro (Factory) para conectar a UI às Classes
 REGISTRO_CALCULADORAS = {
+    "Vencimento Básico — Dias": CalculadoraVencimentoBasicoDias(),
+    "Abono de Emergência — Dias": CalculadoraAbonoEmergenciaDias(),
+    "Plantão Médico Complementar (PMC)": CalculadoraPlantaoMedicoComplementar(),
     "Hora Extra": CalculadoraHoraExtra(),
     "Adicional Noturno": CalculadoraAdicionalNoturno(),
     "Gratificação de Final de Semana": CalculadoraGratificacaoFinalSemana(),

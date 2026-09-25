@@ -26,6 +26,18 @@
     ]
   },
   "verbas": {
+    "Vencimento Básico — Dias": {
+      "codigo": "2400",
+      "tipo": "Vantagem"
+    },
+    "Abono de Emergência — Dias": {
+      "codigo": "2435",
+      "tipo": "Vantagem"
+    },
+    "Plantão Médico Complementar (PMC)": {
+      "codigo": "2961",
+      "tipo": "Vantagem"
+    },
     "Gratificação de Final de Semana": {
       "codigo": "416",
       "tipo": "Vantagem"
@@ -123,11 +135,6 @@
       "codigo": "7700",
       "tipo": "Desconto"
     }
-  },
-  "tabela_grs": {
-      "nao_faz_jus": 0.0,
-      "risco_medio": 160.20,
-      "risco_alto": 320.40
   },
   "tabela_reajustes": {
     "2024": 0.0462,

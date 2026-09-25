@@ -143,13 +143,6 @@ class SelecaoVerba:
                 else:
                     ano_default = date.today().year if date.today().year in opcoes_ano else opcoes_ano[-1]
                 indice_default_ano = opcoes_ano.index(ano_default)
-            elif campo == "grs_risco":
-                if nome_verba in ["GRS — Dias", "GRS — Meses", "GRS — 13º Salário", "GRS — Desconto de Horas"]:
-                    opcoes_grs = ["Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
-                else:
-                    opcoes_grs = ["Não faz jus (R$ 0,00)", "Risco Médio (R$ 160,20)", "Risco Alto (R$ 320,40)"]
-                valor_persistido = persistidos.get(campo)
-                indice_default_grs = opcoes_grs.index(valor_persistido) if valor_persistido in opcoes_grs else 0
             ## Outras Vantagens do INSS Mensal → soma automática do histórico (todas as verbas de
             ## tipo Vantagem, exceto Ajuda de Custo e as verbas de 13º, que entram no INSS do 13º)
             elif campo == "valor_outras_vantagens":
@@ -189,15 +182,11 @@ class SelecaoVerba:
                 valor_default = persistidos.get(campo, 75.0)
             elif campo in ("dias_trabalhados", "numero_meses", "dias_ferias_indenizadas", "faltas_horas", "faltas_dias"):
                 valor_default = persistidos.get(campo, 1)
-            else:  # ad_desempenho, horas_realizadas, abono_emergencia, valor_giefs, valor_piso, etc.
+            else:  # horas_realizadas, abono_emergencia, valor_giefs, valor_piso, valor_grs, etc.
                 if config["tipo"] == "moeda":
                     valor_default = persistidos.get(campo, 0.0)
                 else:
                     valor_default = persistidos.get(campo, 0)
-
-            # Renderiza os campos
-            ## Se campo == "ad_desempenho", desabilitado == True
-            desabilitado = campo in ("ad_desempenho",)
 
             ## Chave sempre com nonce: widget "novo" a cada troca de verba
             campo_key = f"{nonce}::{campo}"
@@ -208,13 +197,6 @@ class SelecaoVerba:
                         config["label"],
                         options=opcoes_ano,
                         index=indice_default_ano,
-                        key=campo_key,
-                    )
-                elif campo == "grs_risco":
-                    valores[campo] = st.selectbox(
-                        config["label"],
-                        options=opcoes_grs,
-                        index=indice_default_grs,
                         key=campo_key,
                     )
                 elif campo in ("dias_trabalhados", "dias_ferias_indenizadas", "faltas_dias"):
@@ -239,11 +221,11 @@ class SelecaoVerba:
                         value=valor_default,
                         key=campo_key,
                     )
-                else: # vencimento_basico, ad_desempenho, carga_horaria_mensal, horas_realizadas, etc.
+                else: # vencimento_basico, carga_horaria_mensal, horas_realizadas, valor_grs, etc.
                     valores[campo] = st.number_input(
                             config["label"],
                             value=valor_default,
-                            disabled=desabilitado,
+                            help=config.get("help"),
                             key=campo_key,
                         )
 

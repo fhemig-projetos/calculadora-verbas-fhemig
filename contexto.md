@@ -12,8 +12,7 @@
 calculadora-verbas-fhemig/
 ├── app.py                     # Entrypoint da versão modular (renomeado de main.py — ver 4.13)
 ├── app_hem.py                 # App de teste p/ deploy de múltiplos apps no mesmo repo (avaliar remoção — ver 15.4)
-├── contexto.md                # Este arquivo
-├── dúvidas.md                 # Dúvidas em aberto sobre regras de negócio
+├── contexto.md                # Este arquivo (inclui dúvidas em aberto — seção 6; `dúvidas.md` foi descontinuado em 25/09, tudo centralizado aqui)
 ├── requirements.txt           # streamlit, reportlab, pandas, supabase
 │
 ├── assets/                    # Identidade visual
@@ -523,11 +522,9 @@ Observações do levantamento:
 - Quando o usuário **digita** o Nível manualmente (cargo não encontrado automaticamente), o campo aceita o algarismo arábico como está — não há conversão de volta pra romano em nenhum ponto do fluxo (tela, PDF, etc.).
 - Falta avaliar: converter pra romano só na exibição (mantendo arábico internamente pra bater com `tabela_cargos`), ou se o pedido é sobre outro ponto do fluxo (ex. PDF exportado). Confirmar com o usuário o comportamento exato esperado antes de implementar.
 
-### 4.17 🟡 Pendente — GRS: trocar de selectbox por preenchimento manual do valor
+### 4.17 ✅ Resolvido (25/09) — GRS: trocar de selectbox por preenchimento manual do valor
 
-- Hoje o campo `grs_risco` (`ui/selecao_verba.py`) é um `selectbox` com opções textuais ("Risco Médio", "Risco Alto", "Não faz jus" — 2 ou 3 opções dependendo da verba, ver `_render` linha ~145), resolvido pra valor numérico via `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` (parser centralizado, puxa de `tabela_grs` em `data/tabelas.json`).
-- Pedido: substituir esse selectbox por um campo de valor livre (o usuário digita o valor da GRS diretamente, em vez de escolher risco médio/alto/não faz jus e deixar o sistema resolver o valor).
-- Impacto a mapear antes de implementar: todas as calculadoras que hoje recebem `grs_risco` (`grs_dias.py`, `grs_meses.py`, `grs_13.py`, `grs_desconto_horas.py`, `ferias_terco.py`, `ferias_indenizadas.py`, `faltas_horas.py`, `faltas_dias.py`, `ipsemg.py`, `licenca_maternidade.py`) usam `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` internamente — precisam passar a receber o valor já numérico direto, sem o parser. Também mexe em `CONFIG_CAMPOS` (`ui/config.py`) e na lógica dinâmica de exibição de 2 vs 3 opções (que deixa de fazer sentido).
+- Ver detalhamento completo na seção 22.4. Resumo: campo `grs_risco` (selectbox) virou `valor_grs` (campo monetário livre, com `help` mostrando os valores de referência); as 11 calculadoras afetadas (o levantamento original citava só 10, faltava `decimo_terceiro.py`) passaram a receber `valor_grs: float` direto, sem o parser `ProvedorDadosFhemig.obter_valor_grs`, que foi removido junto com a tabela `tabela_grs` (código morto).
 
 ### 4.18 🟡 Pendente — faxina periódica de sessões expiradas via `pg_cron`
 
@@ -572,7 +569,19 @@ Observações do levantamento:
 ### 4.24 🟡 Pendente — Ajustes de regras de negócio conforme retorno das unidades
 
 - Pendência genérica registrada para quando as unidades (RH/CCPT e demais áreas consultadas ao longo do projeto — ver dúvidas em aberto na seção 6) retornarem com confirmações ou correções sobre regras de cálculo.
-- Ver seção 6 (`dúvidas.md`) para a lista de dúvidas já registradas aguardando resposta das áreas.
+- Ver seção 6 para a lista de dúvidas já registradas aguardando resposta das áreas.
+
+### 4.25 🟡 Pendente — confirmar se "Vencimento Básico — Dias" deveria ser excluída da soma de "Outras Vantagens" do INSS Mensal
+
+- A verba "Vencimento Básico — Dias" (2400, nova — ver seção 22.2) entra no histórico como Vantagem e é somada automaticamente em `valor_outras_vantagens` (soma de todo o histórico do tipo Vantagem, usada como input da INSS Mensal — ver `ui/selecao_verba.py`, campo `valor_outras_vantagens`).
+- A INSS Mensal (`calculadoras/inss_mensal.py`) já soma `vencimento_basico` (campo direto, cheio, vindo do cabeçalho) **+** `valor_outras_vantagens`. Se as duas verbas ("Vencimento Básico — Dias" e "INSS Mensal") forem calculadas na mesma sessão, o vencimento básico entra **duas vezes** na base do INSS Mensal.
+- **Decisão tomada em 25/09:** manter assim por ora — **não** adicionar "Vencimento Básico — Dias" à lista `NOMES_EXCLUIDOS_INSS` (que hoje já exclui "Ajuda de Custo Mensal" e as verbas de 13º dessa soma), até confirmação da área de RH/taxação sobre qual é o comportamento correto.
+- Ver também seção 6, "INSS Mensal e INSS sobre 13º".
+
+### 4.26 🟡 Pendente — validar com a área o plano de "Piso Enfermagem" como verba(s) independente(s) (3154)
+
+- Plano detalhado (ainda não implementado) na seção 22.8. Resumo: incluir "Piso Enfermagem — Dias" (e possivelmente "Piso Enfermagem — Meses") a partir do código 3154 (COMPLEMENTO PISO ENFERMAGEM) — mas a associação desse código a essas verbas, e a própria necessidade da verba de Meses, são **interpretações forçadas** do usuário que precisam de validação com a área antes de implementar.
+- Ver seção 6, "Piso Enfermagem" para as dúvidas específicas levantadas por uma servidora sobre pré-preenchimento e vinculação ao vencimento básico.
 
 ---
 
@@ -585,7 +594,7 @@ Observações do levantamento:
 - **Piso Enfermagem 13º**: novo campo `valor_piso`, reutiliza `numero_meses` existente
 - **GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias**: usam o mesmo campo `valor_giefs` (informado manualmente pelo usuário)
 - **GIEFS — 13º**: usa `valor_giefs` + `numero_meses`
-- **Campo `numero_parcelas`**: removido — a GIEFS — Meses foi simplificada para **campo único de valor** (ver 2.4/10.4)
+- **Campo `numero_parcelas`**: removido — a GIEFS — Meses foi simplificada para **campo único de valor** (ver 2.4/10.4). **Atualização (25/09, seção 22.5):** essa simplificação tinha deixado faltando a multiplicação pelo período — a GIEFS — Meses passou a reaproveitar o campo genérico `numero_meses` (não é o antigo `numero_parcelas` de volta) para multiplicar `valor_giefs × numero_meses`.
 - **INSS sobre 13º**: `valor_13_salario` e `giefs_13_salario` são preenchidos automaticamente via busca no histórico
 - **Faltas — Dias e Faltas — Horas**: base inclui **Piso Enfermagem** (CPE — Lei 14434/22). Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
 - **Férias Indenizadas**: **GIEFS NÃO entra** na base de cálculo (confirmado)
@@ -595,15 +604,55 @@ Observações do levantamento:
 
 ---
 
-## 6. Dúvidas em aberto (ver `dúvidas.md`)
+## 6. Dúvidas em aberto
 
-- Abono Emergência é valor fixo (R$ 150)?
+> Consolidado aqui em 25/09 — o arquivo `dúvidas.md` foi descontinuado, todo o histórico (resolvido e em aberto) passou pra cá.
+
+### INSS Mensal e INSS sobre 13º
 - ~~**INSS Mensal**: a base atualmente usa **apenas o `vencimento_basico`**...~~ ✅ Esclarecido (18/08) — ver seção 14
 - **INSS Mensal — soma por competência**: hoje `valor_outras_vantagens` soma **todo** o histórico da sessão, sem filtrar por mês/ano batendo com a competência do cálculo do INSS Mensal sendo feito. Confirmar com a área se é necessário filtrar por competência (ver seção 14).
-- ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
-- **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6).
-- Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área. **Relacionado:** o novo campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo combinado for confirmado como composto, pode ser necessário revisar essa soma simples.
-- **Adicional de Desempenho (ADE) é "somente efetivo"** (achado em 19/08, ver pendência 4.7): o documento oficial de levantamento de dados do RH/CCPT indica que o ADE (código 537) só se aplica a servidores efetivos. Como a calculadora é exclusivamente para **contratados**, isso levanta a dúvida se o campo `ad_desempenho` — usado hoje em `ferias_terco.py`, `faltas_horas.py`, `faltas_dias.py` e `ipsemg.py` — deveria ser removido dessas fórmulas. Não avaliado ainda; aguardando decisão para tratar em sessão futura.
+- **INSS Mensal — quais verbas entram de fato?** Dúvida genérica ainda em aberto, guarda-chuva das duas acima.
+- ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º). A alíquota e a dedução usam essa mesma soma (13º + GIEFS 13º), não só o 13º isolado.
+- **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6). Confirmar também se os valores desses dois estão corretos.
+- **"Vencimento Básico — Dias" pode contar em dobro na base do INSS Mensal** — ver pendência **4.25** (seção 4) para o detalhamento completo.
+
+### Aumento Salarial
+- **Checado em 25/09:** `calculadoras/aumento_salarial.py` não tem nenhuma lógica de composição automática — cada cálculo é isolado, um ano por vez (`vencimento_basico × alíquota do ano`). A dúvida é sobre o **uso manual**: se o usuário precisa aplicar 2024 e 2026 sobre o mesmo vencimento, deve calcular os dois separadamente sobre o valor **original**, ou calcular 2024 primeiro e usar o resultado (já reajustado) como base pra calcular 2026 em seguida (`base × 1,0462 × 1,054`, cálculo composto)? Aguardando confirmação da área. **Relacionado:** o campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo composto for confirmado, pode ser necessário revisar essa soma simples.
+
+### Adicional de Desempenho
+- ~~**ADE é "somente efetivo"** (achado em 19/08, ver pendência 4.7): deveria ser removido das fórmulas?~~ ✅ Resolvido (25/09) — removido por completo de todas as calculadoras (ver seção 22.1).
+
+### GIEFS e GRS
+- ~~**GIEFS — Meses**: qual seria a fórmula de cálculo? Não localizada na planilha.~~ ✅ Resolvido (25/09) — fórmula real da GIEFS é mais complexa e segue não localizada; mantida a decisão de o usuário informar `valor_giefs` já calculado externamente. Só faltava multiplicar pelo período: adicionado o campo "Nº de Meses" (default 1), fórmula agora `valor_giefs × numero_meses` (ver seção 22.5).
+- Abono Emergência é valor fixo (R$ 150)? (mesma dúvida se aplica a GIEFS: os valores digitados hoje são sempre manuais, não puxados de nenhuma tabela.)
+- Qual é o jeito certo de deixar os valores de **GIEFS** pré-preenchidos pros usuários, nas verbas que usam `valor_giefs` como input? (Para **GRS**, essa dúvida perdeu parte da relevância desde 25/09 — seção 22.4 — já que o campo virou valor livre digitado pelo usuário em vez de selectbox resolvido por tabela.)
+- O atraso em horas ou dias (Faltas — Horas/Dias) afeta o valor de `valor_grs` considerado na fórmula, ou é sempre o valor cheio da GRS mensal?
+- Pra as verbas de GRS, trazer no nome da linha do histórico algum indicativo do valor usado (já que não há mais rótulo de "risco médio/alto" desde 25/09).
+
+### Piso Enfermagem
+- O valor do piso (`valor_piso`, usado em Faltas — Dias/Horas e Piso Enfermagem — 13º) é fixo? Faz sentido puxar automaticamente (existe uma tabela oficial?) ou manter como campo livre mesmo?
+- Definir regra vinculando o Piso Enfermagem — 13º pra aparecer só quando a carreira selecionada for PENF (hoje aparece sempre, independente da carreira).
+- **Novo (25/09), falas de uma servidora sobre o piso, ainda sem resposta:**
+  - *"Complemento do piso também não tem (tem só piso 13º)"* — confirma que falta algo equivalente ao "Complemento Piso Enfermagem" fora do 13º. **Não confirmado** se isso corresponde a uma verba "Piso Enfermagem — Dias" (ver pendência 4.26) ou é outra coisa.
+  - *"O ideal é que no cabeçalho a gente consiga marcar se o PISO se aplica, e já inserir o valor pra que ele fique predefinido depois, ou se der que ele já entenda o valor do piso a partir do salário inserido no cabeçalho."* — hoje não existe isso: `valor_piso` só é persistido campo a campo depois que o usuário digita manualmente uma vez numa verba (mecanismo genérico de `persistidos`, igual a qualquer outro campo monetário — não vem do cabeçalho nem de nenhuma tabela). **Precisa confirmar com a área/usuária** se esse comportamento (persistir depois da 1ª digitação) já atende, ou se ela realmente quer um campo no cabeçalho pra marcar "faz jus ao piso" com pré-preenchimento automático a partir do vencimento básico.
+  - Pergunta em aberto da própria servidora: **existe alguma regra de cálculo vinculando o valor do piso ao vencimento básico?** Não identificada nenhuma relação assim no código ou nos dados hoje — `valor_piso` é sempre um valor independente digitado pelo usuário. Precisa perguntar à área qual é essa regra, se existir.
+
+### Plantão Médico Complementar (PMC)
+- **Fórmula não validada com a área (25/09):** verba 2961 implementada como **campo livre** (`valor_pmc`, sem fórmula — o usuário digita o valor total do PMC diretamente, mesmo padrão do `valor_giefs`), porque não foi possível confirmar a fórmula de cálculo com a área a tempo. Pendente confirmar se existe uma fórmula de fato (ex.: valor de plantão × quantidade, algum piso/teto) e, se sim, implementá-la — ver seção 22.6.
+
+### Ajuda de Custo — possível separação entre fixa e variável (registrado em 25/09, ainda não validado)
+- **Feedback de usuárias da rede:** Juliane Martins de Almeida pediu ajuste no cálculo de ajuda de custo pra acrescentar carga horária e percentual de faltas, com separação entre parcela fixa e variável. Leudmarlen Rubia Gusmao Figueiredo relatou: *"a verba de ajuda de custo quando a gente lança no resumo funcional, tem que separar ajuda de custo fixa e ajuda de custo variável"*.
+- **Nova verba citada:** 3198 — AJ.CUST/ALIMENT.FIXA, "do mesmo jeito da que já está lançada" (ou seja, mesmo padrão de `calculadoras/ajuda_custo.py`, só que como a parcela **fixa**).
+- **Hipótese ainda não confirmada:** pode ser necessário desmembrar o cálculo de "Ajuda de Custo Mensal" em dois — ajuda de custo fixa e ajuda de custo variável — em vez do cálculo único atual (`ajuda_custo_diario × dias_trabalhados`).
+- **Nada implementado ainda** — registrado só como pendência, aguardando validação de como exatamente essa separação deveria funcionar (o que compõe a parte fixa vs. a variável, se a carga horária e o percentual de faltas entram em alguma fórmula específica, etc.) antes de mexer no código.
+
+### Desconto de Ajuda de Custo
+- Faz sentido buscar automaticamente o valor da "Ajuda de Custo Mensal" calculada num passo anterior (via histórico) para servir de base ao "Desconto de Ajuda de Custo"? (Hoje `valor_ajuda_custo` já é pré-preenchido do histórico — ver seção 5 — mas vale confirmar se é isso mesmo que deveria acontecer.)
+- Checar dúvida da Iza: "essa calculadora é do CUSTEIO ALIMENTAÇÃO?"
+
+### Melhorias sugeridas (baixa prioridade, não classificadas como pendência formal)
+- Trazer dados do servidor a partir do MASP de forma mais completa (relacionado à pendência 4.8).
+- Listar Data Fim Efetiva no PDF (relacionado à pendência 4.9, já resolvida — confirmar se cobre esse ponto).
 
 ---
 
@@ -1242,4 +1291,87 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - **4.23** — testar o fluxo completo de login/reset de senha em produção (Streamlit Cloud) — inclui configurar os secrets do Supabase lá (seção 4.13) e avaliar a troca da chave `service_role` pela chave **publishable**, com políticas de RLS adequadas.
 - **4.24** — implementar ajustes de regras de negócio conforme retorno das unidades (RH/CCPT e demais áreas — ver dúvidas em aberto na seção 6).
 - Revisar/remover o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário.
+
+---
+
+## 22. Plano de desenvolvimento — sessão 25/09
+
+> **Sessão:** início do ciclo de ajustes de regras de negócio a partir do feedback dos usuários da rede Fhemig que testaram a aplicação (pendência 4.24) — inclui remoção de campo e primeira verba nova.
+
+### 22.1 ✅ Concluído — Remoção do Adicional de Desempenho
+
+- **Feedback recebido:** usuária (Luana Cristina da Silva Correa) relatou não conseguir preencher o campo "Adicional de Desempenho" — ele aparecia desabilitado (sempre R$ 0,00) em várias verbas, confundindo os usuários.
+- **Causa:** essa verba só existe pra servidores efetivos; a calculadora se destina a contratados, que nunca a recebem — por isso o campo já vinha fixo em 0,0 e desabilitado.
+- **Decisão:** em vez de só ocultar o campo (mantendo o valor fixo internamente — "gambiarra"), removido **por completo** de todas as calculadoras que o usavam, já que está fora do escopo atual do projeto.
+- Removido de 7 calculadoras (`hora_extra`, `gratificacao_final_semana`, `decimo_terceiro`, `faltas_dias`, `faltas_horas`, `ferias_terco`, `ipsemg`): campo, parâmetro de `calcular`, termo na fórmula, linha na memória de cálculo e menção em `descricao_formula`.
+- Removida a entrada `"ad_desempenho"` de `CONFIG_CAMPOS` (`ui/config.py`) e a lógica órfã de campo desabilitado em `ui/selecao_verba.py`.
+- Nenhum resultado numérico muda (o termo já era sempre 0.0 na prática).
+
+### 22.2 ✅ Concluído — Nova verba independente "Vencimento Básico — Dias" (2400)
+
+- **Motivação:** algumas verbas hoje só existem como variável de input de outras (ex.: `vencimento_basico` só aparecia embutido em Hora Extra, 13º, etc.), mas na prática o técnico às vezes precisa pagar só essa parcela isoladamente (ex.: pagamento proporcional a X dias trabalhados). Início de uma série de ajustes pra transformar essas variáveis em verbas independentes, registráveis no histórico — uma de cada vez.
+- **Implementado:** `calculadoras/vencimento_basico_dias.py` (novo) — fórmula `Venc. Básico ÷ 30 × Dias`, reaproveitando os campos já existentes `vencimento_basico` (pré-preenchido do cabeçalho) e `dias_trabalhados` (já usado por Ajuda de Custo, GRS — Dias e GIEFS — Dias). Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json` (código 2400, tipo Vantagem).
+- **Nome escolhido:** "Vencimento Básico — Dias", seguindo o padrão já usado por outras verbas fracionadas por dia (GRS — Dias, GIEFS — Dias).
+- **Cuidado tomado:** o campo `vencimento_basico` usado como input direto em todas as outras calculadoras continua vindo do cabeçalho normalmente — a nova verba não interfere nesse pré-preenchimento.
+- **Risco identificado e não resolvido:** possível dupla contagem do vencimento básico na base da INSS Mensal se as duas verbas forem calculadas na mesma sessão — ver pendência **4.25** (nova) e seção 6.
+
+### 22.3 ✅ Concluído — Nova verba independente "Abono de Emergência — Dias" (2435)
+
+- Mesmo padrão da 22.2: `calculadoras/abono_emergencia_dias.py` (novo) — fórmula `Abono de Emergência ÷ 30 × Dias`, reaproveitando `abono_emergencia` (campo manual já existente) e `dias_trabalhados`. Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json` (código 2435, tipo Vantagem).
+- **Checagem do INSS Mensal (mesmo cuidado da 22.2):** aqui **não há** risco de dupla contagem — diferente do Vencimento Básico, a INSS Mensal não recebe `abono_emergencia` como campo direto, só soma `vencimento_basico` + `valor_outras_vantagens` (soma do histórico) + `outras_verbas`. Logo o valor dessa verba entra na base do INSS Mensal uma única vez, via a soma automática — comportamento correto, sem necessidade de excluir em `NOMES_EXCLUIDOS_INSS` nem abrir dúvida nova.
+- `abono_emergencia` continua sendo usado como campo manual direto em 7 outras calculadoras (13º Salário, Faltas — Dias, Faltas — Horas, 1/3 de Férias, Férias Indenizadas, IPSEMG, Licença Maternidade) — nenhuma delas é afetada pela nova verba independente.
+
+### 22.4 ✅ Concluído — GRS: campo de risco (selectbox) trocado por valor livre (fecha a pendência 4.17)
+
+- **Pedido:** trocar o campo GRS de seleção de risco (Médio/Alto/Não faz jus) por um campo de valor numérico livre, com texto de ajuda (`help=`) lembrando os valores de referência ("Risco Médio: R$ 160,20 · Risco Alto: R$ 320,40 (valores 2026) · Se não fizer jus, deixe R$ 0,00.").
+- **Levantamento:** a pendência 4.17 (aberta em sessão anterior) listava 10 calculadoras afetadas — o levantamento estava incompleto, faltava `decimo_terceiro.py`. Total real: **11 calculadoras** (`grs_dias`, `grs_meses`, `grs_13`, `grs_desconto_horas`, `decimo_terceiro`, `faltas_dias`, `faltas_horas`, `ferias_terco`, `ferias_indenizadas`, `ipsemg`, `licenca_maternidade`).
+- **Implementado:**
+  - `ui/config.py`: campo `grs_risco` (tipo `select_risco`) virou `valor_grs` (tipo `moeda`, com `help`).
+  - `ui/selecao_verba.py`: removida a lógica de `opcoes_grs`/`indice_default_grs` (que variava entre 2 e 3 opções conforme a verba) e o `st.selectbox` dedicado — o campo passou a cair no fluxo genérico de campo monetário. Adicionado suporte a `help=config.get("help")` no `number_input` genérico, reutilizável por qualquer campo que declare esse atributo no `CONFIG_CAMPOS`.
+  - Nas 11 calculadoras: parâmetro `grs_risco: str` → `valor_grs: float`; removida a chamada a `ProvedorDadosFhemig.obter_valor_grs(...)` (e o import, onde só servia pra isso); linha da memória de cálculo `f"GRS ({grs_risco}): ..."` → `f"GRS: ..."`.
+  - Removido o código morto associado: método `ProvedorDadosFhemig.obter_valor_grs` (`data/provedor_dados.py`) e a tabela `tabela_grs` (`data/tabelas.json`), ambos sem uso após a mudança.
+- Testadas isoladamente as 11 calculadoras com a nova assinatura — todas OK.
+- Fecha a pendência **4.17**.
+
+### 22.5 ✅ Concluído — GIEFS — Meses: campo "Nº de Meses" que faltava
+
+- **Problema:** `calculadoras/giefs_meses.py` só recebia `valor_giefs` e devolvia o próprio valor sem multiplicar por nada — faltava o campo de número de meses.
+- **Contexto:** a fórmula real da GIEFS é mais complexa e nunca foi localizada na planilha (dúvida já registrada, então em `duvidas.md`, hoje consolidada na seção 6) — por isso a decisão, já tomada antes, de manter o usuário informando `valor_giefs` já calculado externamente. O que faltava era só a multiplicação pelo período.
+- **Implementado:** adicionado `numero_meses` a `campos_necessarios` (campo genérico já existente, reaproveitado — default 1, mesmo padrão de GRS — Meses/GRS — 13º/13º Salário, sem mudança nenhuma na UI). Fórmula: `valor_giefs × numero_meses`. Atualizados `descricao_formula` e a memória de cálculo.
+- Dúvida marcada como resolvida na seção 6.
+
+### 22.6 ✅ Concluído — Nova verba "Plantão Médico Complementar (PMC)" (2961), como campo livre
+
+- **Pedido:** incluir a verba 2961, com o valor validado com a área se possível; senão, campo livre.
+- **Decisão:** não foi possível validar a fórmula com a área nesta sessão — implementada como **campo livre puro** (`calculadoras/plantao_medico_complementar.py`, campo novo `valor_pmc`), sem nenhuma fórmula/multiplicação, só repassando o valor digitado — mesmo padrão do `valor_giefs`.
+- Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py`, `ui/config.py` (campo `valor_pmc`) e `data/tabelas.json` (código 2961, tipo Vantagem).
+- **Pendência registrada na seção 6** ("Plantão Médico Complementar (PMC)"): validar com a área se existe fórmula de cálculo de fato, e implementá-la se houver.
+
+### 22.7 📋 Plano (não implementado) — Piso Enfermagem como verba(s) independente(s) (3154)
+
+> **Nada foi implementado nesta sessão** — só o plano abaixo, registrado a pedido do usuário pra retomar na próxima sessão, depois de validar as interpretações forçadas com a área. Ver pendência **4.26**.
+
+**Feedback que originou o pedido** (Leudmarlen Rubia Gusmao Figueiredo — mesma servidora da sessão de ajustes de regras de negócio):
+- 3154 — COMPLEMENTO PISO ENFERMAGEM: *"preciso informar quantos dias tenho que pagar. Então valor do PISO ÷ 30 × quant. dias ="* → pedido explícito: inserir o piso como verba independente.
+- Falas adicionais da servidora sobre o piso (ver seção 6, "Piso Enfermagem", pra detalhamento completo): confirma que falta previsão de complemento do piso fora do 13º; pergunta sobre pré-preenchimento a partir do cabeçalho; pergunta se existe regra vinculando o piso ao vencimento básico.
+
+**Interpretações do usuário que precisam de validação com a área antes de implementar (ele mesmo sinalizou como "forçadas"):**
+1. **"Complemento Piso Enfermagem" (3154) = "Piso Enfermagem — Dias"?** A fórmula descrita (`valor_piso ÷ 30 × dias`) bate com o padrão das outras verbas "— Dias" (Vencimento Básico — Dias, Abono de Emergência — Dias, GRS — Dias, GIEFS — Dias), mas não há confirmação de que "complemento" seja sinônimo de "dias" nesse contexto — pode ser outra coisa.
+2. **"Piso Enfermagem — Meses" também seria necessária?** Puramente por espelhamento do padrão de outras verbas que têm as três variantes (Dias/Meses/13º — ex.: GRS, GIEFS) — hoje só existe "Piso Enfermagem — 13º Salário". Não há nenhum pedido explícito de usuário pedindo a variante "Meses"; é suposição do usuário (Marcel) a confirmar.
+
+**Plano de implementação, quando validado** (mesmo padrão já usado nesta sessão para Vencimento Básico — Dias e Abono de Emergência — Dias):
+1. `calculadoras/piso_enfermagem_dias.py` (novo) — `campos_necessarios = ["valor_piso", "dias_trabalhados"]`, fórmula `valor_piso ÷ 30 × dias_trabalhados`. Reaproveita os dois campos, já existentes — nenhuma mudança em `ui/config.py` ou `ui/selecao_verba.py`.
+2. Se confirmada a variante Meses: `calculadoras/piso_enfermagem_meses.py` (novo) — `campos_necessarios = ["valor_piso", "numero_meses"]`, fórmula `valor_piso × numero_meses` (padrão de GRS — Meses).
+3. Registro em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json` — código **3154** pra "Piso Enfermagem — Dias" (a confirmar); código da variante Meses ainda **não informado pelo usuário**, precisa perguntar.
+4. **Checagem de efeito colateral a fazer** (mesmo cuidado das verbas anteriores): conferir se `valor_piso` entrando no histórico como Vantagem afeta a soma de `valor_outras_vantagens` do INSS Mensal — hoje `valor_piso` já é usado direto em Faltas — Dias/Horas e Piso Enfermagem — 13º, mas nenhuma delas soma automaticamente do histórico, então o risco de duplicação (como o caso do Vencimento Básico — Dias, pendência 4.25) precisa ser reavaliado nesse momento.
+5. **Não responde ainda** às perguntas em aberto da servidora sobre pré-preenchimento a partir do cabeçalho e vinculação ao vencimento básico (seção 6) — isso é uma decisão de UX/regra de negócio separada da simples criação da verba, e também depende de validação com a área.
+
+### 22.8 🟡 Pendências para a próxima sessão
+
+- **4.25** — confirmar com a área se "Vencimento Básico — Dias" deve ser excluída da soma de "Outras Vantagens" do INSS Mensal.
+- Validar com a área a fórmula do Plantão Médico Complementar (PMC) — ver seção 6.
+- **Ajuda de Custo — fixa vs. variável** (registrada em 25/09, nada implementado): validar com a área se o cálculo de "Ajuda de Custo Mensal" precisa mesmo ser desmembrado em fixa/variável, incluindo a nova verba 3198 (AJ.CUST/ALIMENT.FIXA) — ver seção 6.
+- **4.26** (nova) — validar com a área o plano de "Piso Enfermagem — Dias" (e possivelmente "— Meses") descrito na seção 22.7, antes de implementar.
+- Continuar o levantamento de verbas que devem virar independentes (feedback ainda chegando aos poucos — próximos itens já visíveis em `feedback_servidores.md`: 9154 REPOSIÇÃO COMP.PISO ENFERMAGEM, 7810 PERDA SEXTO/OITAVO, IPSEMG filho 21-39 anos, 7701 IPSEMG ASSIST. MÉD. 13º, desconto de IPSEMG para dependente).
+- Demais pendências das sessões anteriores continuam em aberto: **4.21**, **4.22**, **4.23**.
 

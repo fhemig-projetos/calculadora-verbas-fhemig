@@ -1,10 +1,13 @@
 CONFIG_CAMPOS = {
     "vencimento_basico":       {"label": "Vencimento Básico (R$)", "tipo": "moeda"},
-    "ad_desempenho":    {"label": "Adicional de Desempenho (R$)", "tipo": "moeda"},
     "carga_horaria_mensal":    {"label": "Carga Horária Mensal (h/mês)", "tipo": "hora_mensal"},
     "horas_realizadas": {"label": "Horas Realizadas", "tipo": "horas_realizadas"},
     "ano_referencia":   {"label": "Ano de Referência", "tipo": "ano"},
-    "grs_risco": {"label": "GRS", "tipo": "select_risco"},
+    "valor_grs": {
+        "label": "GRS (R$)",
+        "tipo": "moeda",
+        "help": "Risco Médio: R$ 160,20 · Risco Alto: R$ 320,40 (valores 2026) · Se não fizer jus, deixe R$ 0,00.",
+    },
     "dias_trabalhados": {"label": "Nº de Dias Trabalhados no Mês", "tipo": "dias"},
     "abono_emergencia": {"label": "Abono de Emergência (R$)", "tipo": "moeda"},
     "grat_final_semana": {"label": "Grat. Final de Semana (R$)", "tipo": "moeda"},
@@ -21,4 +24,5 @@ CONFIG_CAMPOS = {
     "giefs_13_salario":  {"label": "Valor da GIEFS do 13º (R$)", "tipo": "moeda"},
     "valor_outras_vantagens": {"label": "Outras Vantagens (soma automática do histórico) (R$)", "tipo": "moeda"},
     "outras_verbas": {"label": "Outras Verbas (R$)", "tipo": "moeda"},
+    "valor_pmc": {"label": "Valor do PMC (R$)", "tipo": "moeda"},
 }
