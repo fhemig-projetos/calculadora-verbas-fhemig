@@ -29,15 +29,25 @@ class Login:
         zera o st.session_state, então sem essa restauração o usuário cairia na tela de
         login de novo a cada F5.
         """
-        # Delay proposital para carregar o cookie
-        if not self._cookies.getAll() and not st.session_state.get("_aguardando_cookies"):
-            st.session_state["_aguardando_cookies"] = True
-            time.sleep(0.3)  # dá tempo do round-trip JS (ler cookie -> devolver pro Python) completar
+        # Delay proposital para carregar o cookie — em ambientes mais lentos (ex.: Streamlit
+        # Cloud, sobretudo no "cold start"), o round-trip JS (ler cookie -> devolver pro
+        # Python) pode não terminar numa única espera de 0,3s. Por isso, tenta algumas vezes
+        # antes de desistir, em vez de arriscar seguir com `cookies` ainda None.
+        cookies = self._cookies.getAll()
+        tentativas = st.session_state.get("_tentativas_cookie", 0)
+        if cookies is None and tentativas < 5:
+            st.session_state["_tentativas_cookie"] = tentativas + 1
+            time.sleep(0.3)
             st.rerun()
-        st.session_state["_aguardando_cookies"] = False
+        st.session_state["_tentativas_cookie"] = 0
 
-        # Busca o cookie
-        token = self._cookies.get(CHAVE_COOKIE_SESSAO)
+        # Sem cookies carregados (vazio) ou esgotadas as tentativas sem sucesso -> não tem
+        # sessão pra restaurar; usa o dicionário já obtido em vez de chamar self._cookies.get()
+        # de novo, que quebra com TypeError se `cookies` ainda estiver None.
+        if not cookies:
+            return
+
+        token = cookies.get(CHAVE_COOKIE_SESSAO)
         if not token:
             return
 
