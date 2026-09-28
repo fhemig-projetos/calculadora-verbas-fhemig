@@ -35,7 +35,17 @@ class Login:
         # antes de desistir, em vez de arriscar seguir com `cookies` ainda None.
         cookies = self._cookies.getAll()
         tentativas = st.session_state.get("_tentativas_cookie", 0)
-        if cookies is None and tentativas < 5:
+
+        """
+        `cookies` vem None enquanto o componente JS ainda nem respondeu — sinal claro de
+        "ainda carregando". Mas um {} (vazio) também é ambíguo: é o "valor padrão" que a
+        biblioteca sempre devolve na 1ª leitura da sessão, então pode significar tanto
+        "usuário sem cookie nenhum" quanto "resposta real ainda não chegou". Por isso trata
+        os dois (None e {}) da mesma forma — continua tentando até o teto de tentativas —
+        em vez de confiar de cara num {} e arriscar cair na tela de login por engano antes
+        do cookie de verdade chegar (o que fazia a tela "piscar" antes de ir pra calculadora).
+        """
+        if not cookies and tentativas < 5:
             st.session_state["_tentativas_cookie"] = tentativas + 1
             time.sleep(0.3)
             st.rerun()
