@@ -4,9 +4,6 @@ import io
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
-
-FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
-
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -25,7 +22,7 @@ from utils.formatador_campos import FormatadorCampos
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGO_PATH = BASE_DIR / "assets" / "cabecalho_pdf.png"
-
+FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
 
 class GeradorPDF:
     """Gera o PDF de conferência de verbas no layout padrão da FHEMIG.

@@ -30,20 +30,29 @@ class Login:
         login de novo a cada F5.
         """
         # Delay proposital para carregar o cookie — em ambientes mais lentos (ex.: Streamlit
-        # Cloud, sobretudo no "cold start"), o round-trip JS (ler cookie -> devolver pro
-        # Python) pode não terminar numa única espera de 0,3s. Por isso, tenta algumas vezes
-        # antes de desistir, em vez de arriscar seguir com `cookies` ainda None.
+        # Cloud): tenta puxar os cookies até 5 vezes, com delay de 1.5s ao todo (0.3 ms 
+        # entre tentativas)
         cookies = self._cookies.getAll()
         tentativas = st.session_state.get("_tentativas_cookie", 0)
 
         """
+        # Bug de renderização do formulário de login mesmo após usuário já ter logado
         `cookies` vem None enquanto o componente JS ainda nem respondeu — sinal claro de
-        "ainda carregando". Mas um {} (vazio) também é ambíguo: é o "valor padrão" que a
-        biblioteca sempre devolve na 1ª leitura da sessão, então pode significar tanto
-        "usuário sem cookie nenhum" quanto "resposta real ainda não chegou". Por isso trata
-        os dois (None e {}) da mesma forma — continua tentando até o teto de tentativas —
-        em vez de confiar de cara num {} e arriscar cair na tela de login por engano antes
-        do cookie de verdade chegar (o que fazia a tela "piscar" antes de ir pra calculadora).
+        "ainda carregando". O navegador envia um dict {} vazio quando a página é carregada 
+        na 1ª vez para o python. Isso é confuso e faz 'cookies' passar pelo check do retry
+        como falsy ('if cookies is None').
+
+        Isso dispara a renderização do formulário de login na sequência (ver fluxo do app.py
+        ). Após o delay, o navegador atualiza os cookies de sessão, o que dispara uma nova
+        execução do script do streamlit, agora carregando com sucesso os cookies e passando
+        corretamente pelo check, o que dispara a renderização do formulário da calculadora
+        e restaura a sessão.
+
+        # Correção
+        Corrigimos por meio de 'if not cookies', para evitar o comportamento falsy de 'cookies'.
+        Assim, é disparada uma nova tentativa de leitura, ao invés de renderizar o formulário
+        de login erroneamente.
+
         """
         if not cookies and tentativas < 5:
             st.session_state["_tentativas_cookie"] = tentativas + 1
@@ -52,12 +61,11 @@ class Login:
         st.session_state["_tentativas_cookie"] = 0
 
         # Sem cookies carregados (vazio) ou esgotadas as tentativas sem sucesso -> não tem
-        # sessão pra restaurar; usa o dicionário já obtido em vez de chamar self._cookies.get()
-        # de novo, que quebra com TypeError se `cookies` ainda estiver None.
+        # sessão pra restaurar. Pede pro usuário logar novamente.
         if not cookies:
             return
 
-        token = cookies.get(CHAVE_COOKIE_SESSAO)
+        token = cookies.get(CHAVE_COOKIE_SESSAO) # usa o dicionário 'cookies' já validado
         if not token:
             return
 
