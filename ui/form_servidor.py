@@ -11,6 +11,7 @@ class FormularioServidor:
     """
 
     def __init__(self):
+        # Carrega o session_state["dados_servidor"] se não houver dados salvos no banco
         if "dados_servidor" not in st.session_state:
             st.session_state["dados_servidor"] = {
                 "nome": "",
@@ -24,6 +25,7 @@ class FormularioServidor:
                 "ch_semanal": 0,
                 "ch_mensal": 0,
                 "vencimento_basico": 0.0,
+                "servidor_encontrado": None,
             }
         if "servidor_nonce" not in st.session_state:
             st.session_state["servidor_nonce"] = 0
@@ -33,7 +35,8 @@ class FormularioServidor:
 
     def render(self):
         with st.expander("Dados do Servidor", expanded=True):
-            ds = st.session_state["dados_servidor"]
+            # Carrega os dados do cabeçalho com os dados do session_state["dados_servidor"]
+            ds = st.session_state["dados_servidor"] 
 
             c1, c2, c3 = st.columns(3)
             c4, c5 = st.columns(2)
@@ -41,45 +44,59 @@ class FormularioServidor:
             ds["masp"]     = c1.text_input("MASP", value=ds["masp"], help="Somente números, sem pontos ou traços." , placeholder="Ex: 12345678", key="masp")
             ds["admissao"] = c2.text_input("Nº de Admissão", value=ds["admissao"], help="Somente números.", placeholder="Ex: 1, 2", key="admissao")
 
-            servidor_encontrado = None
             if ds["masp"] and ds["admissao"]:
                 busca_atual = (ds["masp"], ds["admissao"])
 
-                # Pula a lógica de busca caso os campos masp e admissão não tiverem sido alterados
-                # Sem isso, buscaria a cada rerun
-                # Evita consultas no banco desnecessárias
                 if busca_atual != st.session_state["ultima_busca_servidor"]:
+                    """
+                    - Lógica de alteração da busca por masp e admissão.                     
+                    - Ativa nova consulta no banco quando altera o masp ou admissão.
+                    - Na linha `ds["servidor_encontrado"] = servidor_encontrado is not None`,                    
+                    ds["servidor_encontrado"] aponta para o mesmo endereço da memória que 
+                    st.session_state["dados_servidor"]["servidor_encontrado"]. Por isso, 
+                    essa atribuição já reflete diretamente na variável de session_state.
+                    """
                     st.session_state["ultima_busca_servidor"] = busca_atual
                     servidor_encontrado = ProvedorServidoresSupabase.buscar_servidor(ds["masp"], ds["admissao"])
+
+                    # Incrementa o nonce que será usado nas chaves dos campos (evita bugs de preenchimento) 
                     st.session_state["servidor_nonce"] += 1
 
-                if servidor_encontrado:
-                    st.success("✅ Servidor encontrado na base — dados preenchidos automaticamente")
-                    ds["nome"] = servidor_encontrado["nome"]
-                    ds["dt_admissao"] = (
-                        datetime.date.fromisoformat(servidor_encontrado["data_inicio"])
-                        if servidor_encontrado["data_inicio"] else None
-                    )
-                    ds["dt_fim_efetiva"] = (
-                        datetime.date.fromisoformat(servidor_encontrado["data_fim_efetiva"])
-                        if servidor_encontrado["data_fim_efetiva"] else None
-                    )
+                    # Marca no session_state bool referente a se encontrou servidor ou não.
+                    # Usado abaixo para corrigir bug de display da mensagem de busca
+                    ds["servidor_encontrado"] = servidor_encontrado is not None 
 
-                    ds["cargo_classe"] = servidor_encontrado["cod_carreira"]
-                    ds["cargo_nivel"] = servidor_encontrado["nivel"]
-                    ds["cargo_grau"] = servidor_encontrado["grau"]
-                    ds["ch_semanal"] = int(servidor_encontrado["carga_horaria"])
+                    if servidor_encontrado:
+                        ds["nome"] = servidor_encontrado["nome"]
+                        ds["dt_admissao"] = (
+                            datetime.date.fromisoformat(servidor_encontrado["data_inicio"])
+                            if servidor_encontrado["data_inicio"] else None
+                        )
+                        ds["dt_fim_efetiva"] = (
+                            datetime.date.fromisoformat(servidor_encontrado["data_fim_efetiva"])
+                            if servidor_encontrado["data_fim_efetiva"] else None
+                        )
+
+                        ds["cargo_classe"] = servidor_encontrado["cod_carreira"]
+                        ds["cargo_nivel"] = servidor_encontrado["nivel"]
+                        ds["cargo_grau"] = servidor_encontrado["grau"]
+                        ds["ch_semanal"] = int(servidor_encontrado["carga_horaria"])
+                    else:
+                        # Não encontrado: limpa os dados da busca anterior, para não deixar
+                        # dados de outro servidor associados ao MASP/Admissão atual
+                        ds["nome"] = ""
+                        ds["dt_admissao"] = None
+                        ds["dt_fim_efetiva"] = None
+                        ds["cargo_classe"] = ""
+                        ds["cargo_nivel"] = ""
+                        ds["cargo_grau"] = ""
+                        ds["ch_semanal"] = 0
+
+                # Mensagem refletindo o resultado da última busca feita 
+                if ds.get("servidor_encontrado"):
+                    st.success("✅ Servidor encontrado na base — dados preenchidos automaticamente")
                 else:
-                    # Não encontrado: limpa os dados da busca anterior, para não deixar
-                    # dados de outro servidor associados ao MASP/Admissão atual
                     st.info("ℹ️ Servidor não encontrado na base. Preencha os dados manualmente.")
-                    ds["nome"] = ""
-                    ds["dt_admissao"] = None
-                    ds["dt_fim_efetiva"] = None
-                    ds["cargo_classe"] = ""
-                    ds["cargo_nivel"] = ""
-                    ds["cargo_grau"] = ""
-                    ds["ch_semanal"] = 0
 
             # Lido só após o bloco de busca, já com o nonce incrementado nesta
             # rodada (se houve busca nova) — os campos abaixo nascem com key
@@ -105,9 +122,9 @@ class FormularioServidor:
             c6, c7, c8 = st.columns(3)
 
             # Campos com on_change não podem receber value= (Streamlit acusa
-            # warning de conflito entre os dois). A semente do valor é escrita
+            # warning de conflito entre os dois). O valor é escrito
             # direto em session_state[key], só na primeira vez que a key existe
-            # (ou seja, só quando o nonce muda) — por isso a guarda abaixo.
+            # (ou seja, só quando o nonce muda) — por isso o formato abaixo.
             key_cargo_classe = f"{nonce}::cargo_classe"
             key_cargo_nivel = f"{nonce}::cargo_nivel"
             key_cargo_grau = f"{nonce}::cargo_grau"
@@ -132,20 +149,30 @@ class FormularioServidor:
 
             # Calcula a ch mensal com base na ch semanal informada
             ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
-            c10.number_input("Carga Horária Mensal", value=ds["ch_mensal"], disabled=True, key=f"{nonce}::ch_mensal")
+
+            # CH semanal entra na key p/ o campo ch mensal atualizar ao trocar a ch semanal 
+            # manualmente (correção de bug do campo ch mensal ficar travado)
+            key_ch_mensal = f"{nonce}::ch_mensal::{ds['ch_semanal']}"
+            c10.number_input("Carga Horária Mensal", value=ds["ch_mensal"], disabled=True, key=key_ch_mensal)
 
             cargo_encontrado = None
             # Se campos preenchidos
             if ds["cargo_classe"] and ds["cargo_nivel"] and ds["cargo_grau"] and ds["ch_semanal"]:
                 # Busca o cargo
                 cargo_encontrado = ProvedorDadosFhemig.buscar_cargo(ds["cargo_classe"], ds["cargo_nivel"], ds["cargo_grau"], ds["ch_semanal"])
+
+                # Combinação de cargo/nível/grau/CH entra na key p/ o vencimento atualizar ao 
+                # trocar qualquer um dos campos (resolve bug de não ser disparada nova busca
+                # do valor do vencimento básico)  
+                key_vencimento = f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"
+
                 # Se cargo encontrado retorna valor do vencimento básico e deixa o campo editável
                 if cargo_encontrado:
                     st.success(
                         f"✅ Cargo encontrado. Vencimento básico pré-preenchido!\n\n"
                     )
-                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=cargo_encontrado["vencimento_basico"], format="%.2f", key=f"{nonce}::vencimento_basico")
+                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=cargo_encontrado["vencimento_basico"], format="%.2f", key=key_vencimento)
                 # Se cargo não encontrado abre campos para preenchimento
                 else:
                     st.warning("⚠️ Cargo não encontrado na tabela. Preencha o vencimento básico manualmente abaixo.")
-                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=0.0, format="%.2f", key=f"{nonce}::vencimento_basico")
+                    ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=0.0, format="%.2f", key=key_vencimento)

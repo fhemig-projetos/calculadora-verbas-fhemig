@@ -1,6 +1,5 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
-from data import ProvedorDadosFhemig
 
 class CalculadoraGRSDescontoHoras(CalculadoraVerba):
     @property
@@ -9,18 +8,16 @@ class CalculadoraGRSDescontoHoras(CalculadoraVerba):
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["grs_risco", "carga_horaria_mensal", "faltas_horas"]
+        return ["valor_grs", "carga_horaria_mensal", "faltas_horas"]
 
-    def calcular(self, grs_risco: str, carga_horaria_mensal: int, faltas_horas: int) -> ResultadoCalculo:
-        valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
-
+    def calcular(self, valor_grs: float, carga_horaria_mensal: int, faltas_horas: int) -> ResultadoCalculo:
         # Previne divisão por zero
         ch = carga_horaria_mensal if carga_horaria_mensal > 0 else 1
 
         valor = (valor_grs / ch) * faltas_horas
 
         memoria = [
-            f"GRS ({grs_risco}): {FormatadorCampos.brl(valor_grs)}",
+            f"GRS: {FormatadorCampos.brl(valor_grs)}",
             f"÷ CH {ch}h = {FormatadorCampos.brl(valor_grs/ch)}/h",
             f"× {faltas_horas} horas de falta",
             f"= {FormatadorCampos.brl(valor)}",

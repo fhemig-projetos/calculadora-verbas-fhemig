@@ -1,3 +1,10 @@
+from .vencimento_basico_dias import CalculadoraVencimentoBasicoDias
+from .abono_emergencia_dias import CalculadoraAbonoEmergenciaDias
+from .plantao_medico_complementar import CalculadoraPlantaoMedicoComplementar
+from .piso_enfermagem_dias import CalculadoraPisoEnfermagemDias
+from .piso_enfermagem_meses import CalculadoraPisoEnfermagemMeses
+from .piso_enfermagem_desconto import CalculadoraPisoEnfermagemDesconto
+from .ipsemg_filho import CalculadoraIPSEMGFilho
 from .hora_extra import CalculadoraHoraExtra
 from .adicional_noturno import CalculadoraAdicionalNoturno
 from .gratificacao_final_semana import CalculadoraGratificacaoFinalSemana
@@ -25,6 +32,13 @@ from .licenca_maternidade import CalculadoraLicencaMaternidade
 
 # Registro (Factory) para conectar a UI às Classes
 REGISTRO_CALCULADORAS = {
+    "Vencimento Básico — Dias": CalculadoraVencimentoBasicoDias(),
+    "Abono de Emergência — Dias": CalculadoraAbonoEmergenciaDias(),
+    "Plantão Médico Complementar (PMC)": CalculadoraPlantaoMedicoComplementar(),
+    "Piso Enfermagem — Dias": CalculadoraPisoEnfermagemDias(),
+    "Piso Enfermagem — Meses": CalculadoraPisoEnfermagemMeses(),
+    "Piso Enfermagem — Desconto": CalculadoraPisoEnfermagemDesconto(),
+    "IPSEMG Filho 21 a 39 anos": CalculadoraIPSEMGFilho(),
     "Hora Extra": CalculadoraHoraExtra(),
     "Adicional Noturno": CalculadoraAdicionalNoturno(),
     "Gratificação de Final de Semana": CalculadoraGratificacaoFinalSemana(),

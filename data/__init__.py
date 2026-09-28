@@ -1,3 +1,4 @@
 from .provedor_dados import ProvedorDadosFhemig
 from .provedor_servidores import ProvedorServidoresSupabase
 from .provedor_usuarios import ProvedorUsuarios
+from .provedor_analises import ProvedorAnalises

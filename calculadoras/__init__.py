@@ -1,5 +1,12 @@
 from .base import CalculadoraVerba, ResultadoCalculo
 
+from .vencimento_basico_dias import CalculadoraVencimentoBasicoDias
+from .abono_emergencia_dias import CalculadoraAbonoEmergenciaDias
+from .plantao_medico_complementar import CalculadoraPlantaoMedicoComplementar
+from .piso_enfermagem_dias import CalculadoraPisoEnfermagemDias
+from .piso_enfermagem_meses import CalculadoraPisoEnfermagemMeses
+from .piso_enfermagem_desconto import CalculadoraPisoEnfermagemDesconto
+from .ipsemg_filho import CalculadoraIPSEMGFilho
 from .hora_extra import CalculadoraHoraExtra
 from .adicional_noturno import CalculadoraAdicionalNoturno
 from .gratificacao_final_semana import CalculadoraGratificacaoFinalSemana

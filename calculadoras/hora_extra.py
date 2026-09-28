@@ -4,19 +4,19 @@ from utils import FormatadorCampos
 class CalculadoraHoraExtra(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: (Venc. Básico + Ad. Desempenho) ÷ Carga Horária Mensal × Horas Realizadas × 1,50"
+        return "Fórmula: Venc. Básico ÷ Carga Horária Mensal × Horas Realizadas × 1,50"
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "ad_desempenho", "carga_horaria_mensal", "horas_realizadas"]
+        return ["vencimento_basico", "carga_horaria_mensal", "horas_realizadas"]
 
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
+    def calcular(self, vencimento_basico: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
         # Tratamento de erro básico para não quebrar o app
         if carga_horaria_mensal <= 0:
             return ResultadoCalculo(0.0, ["Erro: Carga horária deve ser maior que zero."])
 
-        # Fórmula            
-        base = vencimento_basico + ad_desempenho
+        # Fórmula
+        base = vencimento_basico
         valor = (base / carga_horaria_mensal) * horas_realizadas * 1.5
         
         # Memória de cálculo

@@ -1,31 +1,27 @@
 from calculadoras import CalculadoraVerba, ResultadoCalculo
 from utils import FormatadorCampos
-from data import ProvedorDadosFhemig
 
 class CalculadoraTercoFerias(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: (Venc. Básico + Ad. Desempenho + Ab. Emergência + Ad. Noturno + GRS) ÷ 3"
+        return "Fórmula: (Venc. Básico + Ab. Emergência + Ad. Noturno + GRS) ÷ 3"
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "ad_desempenho", "abono_emergencia",
-                "adicional_noturno", "grs_risco"]
+        return ["vencimento_basico", "abono_emergencia",
+                "adicional_noturno", "valor_grs"]
 
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, abono_emergencia: float, adicional_noturno: float, grs_risco: str) -> ResultadoCalculo:
-        valor_grs = ProvedorDadosFhemig.obter_valor_grs(grs_risco)
-
+    def calcular(self, vencimento_basico: float, abono_emergencia: float, adicional_noturno: float, valor_grs: float) -> ResultadoCalculo:
         # Fórmula
-        base = (vencimento_basico + ad_desempenho + abono_emergencia +
+        base = (vencimento_basico + abono_emergencia +
                 adicional_noturno + valor_grs)
         valor = base / 3
 
         memoria = [
             f"Venc. Básico: {FormatadorCampos.brl(vencimento_basico)}",
-            f"Ad. Desempenho: {FormatadorCampos.brl(ad_desempenho)}",
             f"Abono Emergência: {FormatadorCampos.brl(abono_emergencia)}",
             f"Ad. Noturno: {FormatadorCampos.brl(adicional_noturno)}",
-            f"GRS ({grs_risco}): {FormatadorCampos.brl(valor_grs)}",
+            f"GRS: {FormatadorCampos.brl(valor_grs)}",
             f"─────────────────────",
             f"BASE: {FormatadorCampos.brl(base)}",
             f"÷ 3 = {FormatadorCampos.brl(valor)}",

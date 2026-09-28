@@ -26,6 +26,18 @@
     ]
   },
   "verbas": {
+    "Vencimento Básico — Dias": {
+      "codigo": "2400",
+      "tipo": "Vantagem"
+    },
+    "Abono de Emergência — Dias": {
+      "codigo": "2435",
+      "tipo": "Vantagem"
+    },
+    "Plantão Médico Complementar (PMC)": {
+      "codigo": "2961",
+      "tipo": "Vantagem"
+    },
     "Gratificação de Final de Semana": {
       "codigo": "416",
       "tipo": "Vantagem"
@@ -45,6 +57,18 @@
     "Licença Maternidade": {
       "codigo": "1200",
       "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — Dias": {
+      "codigo": "3154",
+      "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — Meses": {
+      "codigo": "3154",
+      "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — Desconto": {
+      "codigo": "9154",
+      "tipo": "Desconto"
     },
 
     "13º Salário": {
@@ -122,12 +146,11 @@
     "Desconto de IPSEMG (3,2%)": {
       "codigo": "7700",
       "tipo": "Desconto"
+    },
+    "IPSEMG Filho 21 a 39 anos": {
+      "codigo": "----",
+      "tipo": "Desconto"
     }
-  },
-  "tabela_grs": {
-      "nao_faz_jus": 0.0,
-      "risco_medio": 160.20,
-      "risco_alto": 320.40
   },
   "tabela_reajustes": {
     "2024": 0.0462,

@@ -5,27 +5,27 @@ class CalculadoraGratificacaoFinalSemana(CalculadoraVerba):
     
     @property
     def descricao_formula(self) -> str:
-        return "Fórmula: (Venc. Básico + Ad. Desempenho) ÷ (Carga Horária Mensal × Horas Realizadas × 0,5)"
+        return "Fórmula: Venc. Básico ÷ (Carga Horária Mensal × Horas Realizadas × 0,5)"
 
     @property
     def campos_necessarios(self) -> list[str]:
-        return ["vencimento_basico", "ad_desempenho", "carga_horaria_mensal", "horas_realizadas"]
+        return ["vencimento_basico", "carga_horaria_mensal", "horas_realizadas"]
 
-    def calcular(self, vencimento_basico: float, ad_desempenho: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
+    def calcular(self, vencimento_basico: float, carga_horaria_mensal: float, horas_realizadas: float) -> ResultadoCalculo:
         # Trava de segurança para divisão por zero
         if carga_horaria_mensal <= 0:
             return ResultadoCalculo(0.0, ["Erro: Carga horária deve ser maior que zero."])
-            
+
         # Passo a passo da matemática
-        base = vencimento_basico + ad_desempenho
+        base = vencimento_basico
         valor_hora = base / carga_horaria_mensal
-        
+
         # Fórmula
         resultado_final = valor_hora * horas_realizadas * 0.5
-        
+
         # Construção do "Extrato"
         memoria = [
-            f"Base (Venc + Ad. Desempenho): {FormatadorCampos.brl(base)}",
+            f"Base (Venc. Básico): {FormatadorCampos.brl(base)}",
             f"Valor/hora: {FormatadorCampos.brl(valor_hora)}",
             f"× {horas_realizadas:.0f} horas realizadas × fator 0,5",
             f"= {FormatadorCampos.brl(resultado_final)}"

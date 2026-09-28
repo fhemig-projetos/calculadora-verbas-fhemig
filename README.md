@@ -47,4 +47,4 @@ Ver `contexto.md` (seção 1) para a árvore completa do repositório e o detalh
 
 ## Status e pendências
 
-O andamento do projeto, decisões de regra de negócio e a lista viva de pendências ficam registrados em `contexto.md` (seções 4 e 14) e `duvidas.md`, em vez de duplicados aqui.
+O andamento do projeto, decisões de regra de negócio, dúvidas em aberto e a lista viva de pendências ficam registrados em `contexto.md` (seções 4, 6 e 14), em vez de duplicados aqui.

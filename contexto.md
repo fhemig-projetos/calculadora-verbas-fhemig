@@ -12,8 +12,7 @@
 calculadora-verbas-fhemig/
 ├── app.py                     # Entrypoint da versão modular (renomeado de main.py — ver 4.13)
 ├── app_hem.py                 # App de teste p/ deploy de múltiplos apps no mesmo repo (avaliar remoção — ver 15.4)
-├── contexto.md                # Este arquivo
-├── dúvidas.md                 # Dúvidas em aberto sobre regras de negócio
+├── contexto.md                # Este arquivo (inclui dúvidas em aberto — seção 6; `dúvidas.md` foi descontinuado em 25/09, tudo centralizado aqui)
 ├── requirements.txt           # streamlit, reportlab, pandas, supabase
 │
 ├── assets/                    # Identidade visual
@@ -57,6 +56,7 @@ calculadora-verbas-fhemig/
 │   ├── __init__.py
 │   ├── provedor_dados.py      # ProvedorDadosFhemig (cache + acesso JSON)
 │   ├── provedor_servidores.py # ProvedorServidoresSupabase (busca servidor por MASP+Admissão — ver 15.2)
+│   ├── provedor_usuarios.py   # ProvedorUsuarios — login/sessão (branch feature/login-persistencia-historico — ver seção 16)
 │   └── tabelas.json           # Cargos, INSS, verbas, GRS, reajustes
 │
 ├── ui/                        # Componentes de interface Streamlit
@@ -64,6 +64,7 @@ calculadora-verbas-fhemig/
 │   ├── cabecalho.py           # Cabeçalho institucional
 │   ├── config.py              # CONFIG_CAMPOS (labels dos campos dinâmicos)
 │   ├── form_servidor.py       # Formulário de dados do servidor
+│   ├── login.py               # Login + sessão persistente via cookie (branch feature/login-persistencia-historico — ver seção 16)
 │   └── selecao_verba.py       # Seleção + cálculo + histórico
 │
 └── utils/                     # Utilitários
@@ -503,7 +504,7 @@ Observações do levantamento:
   - Testado (Playwright): busca válida preenche Nome/Cargo/Nível; busca seguinte com combinação inexistente limpa os 3 campos para `''`. Fluxo completo (busca → edição manual → nova busca) e normalização continuam funcionando sem regressão; nenhum warning/erro no log do servidor.
 - **Testado (Playwright, 3 passos em sequência):** 1) primeira busca preenche Cargo=PENF/Nível=2 corretamente; 2) edição manual do campo Cargo (digitação char-a-char) persiste como "TOS", sem reverter; 3) segunda busca com servidor diferente (60h, MEDRE) sobrescreve corretamente para Cargo=MEDRE/Nível=1/CH=60. Os três cenários confirmados sem erros de console.
 - **Ainda não confirmado em uso real:** o sintoma original relatado pelo usuário (revert ao digitar MASP/Admissão) não foi replicável em teste automatizado (Playwright não recria com fidelidade o timing de foco/digitação humana). A correção de MASP/Admissão (`key="masp"`/`key="admissao"`, estável — não usa nonce, pois esses dois campos nunca são sobrescritos por código) segue de pé, mas pede confirmação do usuário em uso real.
-- **Reimplementação (27/08) — guarda condicional substitui a semente dentro do bloco de busca:** o usuário reverteu `ui/form_servidor.py` pra uma versão anterior a essa pendência (pra reduzir volume de mudanças acumuladas) e reimplementou a lógica de nonce do zero, com o mesmo objetivo mas uma variação mais simples pro problema do 2º efeito colateral (linha 499 acima): em vez de escrever a semente de `cargo_classe`/`cargo_nivel`/`cargo_grau` **dentro** do bloco `if busca_atual != ultima_busca_servidor` (acoplado à lógica de busca), a semente agora é escrita **logo antes de cada widget renderizar**, protegida por `if key not in st.session_state: st.session_state[key] = ds[campo]`. Efeito prático idêntico (a guarda só dispara na primeira aparição de cada key, ou seja, exatamente quando o nonce muda), mas desacopla a semeadura da lógica de busca — não precisa calcular `nonce_novo` dentro do bloco de busca nem duplicar a atribuição lá.
+- **Reimplementação (01-02/09) — guarda condicional substitui a semente dentro do bloco de busca:** o usuário reverteu `ui/form_servidor.py` pra uma versão anterior a essa pendência (pra reduzir volume de mudanças acumuladas) e reimplementou a lógica de nonce do zero, com o mesmo objetivo mas uma variação mais simples pro problema do 2º efeito colateral (linha 499 acima): em vez de escrever a semente de `cargo_classe`/`cargo_nivel`/`cargo_grau` **dentro** do bloco `if busca_atual != ultima_busca_servidor` (acoplado à lógica de busca), a semente agora é escrita **logo antes de cada widget renderizar**, protegida por `if key not in st.session_state: st.session_state[key] = ds[campo]`. Efeito prático idêntico (a guarda só dispara na primeira aparição de cada key, ou seja, exatamente quando o nonce muda), mas desacopla a semeadura da lógica de busca — não precisa calcular `nonce_novo` dentro do bloco de busca nem duplicar a atribuição lá.
   - Também corrigido nesta reimplementação: os 3 `on_change` (Cargo/Nível/Grau) precisam de `args=(key,)` explícito — sem isso o Streamlit chama o callback sem argumento e lança `TypeError` (`on_change_maiusculo_strip() missing 1 required positional argument: 'key'`) assim que o usuário edita o campo. Bug introduzido numa iteração intermediária (key adicionada antes do `args=`) e pego em revisão antes de ir pra teste.
   - Nível usa `on_change_strip` (sem forçar maiúsculas — valor costuma ser numérico/romano, ex. "2" ou "II", ver `data/provedor_servidores.py`), Cargo e Grau usam `on_change_maiusculo_strip`.
   - **Decisão registrada:** o warning do Streamlit sobre `value=` + Session State API (linha 499) foi avaliado e considerado aceitável de ignorar caso reapareça em algum campo no futuro — funcionalmente o `session_state` sempre prevalece sobre `value=` quando os dois coexistem, então não há bug real, só ruído no terminal. Se for necessário silenciar, a opção mais cirúrgica é um `logging.Filter` no logger `"streamlit"` filtrando pela mensagem específica (em vez de `[logger] level = "error"` no `.streamlit/config.toml`, que esconde todo warning do Streamlit, não só esse).
@@ -521,11 +522,128 @@ Observações do levantamento:
 - Quando o usuário **digita** o Nível manualmente (cargo não encontrado automaticamente), o campo aceita o algarismo arábico como está — não há conversão de volta pra romano em nenhum ponto do fluxo (tela, PDF, etc.).
 - Falta avaliar: converter pra romano só na exibição (mantendo arábico internamente pra bater com `tabela_cargos`), ou se o pedido é sobre outro ponto do fluxo (ex. PDF exportado). Confirmar com o usuário o comportamento exato esperado antes de implementar.
 
-### 4.17 🟡 Pendente — GRS: trocar de selectbox por preenchimento manual do valor
+### 4.17 ✅ Resolvido (25/09) — GRS: trocar de selectbox por preenchimento manual do valor
 
-- Hoje o campo `grs_risco` (`ui/selecao_verba.py`) é um `selectbox` com opções textuais ("Risco Médio", "Risco Alto", "Não faz jus" — 2 ou 3 opções dependendo da verba, ver `_render` linha ~145), resolvido pra valor numérico via `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` (parser centralizado, puxa de `tabela_grs` em `data/tabelas.json`).
-- Pedido: substituir esse selectbox por um campo de valor livre (o usuário digita o valor da GRS diretamente, em vez de escolher risco médio/alto/não faz jus e deixar o sistema resolver o valor).
-- Impacto a mapear antes de implementar: todas as calculadoras que hoje recebem `grs_risco` (`grs_dias.py`, `grs_meses.py`, `grs_13.py`, `grs_desconto_horas.py`, `ferias_terco.py`, `ferias_indenizadas.py`, `faltas_horas.py`, `faltas_dias.py`, `ipsemg.py`, `licenca_maternidade.py`) usam `ProvedorDadosFhemig.obter_valor_grs(grs_risco)` internamente — precisam passar a receber o valor já numérico direto, sem o parser. Também mexe em `CONFIG_CAMPOS` (`ui/config.py`) e na lógica dinâmica de exibição de 2 vs 3 opções (que deixa de fazer sentido).
+- Ver detalhamento completo na seção 22.4. Resumo: campo `grs_risco` (selectbox) virou `valor_grs` (campo monetário livre, com `help` mostrando os valores de referência); as 11 calculadoras afetadas (o levantamento original citava só 10, faltava `decimo_terceiro.py`) passaram a receber `valor_grs: float` direto, sem o parser `ProvedorDadosFhemig.obter_valor_grs`, que foi removido junto com a tabela `tabela_grs` (código morto).
+
+### 4.18 🟡 Pendente — faxina periódica de sessões expiradas via `pg_cron`
+
+- Contexto: a branch `feature/login-persistencia-historico` implementa login (tabela `usuarios`, caminho "tabela própria" — ver decisão na seção de login) e sessão persistente via cookie (tabela `sessoes`, `data/provedor_usuarios.py`: `criar_sessao`/`validar_sessao`/`encerrar_sessao`), pra manter o usuário logado após F5 (que por padrão limpa `st.session_state`).
+- `encerrar_sessao` (logout) deleta a linha da sessão no banco. `validar_sessao` também deleta a linha quando encontra uma sessão **expirada sendo consultada** (limpeza "de passagem", implementada). O que falta: sessões que expiram e **nunca mais são consultadas** (usuário fechou o navegador, trocou de máquina, apagou o cookie) ficam órfãs na tabela `sessoes` para sempre — nenhuma limpeza automática cobre esse caso.
+- **Solução proposta:** um job agendado no Postgres via extensão `pg_cron` (geralmente disponível no Supabase), rodando periodicamente algo como `delete from sessoes where expira_em < now()`. Preferível a agendar a limpeza dentro do próprio app Streamlit porque o Streamlit Community Cloud hiberna apps sem uso — não dá pra confiar que o processo vai estar de pé na hora agendada.
+- Não implementado ainda — só a limpeza "de passagem" (dentro de `validar_sessao`) está no código até o momento.
+
+### 4.19 ✅ Resolvido — Vencimento Básico não atualizava ao trocar Cargo/Nível/Grau/CH sem trocar MASP
+
+- **Sintoma:** a 1ª combinação de Cargo/Nível/Grau/CH Semanal que encontrava um registro em `tabela_cargos` preenchia corretamente o campo "Vencimento Básico" (`ui/form_servidor.py`). Se o usuário depois editava manualmente esses 4 campos pra outra combinação válida (sem trocar MASP/Admissão), `cargo_encontrado` era recalculado certo internamente, mas o campo "Vencimento Básico" na tela continuava mostrando o valor da 1ª busca.
+- **Causa:** o `number_input` do Vencimento Básico usava `key=f"{nonce}::vencimento_basico"`, onde `nonce` é o `servidor_nonce` — que só é incrementado numa busca **nova de MASP/Admissão**, não quando Cargo/Nível/Grau/CH mudam manualmente. Como a `key` ficava estável entre essas trocas, o Streamlit ignorava o novo `value=cargo_encontrado["vencimento_basico"]` a partir da 2ª renderização daquela `key` (mesmo bug de fundo já documentado na pendência 4.14 — "key estável ignora `value=` novo").
+- **Correção aplicada:** a combinação de cargo passou a fazer parte da `key`: `key=f"{nonce}::vencimento_basico::{ds['cargo_classe']}::{ds['cargo_nivel']}::{ds['cargo_grau']}::{ds['ch_semanal']}"`, nos dois `number_input` (encontrado/não encontrado) — assim qualquer mudança em cargo/nível/grau/CH também gera `key` nova, sem precisar alterar o `servidor_nonce` (que continua só para troca de MASP).
+
+### 4.20 ✅ Resolvido (24/09) — "Esqueci minha senha" (reset via e-mail)
+
+- Já detalhado na seção 17.3: chegou a ser **implementado e depois revertido** na sessão de 09/09, porque dependia de decisões fora do controle do usuário sozinho (qual serviço de e-mail usar — SMTP institucional da FHEMIG vs. API transacional externa — e credenciais de uma conta remetente dedicada).
+- **Retomado em 23/09** seguindo o plano detalhado da seção 18.3, concluído em 24/09 — ver seções 19, 20 e 21 para o detalhamento completo (tabela `redefinicoes_senha`, 3 métodos em `provedor_usuarios.py`, envio real via Gmail/SMTP com achado de proxy corporativo, e UI em `ui/login.py`).
+- **Fluxo completo e testado ponta a ponta** pelo usuário na UI: aba "Entrar" → expander "Esqueci minha senha" → e-mail recebido → link → tela "Definir nova senha" → login com a senha nova.
+
+### 4.21 🟡 Pendente — Migrar tabela de cargos/vencimentos (`tabela_cargos`) para o Supabase
+
+- Hoje `data/tabelas.json` (`tabela_cargos`) tem só **4 registros** (PENF nível 2/4, TOS nível 1, AGAS nível 1 — todos com CH 40h), usados pela busca local em `ProvedorDadosFhemig.buscar_cargo` (`data/provedor_dados.py`) pra pré-preencher o Vencimento Básico a partir de Cargo/Nível/Grau/CH.
+- Essa tabela é **diferente** da tabela `servidores` já migrada pro Supabase (~2861 registros reais, usada por `ProvedorServidoresSupabase.buscar_servidor` pra achar nome/cargo/CH pelo MASP) — a de vencimentos continua só local, manual, e cobre pouquíssimas combinações reais, o que explica boa parte dos casos de "cargo não encontrado" (ver também 4.19, relacionado mas é bug diferente).
+- **Proposta:** seguir o mesmo caminho já usado pra `servidores` (script tipo `scripts/populate_servidores.py`) — levantar a tabela oficial de vencimentos por classe/nível/grau/CH com a área de RH/taxação e importar pro Supabase, substituindo a busca local por uma consulta remota (mesmo padrão de `ProvedorServidoresSupabase`).
+- Não iniciado — depende de ter a fonte de dados completa (planilha oficial) disponível, o que ainda não foi levantado com a área.
+
+### 4.22 🟡 Pendente — Modularizar melhor o `app.py` (bloco de restauração da análise)
+
+- Hoje o `app.py` (entrypoint) tem, além da orquestração de alto nível (login → restaura análise → renderiza componentes → salva), um bloco de lógica bem específica embutido direto no script (linhas ~21-39): busca a análise salva no Supabase, desserializa `dados_servidor`, popula `session_state["historico"]` e reconstrói `ultima_busca_servidor` pra evitar rebusca indevida (ver explicação detalhada dada nesta sessão).
+- Isso foge um pouco do padrão do resto do projeto, onde cada `ui/*.py` encapsula sua própria lógica de estado (ex.: `FormularioServidor.__init__`, `Login._restaurar_sessao`) e o `app.py` só orquestra chamadas de alto nível.
+- **Proposta:** extrair esse bloco pra um método próprio — por exemplo `ProvedorAnalises.restaurar_sessao(usuario_id)` (mesmo padrão de nome usado em `Login._restaurar_sessao`), encapsulando a checagem da flag `analise_carregada`, a chamada a `carregar`/`desserializar_dados_servidor` e a reconstrução de `ultima_busca_servidor` — deixando o `app.py` só com uma chamada de uma linha, como já acontece com `Login()`.
+- Não implementado ainda — ajuste de organização/legibilidade, sem mudança de comportamento esperada.
+
+### 4.23 🟡 Pendente — Testar fluxo de login/reset de senha em produção (Streamlit Cloud)
+
+- O fluxo completo (login, autocadastro, persistência de sessão via cookie, e agora "Esqueci minha senha" — seções 16, 17 e 20/21) só foi testado **localmente** até aqui.
+- **Achado já registrado (seção 4.13), ainda pendente:** os secrets do Supabase (`[supabase_admin]`) não estão configurados no painel do Streamlit Cloud — sem isso, nada que dependa do banco funciona em produção, login incluso.
+- **✅ Analisado e decidido (28/09) — manter a `service_role`, não migrar pra `publishable`/RLS.** Motivo: a recomendação padrão do Supabase (usar `publishable` + RLS) existe pra apps que rodam **no navegador**, onde a chave fica exposta no JS e qualquer um pode copiá-la do DevTools. Esse app é Streamlit — roda inteiramente no servidor, a chave nunca é enviada pro navegador de quem usa. Além disso, checado no código: `provedor_usuarios.py`, `provedor_analises.py` e `provedor_servidores.py` usam a mesma `service_role` uniformemente, sem nenhum uso de `auth.uid()` — porque o projeto usa uma **tabela própria de usuários** (bcrypt, ver pendência/decisão 16.1), não o `Supabase Auth` nativo. Sem `Supabase Auth`, políticas de RLS não têm como diferenciar usuários pra valer — trocar pra `publishable` sem migrar a autenticação inteira pra `Supabase Auth` só quebraria o app (RLS bloqueando tudo) ou exigiria políticas permissivas equivalentes à `service_role`, sem ganho real de segurança. Migrar pra esse modelo de verdade é um projeto bem maior (adotar `Supabase Auth`), desproporcional ao porte da ferramenta hoje.
+- **O que de fato reduz risco, sem mudar a arquitetura:** manter `.streamlit/secrets.toml` fora do git (já é, via `.gitignore`), restringir quem tem acesso ao painel do Streamlit Cloud e ao repositório GitHub, e rotacionar a chave no painel do Supabase (Settings → API) se algum dia houver suspeita de vazamento.
+- Também vale testar especificamente o envio de e-mail (passo 4, seção 20) em produção — o código já foi feito pra funcionar sem o túnel de proxy corporativo (que só existe na rede local de dev), mas isso nunca foi confirmado rodando de fato no Streamlit Cloud.
+
+### 4.24 🟡 Pendente — Ajustes de regras de negócio conforme retorno das unidades
+
+- Pendência genérica registrada para quando as unidades (RH/CCPT e demais áreas consultadas ao longo do projeto — ver dúvidas em aberto na seção 6) retornarem com confirmações ou correções sobre regras de cálculo.
+- Ver seção 6 para a lista de dúvidas já registradas aguardando resposta das áreas.
+
+### 4.25 🟡 Pendente — confirmar se "Vencimento Básico — Dias" deveria ser excluída da soma de "Outras Vantagens" do INSS Mensal
+
+- A verba "Vencimento Básico — Dias" (2400, nova — ver seção 22.2) entra no histórico como Vantagem e é somada automaticamente em `valor_outras_vantagens` (soma de todo o histórico do tipo Vantagem, usada como input da INSS Mensal — ver `ui/selecao_verba.py`, campo `valor_outras_vantagens`).
+- A INSS Mensal (`calculadoras/inss_mensal.py`) já soma `vencimento_basico` (campo direto, cheio, vindo do cabeçalho) **+** `valor_outras_vantagens`. Se as duas verbas ("Vencimento Básico — Dias" e "INSS Mensal") forem calculadas na mesma sessão, o vencimento básico entra **duas vezes** na base do INSS Mensal.
+- **Decisão tomada em 25/09:** manter assim por ora — **não** adicionar "Vencimento Básico — Dias" à lista `NOMES_EXCLUIDOS_INSS` (que hoje já exclui "Ajuda de Custo Mensal" e as verbas de 13º dessa soma), até confirmação da área de RH/taxação sobre qual é o comportamento correto.
+- Ver também seção 6, "INSS Mensal e INSS sobre 13º".
+
+### 4.26 🟡 Pendente — validar com a área "Piso Enfermagem — Dias/Meses" (implementadas em 28/09 com interpretações forçadas)
+
+- **Implementado (28/09, ver seção 23):** "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses", ambas com código **3154** (mesmo código nas duas — o único código que o usuário tinha em mãos, do feedback original de "COMPLEMENTO PISO ENFERMAGEM"; **provavelmente não é o código real da variante Meses**, um sistema de folha não costuma ter duas verbas distintas com o mesmo código).
+- **Interpretações forçadas a validar com a área:**
+  1. Se "Complemento Piso Enfermagem" (3154) corresponde mesmo a "Piso Enfermagem — Dias".
+  2. Se a variante "— Meses" é realmente necessária (ninguém pediu explicitamente — foi suposição por espelhamento de padrão).
+  3. O código correto de "Piso Enfermagem — Meses" (hoje duplicado com o de Dias, só como placeholder).
+- Ver seção 6, "Piso Enfermagem" para as dúvidas específicas levantadas por uma servidora sobre pré-preenchimento e vinculação ao vencimento básico (ainda sem resposta técnica).
+- Ver também pendência **4.27** (nova) sobre o efeito dessas verbas na base do INSS Mensal.
+
+### 4.27 🟡 Pendente — revisão completa da regra de "Outras Vantagens" do INSS Mensal (acumula com 4.25)
+
+- **Decisão tomada em 28/09:** "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" **não** foram adicionadas a `NOMES_EXCLUIDOS_INSS` — continuam entrando normalmente na soma automática de "Outras Vantagens" do INSS Mensal, como qualquer outra verba do tipo Vantagem no histórico.
+- Essa é mais uma peça de uma questão maior, já em aberto desde a pendência 4.25 (Vencimento Básico — Dias): a regra de "quais verbas entram na base do INSS Mensal, e como evitar dupla contagem entre um campo direto e a soma automática do histórico" precisa de um **redesenho completo**, não só ajustes pontuais verba a verba. Fica combinado fazer essa revisão com calma numa sessão futura dedicada a isso, depois de conversar com a área.
+- Ver seção 6, "INSS Mensal e INSS sobre 13º", pra lista completa de dúvidas relacionadas.
+
+### 4.28 🟡 Pendente — investigar com a área possível vinculação entre Piso Enfermagem e Vencimento Básico
+
+- **Origem (fala de servidora, feedback registrado em 25/09):** *"O ideal é que no cabeçalho a gente consiga marcar se o PISO se aplica, e já inserir o valor pra que ele fique predefinido depois, ou se der que ele já entenda o valor do piso a partir do salário inserido no cabeçalho."*
+- A própria servidora não soube dizer se existe uma regra de cálculo formal ligando o valor do piso ao vencimento básico — só levantou a possibilidade. **Hoje não existe nenhuma relação assim no código**: `valor_piso` é sempre um campo independente, digitado manualmente (persistido entre verbas dentro da sessão, mas nunca derivado do vencimento básico ou de qualquer outro dado do cabeçalho).
+- **A investigar com a área:** existe de fato uma fórmula ou tabela oficial que relacione o piso da enfermagem ao vencimento básico (ex.: um percentual, uma diferença mínima garantida, etc.)? Se existir, isso mudaria o pré-preenchimento de `valor_piso` (hoje só reaproveita o que foi digitado antes, nunca deriva do vencimento básico).
+- Ver seção 6, "Piso Enfermagem", pra esse ponto e os demais relacionados (pré-preenchimento pelo cabeçalho, "faz jus ao piso" como flag).
+
+### 4.29 🟡 Pendente — confirmar com a área a interpretação de "Piso Enfermagem — Desconto" (9154)
+
+- **Implementado em 28/09** (ver seção 23.3) com uma interpretação forçada, não confirmada: que a verba 9154 (originalmente "REPOSIÇÃO COMP.PISO ENFERMAGEM", que a servidora pediu pra deixar como campo livre) é, na prática, um **desconto calculado sobre o mesmo valor do Piso Enfermagem** — por isso o campo reaproveita `valor_piso` (já compartilhado com Piso Enfermagem — Dias/Meses/13º) em vez de ter um campo de valor próprio e independente.
+- **A confirmar com a área:** essa interpretação está correta? "Reposição" e "desconto sobre o piso" são realmente a mesma coisa, ou a verba deveria ter seu próprio valor, sem vínculo direto com `valor_piso`?
+- Verba continua funcionando como campo livre (o usuário digita o valor de `valor_piso`, que a calculadora só repassa como desconto) — não há fórmula nova envolvida, só a reutilização do campo.
+
+### 4.30 🟡 Pendente — confirmar com a área se "Faltas — Horas" é de fato a verba 7810 (PERDA SEXTO/OITAVO)
+
+- **Levantamento da servidora:** *"7810 — PERDA SEXTO/OITAVO: Esse seria o Atraso, creio que você lançou ele na calculadora como falta horas"*.
+- **Checado no código (28/09):** `data/tabelas.json` já atribui o código **7810** à verba "Faltas — Horas" (`calculadoras/faltas_horas.py`) — bate com a suspeita da servidora, mas **não há confirmação formal** de que "Faltas — Horas" e "Perda Sexto/Oitavo" são de fato a mesma verba (nomes de negócio diferentes podem, ou não, mapear pro mesmo código/fórmula).
+- **A confirmar com a área:** o código 7810 e a fórmula atual de "Faltas — Horas" (`(Venc. Básico + Ab. Emergência + GRS + Piso Enfermagem) ÷ Carga Horária Mensal × Horas Descontadas`) correspondem mesmo ao "Perda Sexto/Oitavo"? Nenhuma mudança de código feita até essa confirmação.
+
+### 4.31 🟡 Pendente — descobrir código e fórmula de "IPSEMG Filho 21 a 39 anos" (implementada como campo livre em 28/09)
+
+- **Relato da própria servidora:** *"IPSEMG FILHO 21 A 39 ANOS — não sei a verba, e o desconto também acho que não é padrão. Qualquer coisa deixa livre até a gente descobrir, só pra inserir algum valor — quase não aparece."*
+- **Implementado (ver seção 23.4):** `calculadoras/ipsemg_filho.py` (novo) — campo livre puro, sem fórmula, campo `valor_ipsemg_filho`. Código registrado como **"----"** (placeholder, mesmo recurso já usado em "Aumento Salarial") até ser descoberto.
+- **Pendente descobrir:** o código oficial da verba na folha, e se existe de fato uma fórmula de cálculo (mesmo a servidora suspeitando que não é padrão) — a própria origem/regra do desconto é desconhecida por enquanto.
+
+### 4.32 🟡 Pendente — confirmar com a área se "IPSEMG Assist. Méd. 13º Salário" (7701) é a mesma verba/fórmula do "Desconto de IPSEMG (3,2%)"
+
+- **Relato da servidora:** *"7701 — IPSEMG ASSIST. MED. 13º SALARIO: fórmula é a mesma"*.
+- **Não entendido ainda:** se é a mesma verba de "Desconto de IPSEMG (3,2%)" (`calculadoras/ipsemg.py`, código 7700) só que aplicada sobre a base do 13º em vez da base mensal — ou se é uma verba genuinamente distinta que só compartilha a mesma alíquota/fórmula, mas com base de cálculo diferente (por ser referente ao 13º). Se for o segundo caso, o cálculo provavelmente muda mesmo (base do 13º, não a base mensal).
+- **Nada implementado** — precisa confirmar com a área antes de decidir entre: (a) não fazer nada, se for coberto pelo cálculo já existente; (b) criar uma verba nova (`Desconto de IPSEMG sobre 13º` ou nome similar) com a base de incidência do 13º; (c) outra coisa.
+
+### 4.33 🟡 Pendente — esclarecer com a área o "desconto de IPSEMG para dependente"
+
+- **Relato da servidora:** mencionado como necessário adicionalmente, mas **sem detalhamento** — não ficou claro se é uma das verbas de IPSEMG já previstas/citadas (ex.: a 7701 acima, ou o desconto de 3,2% já implementado) aplicada a um cenário específico, ou se é uma verba própria e distinta. Também não foi informada a fórmula de cálculo.
+- **Nada implementado** — precisa de mais detalhamento da servidora/área antes de qualquer ação (nem dá pra tratar como campo livre com segurança, já que nem o conceito da verba está claro ainda).
+
+### 4.34 ✅ Resolvido (28/09) — Horário do PDF com discrepância de 3h em produção
+
+- **Relatado por:** Lia da Silva Vicente (feedback anterior) e confirmado pelo usuário rodando a homologação no Streamlit Cloud.
+- **Causa:** [utils/exportador_pdf.py](utils/exportador_pdf.py) usava `datetime.now()` sem fuso horário no rodapé do PDF ("Relatório gerado em...") — isso pega o horário **local do servidor**, não do Brasil. Localmente coincide (máquina configurada em horário de Brasília), mas o Streamlit Cloud roda em UTC, então o PDF saía 3h adiantado em produção.
+- **Correção:** forçado o fuso `America/Sao_Paulo` via `zoneinfo` (biblioteca padrão do Python, sem dependência nova) — `datetime.now(FUSO_BRASIL)` sempre retorna o horário certo de Brasília, independente do fuso do servidor onde o app está rodando.
+- **Validado:** simulação com o processo Python forçado a rodar em UTC confirmou a diferença de 3h antes da correção, e o horário correto depois.
+- **Achado relacionado, não corrigido agora (baixa prioridade):** o mesmo padrão frágil (`date.today()` sem fuso) aparece em mais 4 pontos — `ui/selecao_verba.py` (linhas ~144, 297, 305: defaults de ano/mês de competência; linha ~379: data no nome do arquivo PDF) e `ui/form_servidor.py` (linhas ~110/115: limite máximo dos seletores de data de admissão/fim efetiva). O impacto ali é bem menor — só afetaria por poucas horas perto da virada de mês/ano/dia — mas segue o mesmo risco estrutural. Vale uma limpeza futura centralizando um helper `agora_brasil()`/`hoje_brasil()` reaproveitável, em vez de espalhar `ZoneInfo("America/Sao_Paulo")` em cada lugar.
+
+### 4.35 🟡 Pendente — avaliar remover um item específico do histórico, não só o último
+
+- Hoje (`ui/selecao_verba.py`, `_render_historico`) só existem dois botões de ação sobre a lista: **"Remover último"** (`st.session_state["historico"].pop()`, sempre o último elemento) e **"Limpar lista"** (remove tudo). Não há como remover um item específico do meio da lista.
+- **Complicador técnico:** os itens do histórico (dicionários com `nome_verba`, `codigo`, `tipo`, `competencia`, `observacao`, `valor`, `memoria`) não têm nenhum identificador único hoje — pra selecionar "qual item remover" seria preciso adicionar um id a cada item (ex.: um índice estável ou um `uuid`), e trocar a exibição de `st.dataframe` (só leitura) por algo que suporte seleção de linha (`st.dataframe` com `on_select`, disponível em versões recentes do Streamlit, ou `st.data_editor` com suporte a exclusão de linhas).
+- **Nada implementado ainda** — registrado só como avaliação a fazer, sem decisão de abordagem tomada.
 
 ---
 
@@ -538,7 +656,7 @@ Observações do levantamento:
 - **Piso Enfermagem 13º**: novo campo `valor_piso`, reutiliza `numero_meses` existente
 - **GIEFS — Dias, GIEFS — Meses, GIEFS — 1/3 de Férias**: usam o mesmo campo `valor_giefs` (informado manualmente pelo usuário)
 - **GIEFS — 13º**: usa `valor_giefs` + `numero_meses`
-- **Campo `numero_parcelas`**: removido — a GIEFS — Meses foi simplificada para **campo único de valor** (ver 2.4/10.4)
+- **Campo `numero_parcelas`**: removido — a GIEFS — Meses foi simplificada para **campo único de valor** (ver 2.4/10.4). **Atualização (25/09, seção 22.5):** essa simplificação tinha deixado faltando a multiplicação pelo período — a GIEFS — Meses passou a reaproveitar o campo genérico `numero_meses` (não é o antigo `numero_parcelas` de volta) para multiplicar `valor_giefs × numero_meses`.
 - **INSS sobre 13º**: `valor_13_salario` e `giefs_13_salario` são preenchidos automaticamente via busca no histórico
 - **Faltas — Dias e Faltas — Horas**: base inclui **Piso Enfermagem** (CPE — Lei 14434/22). Faltas — Dias divide por 30; Faltas — Horas divide pela carga horária.
 - **Férias Indenizadas**: **GIEFS NÃO entra** na base de cálculo (confirmado)
@@ -548,15 +666,56 @@ Observações do levantamento:
 
 ---
 
-## 6. Dúvidas em aberto (ver `dúvidas.md`)
+## 6. Dúvidas em aberto
 
-- Abono Emergência é valor fixo (R$ 150)?
+> Consolidado aqui em 25/09 — o arquivo `dúvidas.md` foi descontinuado, todo o histórico (resolvido e em aberto) passou pra cá.
+
+### INSS Mensal e INSS sobre 13º
 - ~~**INSS Mensal**: a base atualmente usa **apenas o `vencimento_basico`**...~~ ✅ Esclarecido (18/08) — ver seção 14
 - **INSS Mensal — soma por competência**: hoje `valor_outras_vantagens` soma **todo** o histórico da sessão, sem filtrar por mês/ano batendo com a competência do cálculo do INSS Mensal sendo feito. Confirmar com a área se é necessário filtrar por competência (ver seção 14).
-- ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º)
-- **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6).
-- Aumento Salarial: cálculo combinado "2024 + 2026" será **composto** (`base × 1,0462 × 1,054`)? Aguardando confirmação da área. **Relacionado:** o novo campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo combinado for confirmado como composto, pode ser necessário revisar essa soma simples.
-- **Adicional de Desempenho (ADE) é "somente efetivo"** (achado em 19/08, ver pendência 4.7): o documento oficial de levantamento de dados do RH/CCPT indica que o ADE (código 537) só se aplica a servidores efetivos. Como a calculadora é exclusivamente para **contratados**, isso levanta a dúvida se o campo `ad_desempenho` — usado hoje em `ferias_terco.py`, `faltas_horas.py`, `faltas_dias.py` e `ipsemg.py` — deveria ser removido dessas fórmulas. Não avaliado ainda; aguardando decisão para tratar em sessão futura.
+- **INSS Mensal — quais verbas entram de fato?** Dúvida genérica ainda em aberto, guarda-chuva das duas acima.
+- ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º). A alíquota e a dedução usam essa mesma soma (13º + GIEFS 13º), não só o 13º isolado.
+- **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6). Confirmar também se os valores desses dois estão corretos.
+- **"Vencimento Básico — Dias" pode contar em dobro na base do INSS Mensal** — ver pendência **4.25** (seção 4) para o detalhamento completo.
+- **"Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" entram na soma de "Outras Vantagens" do INSS Mensal, sem exclusão** (decisão tomada em 28/09, não excluídas de `NOMES_EXCLUIDOS_INSS`) — ver pendência **4.27** (seção 4) para o detalhamento completo. Acumula com o ponto acima (4.25): ambas fazem parte da mesma revisão maior, ainda não agendada, de "o que entra de fato na base do INSS Mensal".
+
+### Aumento Salarial
+- **Checado em 25/09:** `calculadoras/aumento_salarial.py` não tem nenhuma lógica de composição automática — cada cálculo é isolado, um ano por vez (`vencimento_basico × alíquota do ano`). A dúvida é sobre o **uso manual**: se o usuário precisa aplicar 2024 e 2026 sobre o mesmo vencimento, deve calcular os dois separadamente sobre o valor **original**, ou calcular 2024 primeiro e usar o resultado (já reajustado) como base pra calcular 2026 em seguida (`base × 1,0462 × 1,054`, cálculo composto)? Aguardando confirmação da área. **Relacionado:** o campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo composto for confirmado, pode ser necessário revisar essa soma simples.
+
+### Adicional de Desempenho
+- ~~**ADE é "somente efetivo"** (achado em 19/08, ver pendência 4.7): deveria ser removido das fórmulas?~~ ✅ Resolvido (25/09) — removido por completo de todas as calculadoras (ver seção 22.1).
+
+### GIEFS e GRS
+- ~~**GIEFS — Meses**: qual seria a fórmula de cálculo? Não localizada na planilha.~~ ✅ Resolvido (25/09) — fórmula real da GIEFS é mais complexa e segue não localizada; mantida a decisão de o usuário informar `valor_giefs` já calculado externamente. Só faltava multiplicar pelo período: adicionado o campo "Nº de Meses" (default 1), fórmula agora `valor_giefs × numero_meses` (ver seção 22.5).
+- Abono Emergência é valor fixo (R$ 150)? (mesma dúvida se aplica a GIEFS: os valores digitados hoje são sempre manuais, não puxados de nenhuma tabela.)
+- Qual é o jeito certo de deixar os valores de **GIEFS** pré-preenchidos pros usuários, nas verbas que usam `valor_giefs` como input? (Para **GRS**, essa dúvida perdeu parte da relevância desde 25/09 — seção 22.4 — já que o campo virou valor livre digitado pelo usuário em vez de selectbox resolvido por tabela.)
+- O atraso em horas ou dias (Faltas — Horas/Dias) afeta o valor de `valor_grs` considerado na fórmula, ou é sempre o valor cheio da GRS mensal?
+- Pra as verbas de GRS, trazer no nome da linha do histórico algum indicativo do valor usado (já que não há mais rótulo de "risco médio/alto" desde 25/09).
+
+### Piso Enfermagem
+- O valor do piso (`valor_piso`, usado em Faltas — Dias/Horas e Piso Enfermagem — 13º) é fixo? Faz sentido puxar automaticamente (existe uma tabela oficial?) ou manter como campo livre mesmo?
+- Definir regra vinculando o Piso Enfermagem — 13º pra aparecer só quando a carreira selecionada for PENF (hoje aparece sempre, independente da carreira).
+- **Novo (25/09), falas de uma servidora sobre o piso, ainda sem resposta:**
+  - *"Complemento do piso também não tem (tem só piso 13º)"* — confirma que falta algo equivalente ao "Complemento Piso Enfermagem" fora do 13º. **Não confirmado** se isso corresponde a uma verba "Piso Enfermagem — Dias" (ver pendência 4.26) ou é outra coisa.
+  - *"O ideal é que no cabeçalho a gente consiga marcar se o PISO se aplica, e já inserir o valor pra que ele fique predefinido depois, ou se der que ele já entenda o valor do piso a partir do salário inserido no cabeçalho."* — hoje não existe isso: `valor_piso` só é persistido campo a campo depois que o usuário digita manualmente uma vez numa verba (mecanismo genérico de `persistidos`, igual a qualquer outro campo monetário — não vem do cabeçalho nem de nenhuma tabela). **Precisa confirmar com a área/usuária** se esse comportamento (persistir depois da 1ª digitação) já atende, ou se ela realmente quer um campo no cabeçalho pra marcar "faz jus ao piso" com pré-preenchimento automático a partir do vencimento básico.
+  - Pergunta em aberto da própria servidora: **existe alguma regra de cálculo vinculando o valor do piso ao vencimento básico?** Não identificada nenhuma relação assim no código ou nos dados hoje — `valor_piso` é sempre um valor independente digitado pelo usuário. Precisa perguntar à área qual é essa regra, se existir. **Elevado a pendência formal 4.28** (seção 4).
+
+### Plantão Médico Complementar (PMC)
+- **Fórmula não validada com a área (25/09):** verba 2961 implementada como **campo livre** (`valor_pmc`, sem fórmula — o usuário digita o valor total do PMC diretamente, mesmo padrão do `valor_giefs`), porque não foi possível confirmar a fórmula de cálculo com a área a tempo. Pendente confirmar se existe uma fórmula de fato (ex.: valor de plantão × quantidade, algum piso/teto) e, se sim, implementá-la — ver seção 22.6.
+
+### Ajuda de Custo — possível separação entre fixa e variável (registrado em 25/09, ainda não validado)
+- **Feedback de usuárias da rede:** Juliane Martins de Almeida pediu ajuste no cálculo de ajuda de custo pra acrescentar carga horária e percentual de faltas, com separação entre parcela fixa e variável. Leudmarlen Rubia Gusmao Figueiredo relatou: *"a verba de ajuda de custo quando a gente lança no resumo funcional, tem que separar ajuda de custo fixa e ajuda de custo variável"*.
+- **Nova verba citada:** 3198 — AJ.CUST/ALIMENT.FIXA, "do mesmo jeito da que já está lançada" (ou seja, mesmo padrão de `calculadoras/ajuda_custo.py`, só que como a parcela **fixa**).
+- **Hipótese ainda não confirmada:** pode ser necessário desmembrar o cálculo de "Ajuda de Custo Mensal" em dois — ajuda de custo fixa e ajuda de custo variável — em vez do cálculo único atual (`ajuda_custo_diario × dias_trabalhados`).
+- **Nada implementado ainda** — registrado só como pendência, aguardando validação de como exatamente essa separação deveria funcionar (o que compõe a parte fixa vs. a variável, se a carga horária e o percentual de faltas entram em alguma fórmula específica, etc.) antes de mexer no código.
+
+### Desconto de Ajuda de Custo
+- Faz sentido buscar automaticamente o valor da "Ajuda de Custo Mensal" calculada num passo anterior (via histórico) para servir de base ao "Desconto de Ajuda de Custo"? (Hoje `valor_ajuda_custo` já é pré-preenchido do histórico — ver seção 5 — mas vale confirmar se é isso mesmo que deveria acontecer.)
+- Checar dúvida da Iza: "essa calculadora é do CUSTEIO ALIMENTAÇÃO?"
+
+### Melhorias sugeridas (baixa prioridade, não classificadas como pendência formal)
+- Trazer dados do servidor a partir do MASP de forma mais completa (relacionado à pendência 4.8).
+- Listar Data Fim Efetiva no PDF (relacionado à pendência 4.9, já resolvida — confirmar se cobre esse ponto).
 
 ---
 
@@ -882,4 +1041,455 @@ Ver detalhamento completo em 4.12. Resumo: `selectbox` com opções fixas (que n
 4. `calculadoras/faltas_horas.py` sem proteção contra divisão por zero em `carga_horaria_mensal` (ver 4.12) — não corrigido, só identificado.
 5. Avaliar se `app_hem.py` (app de teste na raiz, criado para testar deploy de múltiplos apps no mesmo repo) ainda é necessário ou pode ser removido (ver 4.13).
 6. `teste_supabase.py` (raiz do repo, não commitado) parece ser um script exploratório do usuário para testar a conexão com Supabase — avaliar se deve ser movido para `scripts/`, formalizado, ou descartado antes do commit.
+
+## 16. Plano de desenvolvimento — sessão 01-02/09
+
+> **Sessão:** sistema de login (tabela própria, sem Supabase Auth) + sessão persistente via cookie, na branch **`feature/login-persistencia-historico`** (criada a partir do `main` nesta sessão — ver 16.5). Objetivo maior por trás disso: permitir manutenção de valores preenchidos e histórico por usuário (login é o meio, não o fim — a persistência do histórico em si ainda não foi implementada, ver 16.6).
+
+### 16.1 ✅ Concluído — Decisão de arquitetura: tabela própria em vez de Supabase Auth ou `st.login()`
+
+- Avaliadas 3 rotas: (A) Supabase Auth (`auth.users`, gerenciado pelo Supabase), (B) `st.login()` nativo do Streamlit (OIDC, exige provedor de identidade externo tipo Google/Microsoft), (C) tabela própria (`usuarios`) no mesmo Postgres do Supabase, com hash de senha calculado em Python.
+- **Escolhida a rota C**, motivado por um plano futuro de migração do banco para MySQL — tanto Supabase Auth quanto RLS são features proprietárias do Supabase/Postgres, sem equivalente direto fora dele; uma tabela simples + hash em Python (bcrypt) é portável pra qualquer banco relacional sem reescrever a lógica de autenticação.
+- **Nota de arquitetura registrada:** como o app usa (hoje, em dev) a chave `service-role` do Supabase — que ignora RLS completamente — e em produção usará uma chave *publishable* (anon), o isolamento de dados por usuário (histórico, etc.) precisa ser feito **manualmente no código** (`.eq("usuario_id", ...)`), independente da rota escolhida — RLS só filtraria automaticamem se o app usasse o JWT de sessão do próprio Supabase Auth, o que não é o caso na rota C.
+
+### 16.2 ✅ Concluído — Tabela `usuarios`
+
+```sql
+create table public.usuarios (
+    id bigint generated always as identity primary key,
+    email text not null unique,
+    senha_hash text not null,
+    nome text not null,
+    unidade text,
+    ativo boolean not null default true,
+    criado_em timestamptz not null default now()
+);
+```
+- `unidade` (texto livre, opcional): coluna só informativa por decisão do usuário — não filtra/agrupa nada hoje. Se algum dia precisar filtrar por unidade, vale revisitar como tabela `unidades` separada (FK) pra evitar inconsistência de grafia.
+- E-mail é normalizado (`strip().lower()`) só do lado do código (`data/provedor_usuarios.py`), não no banco — `unique` do Postgres é case-sensitive.
+- **SQL rodado manualmente pelo usuário no Supabase** (não versionado como migration formal — sem ferramenta de migração no projeto ainda).
+
+### 16.3 ✅ Concluído — `data/provedor_usuarios.py` (novo arquivo, classe `ProvedorUsuarios`)
+
+Segue o mesmo padrão dos outros provedores (`_cliente()` cacheado via `@st.cache_resource`, lendo `st.secrets["supabase_admin"]`):
+- **`gerar_hash(senha)`** — `bcrypt.hashpw(..., bcrypt.gensalt())`. Uso: só em criação/reset de usuário (ainda não existe um script formal pra isso — ver pendência 16.6).
+- **`autenticar(email, senha)`** — busca por e-mail normalizado + `ativo=True` já filtrado na query (não distingue "e-mail não existe" de "senha errada" na resposta, evita user enumeration), confere com `bcrypt.checkpw` (com `try/except ValueError` pra hash corrompido), remove `senha_hash` do dicionário antes de retornar. **Não usa `@st.cache_data`** (diferente dos outros provedores) — cachear autenticação permitiria login com senha revogada até o cache expirar.
+- **`criar_sessao(usuario_id, validade_horas=1)`** — gera token opaco via `secrets.token_urlsafe(32)`, insere na tabela `sessoes` (ver 16.4) com `expira_em`.
+- **`validar_sessao(token)`** — busca a sessão com *embedding* do Supabase (`.select("expira_em, usuarios(id, email, nome, unidade, ativo)")`, aproveitando a FK `sessoes.usuario_id → usuarios.id` num select só). Retorna `None` se token não existe, expirou, ou usuário foi desativado depois de a sessão ter sido criada. **Limpeza "de passagem":** se encontra uma sessão expirada, já deleta a linha antes de retornar `None` (não cobre sessões nunca mais consultadas — ver pendência 4.18, `pg_cron`).
+- **`encerrar_sessao(token)`** — deleta a linha da sessão (usado no logout; mata a sessão no banco, não só o cookie local).
+- Dependência nova: `bcrypt>=4.0.0` (`requirements.txt`).
+
+### 16.4 ✅ Concluído — Tabela `sessoes`
+
+```sql
+create table public.sessoes (
+    token text primary key,
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    expira_em timestamptz not null,
+    criado_em timestamptz not null default now()
+);
+```
+`token` como chave primária (não um `id` sequencial) porque é ele mesmo que é buscado — precisa ser imprevisível, diferente de um id incremental. `on delete cascade`: remover um usuário já limpa as sessões dele.
+
+### 16.5 ✅ Concluído — `ui/login.py` (novo) + gate em `app.py` + branch dedicada
+
+- **Branch `feature/login-persistencia-historico`** criada a partir do `main` nesta sessão, especificamente para não influenciar o app já publicado no Streamlit Cloud. **Achado importante:** o commit `3ca5b9a` ("implementa provedor_usuarios", de uma sessão anterior) já estava no `main` **e já tinha sido empurrado pro `origin/main`** antes desta sessão começar — decisão do usuário foi deixar como está (é código morto hoje, nada no `main` atual chama essas funções), em vez de reescrever histórico já publicado.
+- **`ui/login.py`** — classe `Login`, mesmo padrão dos outros componentes de `ui/`:
+  - `__init__`: inicializa `session_state["usuario_logado"]`, instancia `CookieController()` (lib `streamlit-cookies-controller`, nova dependência), e chama `_restaurar_sessao()` se ainda não autenticado.
+  - `_restaurar_sessao()`: lê o cookie `token_sessao`, valida via `ProvedorUsuarios.validar_sessao`, restaura `usuario_logado` — é isso que mantém o login após F5 (que por padrão zera `st.session_state`).
+  - `autenticado()`, `render_formulario()` (form de e-mail/senha), `render_logout()` (mostra "Logado como X" + botão "Sair").
+- **`app.py`**: portão simples — se não autenticado, mostra só cabeçalho + login e `st.stop()`; se autenticado, segue o fluxo normal (form servidor + seleção de verba), com `render_logout()` visível.
+- **Validade da sessão:** `VALIDADE_SESSAO_HORAS = 1` (decisão do usuário — inicialmente cogitado 7 dias no plano, reduzido pra 1 hora).
+
+### 16.6 🐛 Dois bugs de corrida (race condition) encontrados e corrigidos — leitura/escrita assíncrona de cookie
+
+`streamlit-cookies-controller` lê/escreve cookies via componente customizado (JS no navegador) de forma **assíncrona** — o valor só fica disponível pro Python numa rodada *seguinte* à que disparou a leitura/escrita, nunca na mesma execução do script.
+1. **Escrita (bug real, confirmado via DevTools — cookie `token_sessao` não aparecia após login):** `self._cookies.set(...)` seguido de `st.rerun()` imediato não dava tempo do JS executar `document.cookie = ...` antes da tela mudar. Corrigido com `time.sleep(0.3)` entre o `.set()`/`.remove()` e o `st.rerun()`, em `render_formulario` e `render_logout`.
+2. **Leitura (defensivo, não isolado/confirmado como causa raiz de sintoma real — ver nota abaixo):** logo após F5, a primeira leitura de `self._cookies.getAll()` vem vazia mesmo com o cookie existindo de verdade (round-trip ainda não completou). Mitigado em `_restaurar_sessao` com uma espera + `st.rerun()` guardado por uma flag em `session_state` (evita loop infinito).
+- **Nota em aberto:** o bug confirmado por evidência (DevTools) foi o da escrita; a mitigação de leitura foi adicionada de forma defensiva, sem isolar se o Streamlit já resolveria isso sozinho via seu próprio mecanismo de rerun automático em widgets com `key=`. Não testado em isolamento — fica como possível simplificação futura, se alguém quiser confirmar removendo o bloco e testando o F5 sem ele.
+
+### 16.7 🟡 Pendências geradas nesta sessão
+
+1. **Script de criação de usuários** — hoje não existe nenhuma forma de inserir um usuário na tabela `usuarios` além de fazer manualmente no Supabase (usando `ProvedorUsuarios.gerar_hash(...)` pra gerar o hash certo). Cogitado um script tipo `scripts/populate_servidores.py`, não implementado.
+2. **Faxina de sessões órfãs via `pg_cron`** — ver 4.18.
+3. **Persistência de fato do histórico por usuário** — o objetivo final por trás do login (ver introdução desta seção). Login funciona, mas `st.session_state["historico"]` (`ui/selecao_verba.py`) continua em memória, não persistido em nenhuma tabela ainda. Também em aberto: se "valores preenchidos" deve incluir o formulário do cabeçalho (`dados_servidor`), não só o histórico de cálculos.
+4. **Confirmação em uso real** do fluxo completo (login → F5 → continua logado → Sair → F5 → volta pro login) — testado durante a sessão via DevTools/observação direta, mas sem um teste automatizado (Playwright) cobrindo esse fluxo.
+5. **Nota de segurança não tratada:** se em produção a tabela `usuarios` ficar acessível pela chave *publishable* (anon) com RLS habilitado sem policy, a própria consulta de login do app seria bloqueada — precisa decidir entre manter uma chave com mais privilégio só pra essa tabela, ou modelar policies específicas (discutido em conversa, não decidido/implementado).
+
+---
+
+## 17. Plano de desenvolvimento — sessão 09/09
+
+> **Sessão:** fechar a pendência 16.7.1 (criação de usuários) e avaliar autocadastro/reset de senha pela própria aplicação. Trabalho **não commitado ainda** nesta sessão.
+
+### 17.1 🔁 Criado e depois descartado — Script administrativo de gerenciamento de usuários
+
+- Chegou a ser criado `scripts/gerenciar_usuarios.py` (mesmo padrão de `populate_servidores.py`: standalone, sem depender do runtime do Streamlit) com dois comandos via CLI: `criar <email> <nome> [--unidade ...]` e `resetar-senha <email>`.
+- **Descartado pelo usuário** logo em seguida (arquivo nunca chegou a ser commitado nem usado de fato) — a criação de usuário já ficou coberta pelo autocadastro no app (ver 17.2), e resetar senha por esse script deixou de ser prioridade nesta sessão.
+- Pendência 16.7.1 (script de criação de usuários) **volta a ficar em aberto** — se precisar de um caminho administrativo de criar/resetar usuário fora do app, terá que ser refeito.
+
+### 17.2 ✅ Concluído — Autocadastro pela própria aplicação ("Criar conta")
+
+- **Decisão do usuário:** conta criada por autocadastro já nasce **ativa** (`ativo=True`, default da tabela) — sem fluxo de aprovação manual. **Sem restrição de domínio de e-mail** (aceita qualquer e-mail, não só `@fhemig.mg.gov.br`).
+- `data/provedor_usuarios.py`: novo método `criar_usuario(email, senha, nome, unidade)` — checa duplicidade de e-mail, insere com hash da senha, retorna `None` (sucesso) ou mensagem de erro.
+- `ui/login.py`: `render_formulario()` agora mostra duas abas (`st.tabs`) — "Entrar" (fluxo antigo, extraído para `_render_login`) e "Criar conta" (`_render_cadastro`, novo: nome, e-mail, unidade opcional, senha + confirmação). Em sucesso, não loga automaticamente — pede pra ir na aba "Entrar".
+- Placeholder `"exemplo@fhemig.mg.gov.br"` adicionado nos campos de e-mail (login e cadastro), a pedido do usuário.
+
+### 17.3 🟡 Avaliado e adiado — "Esqueci minha senha" (reset via e-mail)
+
+Chegou a ser **implementado e depois revertido** nesta sessão (tabela `redefinicoes_senha`, `ProvedorUsuarios.solicitar_redefinicao_senha`/`validar_token_redefinicao`/`redefinir_senha`, envio via SMTP com `smtplib`, tela de redefinição em `ui/login.py` acionada por `?token_reset=` na URL). **Usuário decidiu recuar** porque a funcionalidade depende de decisões que não estão sob seu controle sozinho:
+
+1. **Qual serviço de envio de e-mail usar** — SMTP direto (Gmail com "senha de app", Office 365/Outlook institucional, SMTP próprio da FHEMIG) ou uma API de e-mail transacional (SendGrid, Resend, Mailgun, SES). Cada opção tem custo/confiabilidade/setup diferentes.
+2. **Credenciais de uma conta de e-mail dedicada** para ser o remetente (`no-reply@...`) — não deveria ser o e-mail pessoal de ninguém.
+3. Depende de descobrir se a FHEMIG já tem infraestrutura de e-mail institucional disponível (SMTP corporativo) antes de optar por uma alternativa externa (Gmail/SendGrid/etc.).
+
+**Quando retomar:** o design já foi pensado e pode ser reimplementado rapidamente (a lógica de tokens de redefinição é análoga à de `sessoes`/`criar_sessao`/`validar_sessao`, já existente). Falta só:
+- Confirmar com quem de direito na FHEMIG qual canal de e-mail usar.
+- Criar a tabela `redefinicoes_senha` (schema: `token` PK, `usuario_id` FK, `expira_em`, `usado`, `criado_em`).
+- Preencher a seção `[smtp]` em `.streamlit/secrets.toml` (`host`, `port`, `usuario`, `senha`, `remetente`, `url_base`) — ou trocar `_enviar_email_redefinicao` por uma chamada HTTP à API do serviço escolhido, se não for SMTP.
+
+**Enquanto isso não é decidido**, não há nenhum caminho de reset de senha disponível — nem via app, nem via script administrativo (ver 17.1, descartado). Só resta editar `senha_hash` manualmente no Supabase, usando `ProvedorUsuarios.gerar_hash(...)` pra gerar o valor certo.
+
+### 17.4 ✅ Concluído — Persistência da análise ativa (cabeçalho + histórico) por usuário
+
+Objetivo final por trás de todo o trabalho de login (pendência 16.7.3, agora resolvida): o cabeçalho e o histórico de cálculos deixam de existir só em `st.session_state` e passam a sobreviver a F5/fechar o navegador, por usuário logado.
+
+**Decisões do usuário (escopo):**
+- Persiste **cabeçalho (`dados_servidor`) + histórico**, não só o histórico — resolve de vez o problema original que motivou a migração de Streamlit puro pra essa arquitetura com login.
+- **Só uma análise ativa por usuário** (não várias análises salvas simultaneamente) — cada nova análise sobrescreve a anterior. Mais simples, sem precisar de tela de "minhas análises salvas".
+
+**Tabela nova (rodar manualmente no Supabase, como as demais):**
+```sql
+create table public.analises (
+    usuario_id bigint primary key references public.usuarios(id) on delete cascade,
+    dados_servidor jsonb not null default '{}'::jsonb,
+    historico jsonb not null default '[]'::jsonb,
+    atualizado_em timestamptz not null default now()
+);
+```
+`usuario_id` como chave primária (não um `id` próprio) é o que garante "só uma análise por usuário" — `salvar` sempre faz `upsert(on_conflict="usuario_id")`.
+
+**Novo arquivo `data/provedor_analises.py`** — classe `ProvedorAnalises`:
+- `carregar(usuario_id)`: busca a análise salva, ou `None` se o usuário nunca salvou nada.
+- `salvar(usuario_id, dados_servidor, historico)`: upsert; falha silenciosa (não deve travar a aplicação por causa de persistência, já que os dados continuam íntegros em `session_state`).
+- `serializar_dados_servidor` / `desserializar_dados_servidor`: `dt_admissao`/`dt_fim_efetiva` são `datetime.date` em memória, mas precisam virar string ISO pra caber em `jsonb` — conversão isolada nesses dois métodos (idem na volta, de string pra `date`).
+
+**`app.py` — integração:**
+- Após confirmar `login.autenticado()`, restaura a análise salva **uma única vez por sessão de login** (flag `analise_carregada` em `session_state`) — sem essa guarda, cada rerun sobrescreveria edições em andamento com o que estava salvo no banco.
+- Ao final do script (depois de `form_servidor.render()` e `sv.render()`), chama `ProvedorAnalises.salvar(...)` a cada rerun — qualquer edição de campo do cabeçalho ou mudança no histórico (adicionar/remover/limpar) passa por um rerun do Streamlit, então isso garante que o banco fica sempre atualizado sem precisar de hooks espalhados pelo código.
+
+**Bug encontrado e corrigido na mesma sessão — vazamento de estado entre usuários no logout:** sem tratamento, se a Pessoa A fizesse logout e a Pessoa B logasse na mesma aba do navegador, `analise_carregada` continuaria `True` e `dados_servidor`/`historico` ainda em memória seriam da Pessoa A — o próximo `salvar()` sobrescreveria a análise da Pessoa B com os dados da Pessoa A. **Corrigido** em `ui/login.py` (`render_logout`): ao sair, `dados_servidor`, `historico` e `analise_carregada` são removidos de `session_state`, forçando uma carga limpa (do banco ou dos defaults) no próximo login.
+
+**Dois bugs encontrados durante teste real (usuário testou F5 com um MASP "não encontrado" na tabela `servidores`) e corrigidos em `ui/form_servidor.py`:**
+
+1. **Re-busca indevida após restaurar do banco:** `ultima_busca_servidor` (controle que evita repetir a consulta ao Supabase a cada rerun) não fazia parte do que era persistido — um F5 zerava esse controle, e o formulário achava que era uma busca nova, disparava `buscar_servidor` de novo e, não achando nada, **limpava o cabeçalho recém-restaurado**. **Corrigido em `app.py`:** ao restaurar a análise, `ultima_busca_servidor` também é pré-preenchido com o par `(masp, admissao)` restaurado, fazendo o formulário pular a re-busca inteira (consulta **e** preenchimento/limpeza, que estão aninhados no mesmo bloco).
+2. **Preenchimento/limpeza rodava em todo rerun, não só na busca nova:** o bloco que decide "encontrado" vs. "não encontrado" ficava fora do `if` que checa se a busca é nova — então ele executava (e limpava os campos) em **qualquer** rerun, mascarado numa sessão contínua só porque os widgets com `key` estável ignoram o `value=` e preservam o que o usuário digitou por trás da limpeza. Num `session_state` fresco (pós-F5) esse "colchão" não existe, e a limpeza aparecia de verdade. **Corrigido:** todo o preenchimento/limpeza foi movido pra **dentro** do `if busca_atual != ultima_busca_servidor:`, rodando só quando há busca nova de fato. O resultado da busca (`servidor_encontrado`) passou a ser guardado dentro do próprio `ds` (não mais solto em `session_state`) — assim a mensagem "✅ encontrado"/"ℹ️ não encontrado" também sobrevive ao F5, lendo o valor real da última busca em vez de resetar pro padrão.
+
+**Testado e confirmado pelo usuário:** fluxo completo de F5 no meio de uma análise com servidor **não encontrado** (dados preenchidos manualmente) — cabeçalho, mensagem e histórico voltam corretos.
+
+**Pendências geradas:**
+1. Cenário de **servidor encontrado** (MASP que existe na tabela `servidores`) ainda não testado após F5 — o caminho de código é o mesmo do "não encontrado", mas não foi validado na prática.
+2. Cenário de **troca de usuário na mesma aba** (logout da Pessoa A → login da Pessoa B) ainda não testado na prática — só corrigido por leitura de código (ver bug de vazamento acima).
+3. Todo rerun do Streamlit dispara um `upsert` no Supabase (mesmo sem mudança de dado) — aceitável para o volume de uso interno esperado, mas fica registrado como possível otimização futura (comparar se o conteúdo mudou antes de gravar) se algum dia o tráfego justificar.
+
+---
+
+## 18. Plano de desenvolvimento — sessão 16/09
+
+> **Sessão:** revisão do fluxo geral do app (didática, sem mudanças) + correção de bug de pré-preenchimento + planejamento do "Esqueci minha senha". Trabalho desta sessão **não commitado ainda**.
+
+### 18.1 ✅ Concluído — Vencimento Básico não atualizava ao trocar Cargo/Nível/Grau/CH sem trocar MASP
+
+Ver detalhamento completo na pendência **4.19** (já atualizada pra ✅ Resolvido). Resumo: `key` do `number_input` de Vencimento Básico (`ui/form_servidor.py`) passou a incluir a combinação de cargo/nível/grau/CH, além do `servidor_nonce` — corrige o campo ficando "travado" no valor da 1ª combinação encontrada quando o usuário edita cargo manualmente sem trocar MASP/Admissão.
+
+### 18.2 🟡 Pendências registradas nesta sessão (sem implementação ainda)
+
+- **4.20** — "Esqueci minha senha" (retomada do desenho da seção 17.3, ver plano detalhado abaixo em 18.3).
+- **4.21** — Migrar `tabela_cargos` (hoje só 4 registros locais em `data/tabelas.json`) para o Supabase, no mesmo padrão da tabela `servidores`.
+- **4.22** — Modularizar o bloco de restauração da análise salva, hoje embutido direto no `app.py` (linhas ~21-39) — extrair pra um método próprio (ex.: `ProvedorAnalises.restaurar_sessao(usuario_id)`), no padrão de encapsulamento já usado em `Login._restaurar_sessao`.
+
+### 18.3 📋 Plano detalhado — "Esqueci minha senha" (próximo passo, a começar amanhã)
+
+**Decisão do usuário:** usar **Gmail com senha de app** como canal de envio por enquanto (gratuito, limite de ~500 e-mails/dia — bem acima do necessário), com plano de trocar para SMTP institucional da FHEMIG mais adiante. Recomendado usar uma conta Gmail **dedicada** (ex.: `noreply.calculadorafhemig@gmail.com`), não a pessoal, com verificação em duas etapas ativada pra gerar a senha de app.
+
+**1. Tabela nova no Supabase** (rodar manualmente, como as demais):
+```sql
+create table public.redefinicoes_senha (
+    token text primary key,
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    expira_em timestamptz not null,
+    usado boolean not null default false,
+    criado_em timestamptz not null default now()
+);
+```
+Mesmo padrão de `sessoes` (token opaco como PK). Validade curta sugerida: **30 minutos**. `usado` impede reaproveitar o mesmo link duas vezes.
+
+**2. Três métodos novos em `data/provedor_usuarios.py`:**
+- `solicitar_redefinicao_senha(email)` — busca o usuário pelo e-mail; se existir, gera token (`secrets.token_urlsafe`), insere em `redefinicoes_senha`, chama o envio de e-mail. **Sempre retorna a mesma mensagem genérica**, ache ou não o e-mail — evita user enumeration (mesmo padrão já usado em `autenticar`).
+- `validar_token_redefinicao(token)` — confere se o token existe, não expirou e não foi usado.
+- `redefinir_senha(token, nova_senha)` — revalida o token, atualiza `senha_hash` do usuário, marca `usado=True`.
+
+**3. Envio de e-mail — função isolada, plugável:**
+```python
+def _enviar_email_redefinicao(email, token):
+    url = f"{st.secrets['app']['url_base']}?token_reset={token}"
+    # smtplib.SMTP_SSL("smtp.gmail.com", 465) + login com secrets["smtp"]
+```
+Isolar essa função é o que vai tornar a troca futura pra SMTP institucional (ou uma API tipo Resend/SendGrid) só uma questão de reescrever essa função sozinha, sem tocar no resto do fluxo.
+
+**4. `secrets.toml`** — novas seções:
+```toml
+[smtp]
+host = "smtp.gmail.com"
+port = 465
+usuario = "noreply.calculadorafhemig@gmail.com"
+senha = "xxxx xxxx xxxx xxxx"  # senha de app, não a senha normal da conta
+remetente = "noreply.calculadorafhemig@gmail.com"
+
+[app]
+url_base = "https://sua-url.streamlit.app"
+```
+
+**5. UI em `ui/login.py`:**
+- Aba "Entrar" ganha um link/botão "Esqueci minha senha" → formulário simples (só e-mail) → chama `solicitar_redefinicao_senha`.
+- `app.py` (ou o próprio `login.py`) verifica `st.query_params.get("token_reset")` no início — se presente, mostra a tela de "Nova senha" (2 campos: senha + confirmação) em vez do formulário normal de login, chamando `redefinir_senha` ao confirmar.
+
+**Ordem de implementação sugerida (retomar por aqui amanhã):**
+1. Criar a tabela `redefinicoes_senha` no Supabase.
+2. Implementar os 3 métodos em `provedor_usuarios.py` **sem** e-mail ainda (token exibido no console/tela pra teste manual).
+3. Validar o fluxo de token ponta a ponta (solicitar → token válido → redefinir → token não pode ser reusado → token expirado é rejeitado).
+4. Só então plugar o envio via Gmail (`secrets.toml` + `smtplib`).
+5. Construir a UI (`ui/login.py` + leitura de `?token_reset=` no `app.py`).
+
+---
+
+## 19. Plano de desenvolvimento — sessão 23/09
+
+> **Sessão:** ajuste de ambiente local (secrets do Supabase, autoreload) + correção de bug no cabeçalho + passos 1-3 do plano de "Esqueci minha senha" (seção 18.3). Trabalho desta sessão **não commitado ainda**.
+
+### 19.1 ✅ Concluído — Ambiente local configurado
+
+- Criado `.streamlit/secrets.toml` local (gitignored) com a seção `[supabase_admin]` (url + `service_role` key), obtida em Project Settings → API Keys no painel do Supabase. Sem esse arquivo, o app não conseguia consultar nenhuma tabela.
+- `runOnSave` do Streamlit explicado (Settings → Run on save, ou `[server] runOnSave = true` em `.streamlit/config.toml`) para reload automático ao salvar `.py`.
+
+### 19.2 ✅ Concluído — CH Mensal do cabeçalho não atualizava automaticamente
+
+- Mesma causa raiz do bug já documentado e corrigido para o Vencimento Básico (seções 4.14/4.19/18.1): `ui/form_servidor.py` recalculava `ds["ch_mensal"]` corretamente a cada execução, mas o `st.number_input` que o exibe usava `key=f"{nonce}::ch_mensal"` — como o Streamlit ignora `value=` quando a `key` já existe em `session_state`, o campo ficava travado no primeiro valor calculado sob aquele nonce (só voltava a atualizar numa nova busca de servidor, não ao editar CH Semanal manualmente).
+- **Corrigido:** `key` do campo passou a incluir `ds["ch_semanal"]` (`f"{nonce}::ch_mensal::{ds['ch_semanal']}"`), forçando o widget a remontar sempre que a CH Semanal mudar — mesmo padrão já usado no Vencimento Básico.
+
+### 19.3 ✅ Concluído — Passos 1-3 do plano de "Esqueci minha senha" (ver seção 18.3)
+
+- **Tabela `redefinicoes_senha`** criada manualmente no Supabase (SQL da seção 18.3, sem alteração).
+- **3 métodos novos em `data/provedor_usuarios.py`:**
+  - `solicitar_redefinicao_senha(email)` — busca usuário ativo pelo e-mail, gera token (`secrets.token_urlsafe(32)`), grava em `redefinicoes_senha` com validade de 30 min, retorna sempre mensagem genérica (evita user enumeration, mesmo padrão de `autenticar`). **Temporário:** enquanto o SMTP não é plugado (passo 4), o token vai embutido na própria mensagem de retorno (`(DEBUG — token: ...)`) só para permitir teste manual — remover antes de ir pra produção.
+  - `validar_token_redefinicao(token)` — checagem pura (sem side effects): existe? não `usado`? não expirado? Retorna o registro ou `None`.
+  - `redefinir_senha(token, nova_senha)` — revalida via `validar_token_redefinicao`, atualiza `senha_hash` do usuário (bcrypt) e marca o token como `usado=True`. Retorna `bool`.
+- **Validado ponta a ponta** manualmente via script (`solicitar → validar → redefinir → tentar reusar (bloqueado) → login com senha nova (funciona) → token expirado é rejeitado (confirmado ao vivo: token gerado há mais de 30 min falhou em `redefinir_senha`, como esperado)`).
+
+### 19.4 ✅ Concluído (24/09) — Passo 4 do plano (18.3): envio real de e-mail
+
+Ver detalhamento completo na seção 20.
+
+- Demais pendências da sessão de 16/09 (seção 18.2) continuam em aberto: **4.21** (migrar `tabela_cargos` pro Supabase) e **4.22** (modularizar restauração de análise do `app.py`).
+
+---
+
+## 20. Plano de desenvolvimento — sessão 24/09
+
+> **Sessão:** conclusão do passo 4 do plano de "Esqueci minha senha" (envio real via Gmail/SMTP) — incluindo um achado de infraestrutura de rede não previsto no plano original.
+
+### 20.1 ✅ Concluído — Envio real de e-mail via Gmail/SMTP (`data/provedor_usuarios.py`)
+
+- **`secrets.toml` local** ganhou as seções `[smtp]` (host, port, usuario, senha de app, remetente) e `[app]` (`url_base`), conforme desenhado na seção 18.3.
+- **Nova função `_enviar_email_redefinicao(email, token)`** — monta o link `{url_base}?token_reset={token}`, envia e-mail em texto puro via `smtplib.SMTP_SSL` + `MIMEText`. Isolada de propósito (trocar por SMTP institucional/API transacional no futuro é só reescrever essa função).
+- **`solicitar_redefinicao_senha`** atualizada: removido o retorno de debug com o token embutido (`(DEBUG — token: ...)`); agora chama `_enviar_email_redefinicao` dentro de um `try/except` e **sempre** retorna a mesma mensagem genérica — inclusive em caso de falha no envio (decisão do usuário: não diferenciar "e-mail não cadastrado" de "erro técnico no envio", pelos mesmos motivos de não vazar quais e-mails existem). Falha real fica só num `print` no console do servidor (projeto não tem logging estruturado ainda).
+
+### 20.2 🐛 Achado e resolvido — proxy corporativo (rede PRODEMGE) bloqueava `smtplib`
+
+- **Sintoma:** ao testar o envio pela primeira vez, a chamada travava indefinidamente (sem lançar exceção) até estourar timeout.
+- **Diagnóstico:** o ambiente de desenvolvimento local está atrás de um proxy HTTP corporativo obrigatório (`https_proxy` = `http://usuario:senha@proxyint.prodemge.gov.br:8080`). Bibliotecas como `requests`/`httpx` (usadas pelo cliente do Supabase) já leem essa variável de ambiente e usam o proxy automaticamente — mas `smtplib` (biblioteca padrão) não tem esse suporte, e tenta conexão direta, que a rede derruba silenciosamente.
+- **Corrigido:** nova função `_conectar_smtp(host, port)` em `provedor_usuarios.py` — se `https_proxy`/`HTTPS_PROXY` não estiver definido no ambiente (caso da produção, Streamlit Cloud), conecta direto, comportamento idêntico a antes. Se estiver definido (caso do dev local nesta rede), abre manualmente um túnel `CONNECT` HTTP até o proxy (mesmo mecanismo usado pelo `curl`), depois envelopa o socket resultante em TLS (`ssl.wrap_socket`) e "enxerta" esse socket já pronto num objeto `smtplib.SMTP_SSL` vazio (via atributo `.sock` + `.getreply()`), em vez de deixar o `smtplib` tentar conectar sozinho.
+- **Sub-achado:** a senha do proxy contém um caractere `@`, que chega codificado como `%40` na URL da variável de ambiente. `urlparse` não decodifica isso automaticamente — precisou de `urllib.parse.unquote()` nas credenciais do proxy antes de montar o cabeçalho `Proxy-Authorization`, senão o proxy recusava com `407 authenticationrequired`.
+- **Importante para sessões futuras:** esse proxy é específico desta rede/máquina (PRODEMGE) — não deve existir no deploy em produção (Streamlit Cloud), então o caminho de conexão direta (sem túnel) é o que roda lá. Se o envio de e-mail parar de funcionar em produção por algum motivo, **não é esse o código a suspeitar primeiro** (a branch do túnel nem deveria ativar sem a variável de ambiente presente).
+
+### 20.3 ✅ Concluído — Validação ponta a ponta (Parte E do plano)
+
+- Usuário de teste novo criado via autocadastro: `antonio.marcel@fhemig.mg.gov.br` (id 5) — os e-mails de teste anteriores (`xarope@wars.com`, `pdidi@fhemig.mg.gov.br`, `jubileu@fhemig.mg.gov.br`) não eram caixas reais acessíveis para conferir recebimento.
+- E-mail de redefinição enviado e **recebido com sucesso**, confirmado visualmente pelo usuário.
+- Token do link recebido no e-mail conferido contra o registro gravado em `redefinicoes_senha` — bateu.
+- Cenário de falha testado (mock de `_enviar_email_redefinicao` lançando exceção) — confirmado que `solicitar_redefinicao_senha` não propaga o erro, loga no console e retorna a mensagem genérica normalmente.
+
+### 20.4 ✅ Concluído (24/09) — Passo 5 do plano (18.3): UI de "Esqueci minha senha"
+
+Ver detalhamento completo na seção 21. Fecha a pendência 4.20 por completo — fluxo de reset de senha 100% funcional de ponta a ponta pela interface.
+
+- Remover/revisar o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário (ou manter como conta de teste oficial do projeto).
+- Demais pendências da sessão de 16/09 (seção 18.2) continuam em aberto: **4.21** (migrar `tabela_cargos` pro Supabase) e **4.22** (modularizar restauração de análise do `app.py`).
+
+---
+
+## 21. Plano de desenvolvimento — sessão 24/09 (continuação)
+
+> **Sessão:** conclusão do passo 5 do plano de "Esqueci minha senha" (UI em `ui/login.py`) — fecha a pendência 4.20 por completo.
+
+### 21.1 ✅ Concluído — UI de "Esqueci minha senha" (`ui/login.py`)
+
+- **`_render_esqueci_senha`** (novo método, chamado no final de `_render_login`) — um `st.expander("Esqueci minha senha")` na própria aba "Entrar", com um mini-formulário (só e-mail) que chama `ProvedorUsuarios.solicitar_redefinicao_senha(email)` e exibe a mensagem genérica retornada diretamente.
+- **`render_formulario`** passou a checar `st.query_params.get("token_reset")` logo no início — se presente (usuário clicou no link do e-mail), pula as abas normais de login/cadastro e chama `_render_nova_senha(token)` em vez disso.
+- **`_render_nova_senha`** (novo método) — revalida o token via `validar_token_redefinicao` antes de mostrar qualquer formulário (token inválido/expirado → mensagem de erro + botão que limpa a URL e volta pro login); se válido, mostra formulário de senha + confirmação (mesma regra de mínimo 8 caracteres já usada em `_render_cadastro`), chama `redefinir_senha(token, senha)` ao submeter, e limpa `?token_reset=` da URL (`st.query_params.clear()`) tanto no sucesso quanto ao clicar em "voltar" no caso de erro — evita reprocessar o mesmo token num F5 subsequente.
+- `app.py` não precisou de nenhuma alteração — toda a lógica ficou contida em `ui/login.py`, que já era o único ponto de entrada da tela pré-login.
+
+### 21.2 ✅ Concluído — Validação ponta a ponta pela UI
+
+Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pela aba "Entrar" → e-mail recebido → clique no link → tela "Definir nova senha" exibida corretamente → redefinição → login com a senha nova funcionando. Sem problemas encontrados.
+
+### 21.3 🟡 Limitação conhecida, não tratada (fora de escopo)
+
+- Se o usuário já estiver com sessão válida (cookie) e clicar num link de reset antigo, a tela de reset não aparece — `app.py` só chama `login.render_formulario()` quando `not login.autenticado()`. Cenário considerado raro (reset normalmente é usado justamente por não conseguir logar) e deixado como está por decisão implícita de escopo.
+
+### 21.4 🟡 Pendências para a próxima sessão
+
+- **4.21** — migrar `tabela_cargos` (hoje só 4 registros locais em `data/tabelas.json`) para o Supabase, no mesmo padrão da tabela `servidores`.
+- **4.22** — modularizar o bloco de restauração da análise salva, hoje embutido direto no `app.py` — extrair pra um método próprio (ex.: `ProvedorAnalises.restaurar_sessao(usuario_id)`).
+- **4.23** — testar o fluxo completo de login/reset de senha em produção (Streamlit Cloud) — inclui configurar os secrets do Supabase lá (seção 4.13) e avaliar a troca da chave `service_role` pela chave **publishable**, com políticas de RLS adequadas.
+- **4.24** — implementar ajustes de regras de negócio conforme retorno das unidades (RH/CCPT e demais áreas — ver dúvidas em aberto na seção 6).
+- Revisar/remover o usuário de teste `antonio.marcel@fhemig.mg.gov.br` se não for mais necessário.
+
+---
+
+## 22. Plano de desenvolvimento — sessão 25/09
+
+> **Sessão:** início do ciclo de ajustes de regras de negócio a partir do feedback dos usuários da rede Fhemig que testaram a aplicação (pendência 4.24) — inclui remoção de campo e primeira verba nova.
+
+### 22.1 ✅ Concluído — Remoção do Adicional de Desempenho
+
+- **Feedback recebido:** usuária (Luana Cristina da Silva Correa) relatou não conseguir preencher o campo "Adicional de Desempenho" — ele aparecia desabilitado (sempre R$ 0,00) em várias verbas, confundindo os usuários.
+- **Causa:** essa verba só existe pra servidores efetivos; a calculadora se destina a contratados, que nunca a recebem — por isso o campo já vinha fixo em 0,0 e desabilitado.
+- **Decisão:** em vez de só ocultar o campo (mantendo o valor fixo internamente — "gambiarra"), removido **por completo** de todas as calculadoras que o usavam, já que está fora do escopo atual do projeto.
+- Removido de 7 calculadoras (`hora_extra`, `gratificacao_final_semana`, `decimo_terceiro`, `faltas_dias`, `faltas_horas`, `ferias_terco`, `ipsemg`): campo, parâmetro de `calcular`, termo na fórmula, linha na memória de cálculo e menção em `descricao_formula`.
+- Removida a entrada `"ad_desempenho"` de `CONFIG_CAMPOS` (`ui/config.py`) e a lógica órfã de campo desabilitado em `ui/selecao_verba.py`.
+- Nenhum resultado numérico muda (o termo já era sempre 0.0 na prática).
+
+### 22.2 ✅ Concluído — Nova verba independente "Vencimento Básico — Dias" (2400)
+
+- **Motivação:** algumas verbas hoje só existem como variável de input de outras (ex.: `vencimento_basico` só aparecia embutido em Hora Extra, 13º, etc.), mas na prática o técnico às vezes precisa pagar só essa parcela isoladamente (ex.: pagamento proporcional a X dias trabalhados). Início de uma série de ajustes pra transformar essas variáveis em verbas independentes, registráveis no histórico — uma de cada vez.
+- **Implementado:** `calculadoras/vencimento_basico_dias.py` (novo) — fórmula `Venc. Básico ÷ 30 × Dias`, reaproveitando os campos já existentes `vencimento_basico` (pré-preenchido do cabeçalho) e `dias_trabalhados` (já usado por Ajuda de Custo, GRS — Dias e GIEFS — Dias). Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json` (código 2400, tipo Vantagem).
+- **Nome escolhido:** "Vencimento Básico — Dias", seguindo o padrão já usado por outras verbas fracionadas por dia (GRS — Dias, GIEFS — Dias).
+- **Cuidado tomado:** o campo `vencimento_basico` usado como input direto em todas as outras calculadoras continua vindo do cabeçalho normalmente — a nova verba não interfere nesse pré-preenchimento.
+- **Risco identificado e não resolvido:** possível dupla contagem do vencimento básico na base da INSS Mensal se as duas verbas forem calculadas na mesma sessão — ver pendência **4.25** (nova) e seção 6.
+
+### 22.3 ✅ Concluído — Nova verba independente "Abono de Emergência — Dias" (2435)
+
+- Mesmo padrão da 22.2: `calculadoras/abono_emergencia_dias.py` (novo) — fórmula `Abono de Emergência ÷ 30 × Dias`, reaproveitando `abono_emergencia` (campo manual já existente) e `dias_trabalhados`. Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json` (código 2435, tipo Vantagem).
+- **Checagem do INSS Mensal (mesmo cuidado da 22.2):** aqui **não há** risco de dupla contagem — diferente do Vencimento Básico, a INSS Mensal não recebe `abono_emergencia` como campo direto, só soma `vencimento_basico` + `valor_outras_vantagens` (soma do histórico) + `outras_verbas`. Logo o valor dessa verba entra na base do INSS Mensal uma única vez, via a soma automática — comportamento correto, sem necessidade de excluir em `NOMES_EXCLUIDOS_INSS` nem abrir dúvida nova.
+- `abono_emergencia` continua sendo usado como campo manual direto em 7 outras calculadoras (13º Salário, Faltas — Dias, Faltas — Horas, 1/3 de Férias, Férias Indenizadas, IPSEMG, Licença Maternidade) — nenhuma delas é afetada pela nova verba independente.
+
+### 22.4 ✅ Concluído — GRS: campo de risco (selectbox) trocado por valor livre (fecha a pendência 4.17)
+
+- **Pedido:** trocar o campo GRS de seleção de risco (Médio/Alto/Não faz jus) por um campo de valor numérico livre, com texto de ajuda (`help=`) lembrando os valores de referência ("Risco Médio: R$ 160,20 · Risco Alto: R$ 320,40 (valores 2026) · Se não fizer jus, deixe R$ 0,00.").
+- **Levantamento:** a pendência 4.17 (aberta em sessão anterior) listava 10 calculadoras afetadas — o levantamento estava incompleto, faltava `decimo_terceiro.py`. Total real: **11 calculadoras** (`grs_dias`, `grs_meses`, `grs_13`, `grs_desconto_horas`, `decimo_terceiro`, `faltas_dias`, `faltas_horas`, `ferias_terco`, `ferias_indenizadas`, `ipsemg`, `licenca_maternidade`).
+- **Implementado:**
+  - `ui/config.py`: campo `grs_risco` (tipo `select_risco`) virou `valor_grs` (tipo `moeda`, com `help`).
+  - `ui/selecao_verba.py`: removida a lógica de `opcoes_grs`/`indice_default_grs` (que variava entre 2 e 3 opções conforme a verba) e o `st.selectbox` dedicado — o campo passou a cair no fluxo genérico de campo monetário. Adicionado suporte a `help=config.get("help")` no `number_input` genérico, reutilizável por qualquer campo que declare esse atributo no `CONFIG_CAMPOS`.
+  - Nas 11 calculadoras: parâmetro `grs_risco: str` → `valor_grs: float`; removida a chamada a `ProvedorDadosFhemig.obter_valor_grs(...)` (e o import, onde só servia pra isso); linha da memória de cálculo `f"GRS ({grs_risco}): ..."` → `f"GRS: ..."`.
+  - Removido o código morto associado: método `ProvedorDadosFhemig.obter_valor_grs` (`data/provedor_dados.py`) e a tabela `tabela_grs` (`data/tabelas.json`), ambos sem uso após a mudança.
+- Testadas isoladamente as 11 calculadoras com a nova assinatura — todas OK.
+- Fecha a pendência **4.17**.
+
+### 22.5 ✅ Concluído — GIEFS — Meses: campo "Nº de Meses" que faltava
+
+- **Problema:** `calculadoras/giefs_meses.py` só recebia `valor_giefs` e devolvia o próprio valor sem multiplicar por nada — faltava o campo de número de meses.
+- **Contexto:** a fórmula real da GIEFS é mais complexa e nunca foi localizada na planilha (dúvida já registrada, então em `duvidas.md`, hoje consolidada na seção 6) — por isso a decisão, já tomada antes, de manter o usuário informando `valor_giefs` já calculado externamente. O que faltava era só a multiplicação pelo período.
+- **Implementado:** adicionado `numero_meses` a `campos_necessarios` (campo genérico já existente, reaproveitado — default 1, mesmo padrão de GRS — Meses/GRS — 13º/13º Salário, sem mudança nenhuma na UI). Fórmula: `valor_giefs × numero_meses`. Atualizados `descricao_formula` e a memória de cálculo.
+- Dúvida marcada como resolvida na seção 6.
+
+### 22.6 ✅ Concluído — Nova verba "Plantão Médico Complementar (PMC)" (2961), como campo livre
+
+- **Pedido:** incluir a verba 2961, com o valor validado com a área se possível; senão, campo livre.
+- **Decisão:** não foi possível validar a fórmula com a área nesta sessão — implementada como **campo livre puro** (`calculadoras/plantao_medico_complementar.py`, campo novo `valor_pmc`), sem nenhuma fórmula/multiplicação, só repassando o valor digitado — mesmo padrão do `valor_giefs`.
+- Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py`, `ui/config.py` (campo `valor_pmc`) e `data/tabelas.json` (código 2961, tipo Vantagem).
+- **Pendência registrada na seção 6** ("Plantão Médico Complementar (PMC)"): validar com a área se existe fórmula de cálculo de fato, e implementá-la se houver.
+
+### 22.7 📋 Plano (não implementado nesta sessão) — Piso Enfermagem como verba(s) independente(s) (3154)
+
+> **Nada foi implementado nesta sessão** — só o plano abaixo, registrado a pedido do usuário pra retomar na próxima sessão, depois de validar as interpretações forçadas com a área. Ver pendência **4.26**. **Atualização (28/09):** plano aprovado e implementado — ver seção 23.1.
+
+**Feedback que originou o pedido** (Leudmarlen Rubia Gusmao Figueiredo — mesma servidora da sessão de ajustes de regras de negócio):
+- 3154 — COMPLEMENTO PISO ENFERMAGEM: *"preciso informar quantos dias tenho que pagar. Então valor do PISO ÷ 30 × quant. dias ="* → pedido explícito: inserir o piso como verba independente.
+- Falas adicionais da servidora sobre o piso (ver seção 6, "Piso Enfermagem", pra detalhamento completo): confirma que falta previsão de complemento do piso fora do 13º; pergunta sobre pré-preenchimento a partir do cabeçalho; pergunta se existe regra vinculando o piso ao vencimento básico.
+
+**Interpretações do usuário que precisam de validação com a área antes de implementar (ele mesmo sinalizou como "forçadas"):**
+1. **"Complemento Piso Enfermagem" (3154) = "Piso Enfermagem — Dias"?** A fórmula descrita (`valor_piso ÷ 30 × dias`) bate com o padrão das outras verbas "— Dias" (Vencimento Básico — Dias, Abono de Emergência — Dias, GRS — Dias, GIEFS — Dias), mas não há confirmação de que "complemento" seja sinônimo de "dias" nesse contexto — pode ser outra coisa.
+2. **"Piso Enfermagem — Meses" também seria necessária?** Puramente por espelhamento do padrão de outras verbas que têm as três variantes (Dias/Meses/13º — ex.: GRS, GIEFS) — hoje só existe "Piso Enfermagem — 13º Salário". Não há nenhum pedido explícito de usuário pedindo a variante "Meses"; é suposição do usuário (Marcel) a confirmar.
+
+**Plano de implementação, quando validado** (mesmo padrão já usado nesta sessão para Vencimento Básico — Dias e Abono de Emergência — Dias):
+1. `calculadoras/piso_enfermagem_dias.py` (novo) — `campos_necessarios = ["valor_piso", "dias_trabalhados"]`, fórmula `valor_piso ÷ 30 × dias_trabalhados`. Reaproveita os dois campos, já existentes — nenhuma mudança em `ui/config.py` ou `ui/selecao_verba.py`.
+2. Se confirmada a variante Meses: `calculadoras/piso_enfermagem_meses.py` (novo) — `campos_necessarios = ["valor_piso", "numero_meses"]`, fórmula `valor_piso × numero_meses` (padrão de GRS — Meses).
+3. Registro em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json` — código **3154** pra "Piso Enfermagem — Dias" (a confirmar); código da variante Meses ainda **não informado pelo usuário**, precisa perguntar.
+4. **Checagem de efeito colateral a fazer** (mesmo cuidado das verbas anteriores): conferir se `valor_piso` entrando no histórico como Vantagem afeta a soma de `valor_outras_vantagens` do INSS Mensal — hoje `valor_piso` já é usado direto em Faltas — Dias/Horas e Piso Enfermagem — 13º, mas nenhuma delas soma automaticamente do histórico, então o risco de duplicação (como o caso do Vencimento Básico — Dias, pendência 4.25) precisa ser reavaliado nesse momento.
+5. **Não responde ainda** às perguntas em aberto da servidora sobre pré-preenchimento a partir do cabeçalho e vinculação ao vencimento básico (seção 6) — isso é uma decisão de UX/regra de negócio separada da simples criação da verba, e também depende de validação com a área.
+
+### 22.8 🟡 Pendências para a próxima sessão
+
+- **4.25** — confirmar com a área se "Vencimento Básico — Dias" deve ser excluída da soma de "Outras Vantagens" do INSS Mensal.
+- Validar com a área a fórmula do Plantão Médico Complementar (PMC) — ver seção 6.
+- **Ajuda de Custo — fixa vs. variável** (registrada em 25/09, nada implementado): validar com a área se o cálculo de "Ajuda de Custo Mensal" precisa mesmo ser desmembrado em fixa/variável, incluindo a nova verba 3198 (AJ.CUST/ALIMENT.FIXA) — ver seção 6.
+- **4.26** (nova) — validar com a área o plano de "Piso Enfermagem — Dias" (e possivelmente "— Meses") descrito na seção 22.7, antes de implementar.
+- Continuar o levantamento de verbas que devem virar independentes (feedback ainda chegando aos poucos — próximos itens já visíveis em `feedback_servidores.md`: 9154 REPOSIÇÃO COMP.PISO ENFERMAGEM, 7810 PERDA SEXTO/OITAVO, IPSEMG filho 21-39 anos, 7701 IPSEMG ASSIST. MÉD. 13º, desconto de IPSEMG para dependente).
+- Demais pendências das sessões anteriores continuam em aberto: **4.21**, **4.22**, **4.23**.
+
+---
+
+## 23. Plano de desenvolvimento — sessão 28/09
+
+> **Sessão:** implementação do plano da seção 22.7 (Piso Enfermagem), aprovado pelo usuário com ajustes.
+
+### 23.1 ✅ Concluído — Novas verbas independentes "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" (ambas código 3154)
+
+- **Implementado:** `calculadoras/piso_enfermagem_dias.py` (`valor_piso ÷ 30 × dias_trabalhados`) e `calculadoras/piso_enfermagem_meses.py` (`valor_piso × numero_meses`) — mesmo padrão das verbas "— Dias"/"— Meses" já existentes, reaproveitando campos já existentes (`valor_piso`, `dias_trabalhados`, `numero_meses`). Registradas em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json`.
+- **Código duplicado, de propósito, por ora:** o usuário só tinha o código 3154 (do feedback original "COMPLEMENTO PISO ENFERMAGEM") e pediu pra usar o mesmo nas duas verbas — deixei registrado como achado na pendência 4.26 que isso provavelmente não é o código real da variante Meses, já que um sistema de folha normalmente não repete código entre verbas diferentes.
+- **Persistência entre verbas — esclarecimento (não gerou mudança de código):** o pedido original era acerca do mecanismo genérico de persistência por sessão (`persistidos[campo]`), não da lógica mais específica de "puxar do histórico" usada por outros campos (`grat_final_semana`, `valor_ajuda_custo`, etc.). Como `valor_piso` já cai no branch genérico de campo monetário em `ui/selecao_verba.py` (linha ~185), o valor digitado numa verba de Piso já reaparece pré-preenchido nas demais que usam o mesmo campo (Faltas — Dias/Horas, Piso Enfermagem — 13º) dentro da mesma sessão — confirmado pelo usuário testando antes de eu mexer em qualquer código. **Nenhuma mudança foi necessária em `ui/selecao_verba.py`.**
+- **INSS Mensal — decisão tomada:** as duas novas verbas **não** foram excluídas de `NOMES_EXCLUIDOS_INSS` — continuam entrando na soma de "Outras Vantagens". Registrada como pendência **4.27**, motivo: essa regra de "o que entra no INSS Mensal e como evitar dupla contagem" precisa de uma revisão completa (já acumulando com a 4.25), não só decisões pontuais verba a verba — combinado fazer esse redesenho com calma numa sessão futura dedicada.
+- Testadas isoladamente as duas calculadoras — valores conferem (R$ 1.500 ÷ 30 × 15 dias = R$ 750,00; R$ 1.500 × 2 meses = R$ 3.000,00).
+- Fecha a parte de implementação da pendência **4.26** — resta só a validação com a área (código real de Meses, e se as interpretações fazem sentido).
+
+### 23.2 🟡 Pendências para a próxima sessão
+
+- **4.25** e **4.27** — juntas, formam a revisão completa (ainda não agendada) da regra de "Outras Vantagens" do INSS Mensal.
+- **4.26** — validar com a área as interpretações forçadas de Piso Enfermagem — Dias/Meses, e o código real da variante Meses.
+- **4.28** (nova) — investigar com a área se existe vinculação formal entre o valor do Piso Enfermagem e o Vencimento Básico.
+- **4.29** (nova) — confirmar com a área a interpretação de "Piso Enfermagem — Desconto" (9154) como desconto sobre o mesmo `valor_piso`.
+- **4.30** (nova) — confirmar com a área se "Faltas — Horas" corresponde mesmo à verba 7810 (PERDA SEXTO/OITAVO).
+- **4.31** (nova) — descobrir o código real e a fórmula (se houver) de "IPSEMG Filho 21 a 39 anos", hoje campo livre com código placeholder "----".
+- **4.32** (nova) — confirmar se "IPSEMG Assist. Méd. 13º Salário" (7701) é a mesma verba/fórmula do "Desconto de IPSEMG (3,2%)".
+- **4.33** (nova) — esclarecer com a servidora/área o que é o "desconto de IPSEMG para dependente" (sem detalhamento ainda).
+- Validar com a área a fórmula do Plantão Médico Complementar (PMC) — ver seção 6.
+- **Ajuda de Custo — fixa vs. variável** — validar com a área, nada implementado ainda.
+- Todo o backlog de `feedback_servidores.md` já foi processado nesta sessão (25 e 28/09) — próximo passo é aguardar as respostas da área pras pendências 4.25 a 4.33, e/ou receber uma nova leva de feedback.
+- Demais pendências das sessões anteriores continuam em aberto: **4.21**, **4.22**, **4.23**.
+
+### 23.3 ✅ Concluído — Nova verba "Piso Enfermagem — Desconto" (9154), como Desconto e campo livre
+
+- **Pedido original da servidora:** "pode deixar livre por enquanto, pra inserir só o valor (verba negativa)" — verba 9154 (REPOSIÇÃO COMP.PISO ENFERMAGEM).
+- **Implementado inicialmente** como "Reposição Comp. Piso Enfermagem" com campo próprio (`valor_reposicao_piso`).
+- **Renomeada e ajustada logo em seguida (mesma sessão), a pedido do usuário, forçando uma interpretação:** virou **"Piso Enfermagem — Desconto"** (nome seguindo o padrão das demais verbas de Piso Enfermagem — Dias/Meses/13º), e o campo próprio foi **trocado pelo `valor_piso` já existente** — o mesmo reaproveitado pelas outras verbas de Piso Enfermagem (Dias, Meses, 13º, Faltas — Dias/Horas). Arquivo renomeado pra `calculadoras/piso_enfermagem_desconto.py`; a entrada antiga em `ui/config.py` (`valor_reposicao_piso`) foi removida por não ter mais uso.
+- **Interpretação forçada, não confirmada:** que "Reposição Comp. Piso Enfermagem" (9154) é de fato um **desconto sobre o mesmo valor do Piso Enfermagem** (por isso reaproveitar `valor_piso`), e não algo com valor independente — ver pendência **4.29** (nova).
+- Testada isoladamente: R$ 300,00 → R$ 300,00 ✓.
+
+### 23.4 🐛 Achado (verba 7810) e ✅ Concluído (verba IPSEMG Filho)
+
+- **7810 — PERDA SEXTO/OITAVO:** servidora suspeita que essa verba é a mesma que já implementamos como "Faltas — Horas". Checado no código: `data/tabelas.json` já usa o código 7810 pra "Faltas — Horas" — bate com a suspeita, mas não implementei nada, só registrei como pendência **4.30** (nada muda até confirmação da área).
+- **"IPSEMG Filho 21 a 39 anos" — implementada:** `calculadoras/ipsemg_filho.py` (novo) — campo livre puro (`valor_ipsemg_filho`), sem fórmula, código placeholder **"----"** (mesmo recurso do "Aumento Salarial"). Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py`, `ui/config.py` e `data/tabelas.json`, tipo Desconto.
+- Motivo do campo livre: a própria servidora não sabe o código nem se existe fórmula de fato ("acho que não é padrão"). Registrado como pendência **4.31**: descobrir código real e fórmula (se houver) posteriormente.
+- Testada isoladamente: R$ 45,50 → R$ 45,50 ✓.
+
+### 23.5 ✅ Concluído — Reordenação do select de verbas
+
+- A pedido do usuário: as verbas "Piso Enfermagem — Dias/Meses/Desconto" passaram a aparecer logo depois de "Licença Maternidade"; "IPSEMG Filho 21 a 39 anos" passou a aparecer logo depois de "Desconto de IPSEMG (3,2%)".
+- **Implementação:** só reordenei as chaves dentro de `data/tabelas.json` (`verbas`) — a ordem do select em `ui/selecao_verba.py` vem diretamente de `list(verbas_json.keys())`, então não foi preciso mexer em nenhum código Python.
+
+### 23.6 🟡 Duas novas pendências — verbas de IPSEMG a esclarecer com a área
+
+- **4.32** (nova) — "IPSEMG Assist. Méd. 13º Salário" (7701): a servidora disse que "a fórmula é a mesma" do "Desconto de IPSEMG (3,2%)" já implementado, mas não ficou claro se é a mesma verba (só que sobre a base do 13º) ou uma verba distinta que compartilha a fórmula. Nada implementado.
+- **4.33** (nova) — "Desconto de IPSEMG para dependente": mencionado pela servidora sem detalhamento — não está claro se é uma das verbas já citadas/previstas ou uma verba própria, nem qual seria o cálculo. Nada implementado, precisa de mais informação antes de qualquer ação.
 
