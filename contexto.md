@@ -630,6 +630,14 @@ Observações do levantamento:
 - **Relato da servidora:** mencionado como necessário adicionalmente, mas **sem detalhamento** — não ficou claro se é uma das verbas de IPSEMG já previstas/citadas (ex.: a 7701 acima, ou o desconto de 3,2% já implementado) aplicada a um cenário específico, ou se é uma verba própria e distinta. Também não foi informada a fórmula de cálculo.
 - **Nada implementado** — precisa de mais detalhamento da servidora/área antes de qualquer ação (nem dá pra tratar como campo livre com segurança, já que nem o conceito da verba está claro ainda).
 
+### 4.34 ✅ Resolvido (28/09) — Horário do PDF com discrepância de 3h em produção
+
+- **Relatado por:** Lia da Silva Vicente (feedback anterior) e confirmado pelo usuário rodando a homologação no Streamlit Cloud.
+- **Causa:** [utils/exportador_pdf.py](utils/exportador_pdf.py) usava `datetime.now()` sem fuso horário no rodapé do PDF ("Relatório gerado em...") — isso pega o horário **local do servidor**, não do Brasil. Localmente coincide (máquina configurada em horário de Brasília), mas o Streamlit Cloud roda em UTC, então o PDF saía 3h adiantado em produção.
+- **Correção:** forçado o fuso `America/Sao_Paulo` via `zoneinfo` (biblioteca padrão do Python, sem dependência nova) — `datetime.now(FUSO_BRASIL)` sempre retorna o horário certo de Brasília, independente do fuso do servidor onde o app está rodando.
+- **Validado:** simulação com o processo Python forçado a rodar em UTC confirmou a diferença de 3h antes da correção, e o horário correto depois.
+- **Achado relacionado, não corrigido agora (baixa prioridade):** o mesmo padrão frágil (`date.today()` sem fuso) aparece em mais 4 pontos — `ui/selecao_verba.py` (linhas ~144, 297, 305: defaults de ano/mês de competência; linha ~379: data no nome do arquivo PDF) e `ui/form_servidor.py` (linhas ~110/115: limite máximo dos seletores de data de admissão/fim efetiva). O impacto ali é bem menor — só afetaria por poucas horas perto da virada de mês/ano/dia — mas segue o mesmo risco estrutural. Vale uma limpeza futura centralizando um helper `agora_brasil()`/`hoje_brasil()` reaproveitável, em vez de espalhar `ZoneInfo("America/Sao_Paulo")` em cada lugar.
+
 ---
 
 ## 5. Observações sobre regras de negócio

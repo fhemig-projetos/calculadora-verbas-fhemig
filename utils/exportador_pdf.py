@@ -3,6 +3,9 @@
 import io
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -283,9 +286,12 @@ class GeradorPDF:
     # ── Rodapé ────────────────────────────────────────────────────────────────
     def _adicionar_rodape(self, elementos: list):
         elementos.append(Spacer(1, 6))
+        # datetime.now() sem fuso pega o horário local do SERVIDOR, não do Brasil — em produção
+        # (Streamlit Cloud, que roda em UTC) isso imprimia o horário 3h adiantado. Forçando o
+        # fuso de São Paulo, o horário sai correto independente de onde o app está rodando.
         elementos.append(
             Paragraph(
-                f"Relatório gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}.",
+                f"Relatório gerado em {datetime.now(FUSO_BRASIL).strftime('%d/%m/%Y %H:%M')}.",
                 self.styles["BodyText"],
             )
         )
