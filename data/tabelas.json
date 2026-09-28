@@ -58,6 +58,18 @@
       "codigo": "1200",
       "tipo": "Vantagem"
     },
+    "Piso Enfermagem — Dias": {
+      "codigo": "3154",
+      "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — Meses": {
+      "codigo": "3154",
+      "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — Desconto": {
+      "codigo": "9154",
+      "tipo": "Desconto"
+    },
 
     "13º Salário": {
       "codigo": "491",
@@ -133,6 +145,10 @@
     },
     "Desconto de IPSEMG (3,2%)": {
       "codigo": "7700",
+      "tipo": "Desconto"
+    },
+    "IPSEMG Filho 21 a 39 anos": {
+      "codigo": "----",
       "tipo": "Desconto"
     }
   },

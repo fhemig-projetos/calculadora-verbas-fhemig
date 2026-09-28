@@ -25,4 +25,5 @@ CONFIG_CAMPOS = {
     "valor_outras_vantagens": {"label": "Outras Vantagens (soma automática do histórico) (R$)", "tipo": "moeda"},
     "outras_verbas": {"label": "Outras Verbas (R$)", "tipo": "moeda"},
     "valor_pmc": {"label": "Valor do PMC (R$)", "tipo": "moeda"},
+    "valor_ipsemg_filho": {"label": "Valor do Desconto IPSEMG Filho 21 a 39 anos (R$)", "tipo": "moeda"},
 }

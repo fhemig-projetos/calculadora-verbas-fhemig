@@ -578,10 +578,57 @@ Observações do levantamento:
 - **Decisão tomada em 25/09:** manter assim por ora — **não** adicionar "Vencimento Básico — Dias" à lista `NOMES_EXCLUIDOS_INSS` (que hoje já exclui "Ajuda de Custo Mensal" e as verbas de 13º dessa soma), até confirmação da área de RH/taxação sobre qual é o comportamento correto.
 - Ver também seção 6, "INSS Mensal e INSS sobre 13º".
 
-### 4.26 🟡 Pendente — validar com a área o plano de "Piso Enfermagem" como verba(s) independente(s) (3154)
+### 4.26 🟡 Pendente — validar com a área "Piso Enfermagem — Dias/Meses" (implementadas em 28/09 com interpretações forçadas)
 
-- Plano detalhado (ainda não implementado) na seção 22.8. Resumo: incluir "Piso Enfermagem — Dias" (e possivelmente "Piso Enfermagem — Meses") a partir do código 3154 (COMPLEMENTO PISO ENFERMAGEM) — mas a associação desse código a essas verbas, e a própria necessidade da verba de Meses, são **interpretações forçadas** do usuário que precisam de validação com a área antes de implementar.
-- Ver seção 6, "Piso Enfermagem" para as dúvidas específicas levantadas por uma servidora sobre pré-preenchimento e vinculação ao vencimento básico.
+- **Implementado (28/09, ver seção 23):** "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses", ambas com código **3154** (mesmo código nas duas — o único código que o usuário tinha em mãos, do feedback original de "COMPLEMENTO PISO ENFERMAGEM"; **provavelmente não é o código real da variante Meses**, um sistema de folha não costuma ter duas verbas distintas com o mesmo código).
+- **Interpretações forçadas a validar com a área:**
+  1. Se "Complemento Piso Enfermagem" (3154) corresponde mesmo a "Piso Enfermagem — Dias".
+  2. Se a variante "— Meses" é realmente necessária (ninguém pediu explicitamente — foi suposição por espelhamento de padrão).
+  3. O código correto de "Piso Enfermagem — Meses" (hoje duplicado com o de Dias, só como placeholder).
+- Ver seção 6, "Piso Enfermagem" para as dúvidas específicas levantadas por uma servidora sobre pré-preenchimento e vinculação ao vencimento básico (ainda sem resposta técnica).
+- Ver também pendência **4.27** (nova) sobre o efeito dessas verbas na base do INSS Mensal.
+
+### 4.27 🟡 Pendente — revisão completa da regra de "Outras Vantagens" do INSS Mensal (acumula com 4.25)
+
+- **Decisão tomada em 28/09:** "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" **não** foram adicionadas a `NOMES_EXCLUIDOS_INSS` — continuam entrando normalmente na soma automática de "Outras Vantagens" do INSS Mensal, como qualquer outra verba do tipo Vantagem no histórico.
+- Essa é mais uma peça de uma questão maior, já em aberto desde a pendência 4.25 (Vencimento Básico — Dias): a regra de "quais verbas entram na base do INSS Mensal, e como evitar dupla contagem entre um campo direto e a soma automática do histórico" precisa de um **redesenho completo**, não só ajustes pontuais verba a verba. Fica combinado fazer essa revisão com calma numa sessão futura dedicada a isso, depois de conversar com a área.
+- Ver seção 6, "INSS Mensal e INSS sobre 13º", pra lista completa de dúvidas relacionadas.
+
+### 4.28 🟡 Pendente — investigar com a área possível vinculação entre Piso Enfermagem e Vencimento Básico
+
+- **Origem (fala de servidora, feedback registrado em 25/09):** *"O ideal é que no cabeçalho a gente consiga marcar se o PISO se aplica, e já inserir o valor pra que ele fique predefinido depois, ou se der que ele já entenda o valor do piso a partir do salário inserido no cabeçalho."*
+- A própria servidora não soube dizer se existe uma regra de cálculo formal ligando o valor do piso ao vencimento básico — só levantou a possibilidade. **Hoje não existe nenhuma relação assim no código**: `valor_piso` é sempre um campo independente, digitado manualmente (persistido entre verbas dentro da sessão, mas nunca derivado do vencimento básico ou de qualquer outro dado do cabeçalho).
+- **A investigar com a área:** existe de fato uma fórmula ou tabela oficial que relacione o piso da enfermagem ao vencimento básico (ex.: um percentual, uma diferença mínima garantida, etc.)? Se existir, isso mudaria o pré-preenchimento de `valor_piso` (hoje só reaproveita o que foi digitado antes, nunca deriva do vencimento básico).
+- Ver seção 6, "Piso Enfermagem", pra esse ponto e os demais relacionados (pré-preenchimento pelo cabeçalho, "faz jus ao piso" como flag).
+
+### 4.29 🟡 Pendente — confirmar com a área a interpretação de "Piso Enfermagem — Desconto" (9154)
+
+- **Implementado em 28/09** (ver seção 23.3) com uma interpretação forçada, não confirmada: que a verba 9154 (originalmente "REPOSIÇÃO COMP.PISO ENFERMAGEM", que a servidora pediu pra deixar como campo livre) é, na prática, um **desconto calculado sobre o mesmo valor do Piso Enfermagem** — por isso o campo reaproveita `valor_piso` (já compartilhado com Piso Enfermagem — Dias/Meses/13º) em vez de ter um campo de valor próprio e independente.
+- **A confirmar com a área:** essa interpretação está correta? "Reposição" e "desconto sobre o piso" são realmente a mesma coisa, ou a verba deveria ter seu próprio valor, sem vínculo direto com `valor_piso`?
+- Verba continua funcionando como campo livre (o usuário digita o valor de `valor_piso`, que a calculadora só repassa como desconto) — não há fórmula nova envolvida, só a reutilização do campo.
+
+### 4.30 🟡 Pendente — confirmar com a área se "Faltas — Horas" é de fato a verba 7810 (PERDA SEXTO/OITAVO)
+
+- **Levantamento da servidora:** *"7810 — PERDA SEXTO/OITAVO: Esse seria o Atraso, creio que você lançou ele na calculadora como falta horas"*.
+- **Checado no código (28/09):** `data/tabelas.json` já atribui o código **7810** à verba "Faltas — Horas" (`calculadoras/faltas_horas.py`) — bate com a suspeita da servidora, mas **não há confirmação formal** de que "Faltas — Horas" e "Perda Sexto/Oitavo" são de fato a mesma verba (nomes de negócio diferentes podem, ou não, mapear pro mesmo código/fórmula).
+- **A confirmar com a área:** o código 7810 e a fórmula atual de "Faltas — Horas" (`(Venc. Básico + Ab. Emergência + GRS + Piso Enfermagem) ÷ Carga Horária Mensal × Horas Descontadas`) correspondem mesmo ao "Perda Sexto/Oitavo"? Nenhuma mudança de código feita até essa confirmação.
+
+### 4.31 🟡 Pendente — descobrir código e fórmula de "IPSEMG Filho 21 a 39 anos" (implementada como campo livre em 28/09)
+
+- **Relato da própria servidora:** *"IPSEMG FILHO 21 A 39 ANOS — não sei a verba, e o desconto também acho que não é padrão. Qualquer coisa deixa livre até a gente descobrir, só pra inserir algum valor — quase não aparece."*
+- **Implementado (ver seção 23.4):** `calculadoras/ipsemg_filho.py` (novo) — campo livre puro, sem fórmula, campo `valor_ipsemg_filho`. Código registrado como **"----"** (placeholder, mesmo recurso já usado em "Aumento Salarial") até ser descoberto.
+- **Pendente descobrir:** o código oficial da verba na folha, e se existe de fato uma fórmula de cálculo (mesmo a servidora suspeitando que não é padrão) — a própria origem/regra do desconto é desconhecida por enquanto.
+
+### 4.32 🟡 Pendente — confirmar com a área se "IPSEMG Assist. Méd. 13º Salário" (7701) é a mesma verba/fórmula do "Desconto de IPSEMG (3,2%)"
+
+- **Relato da servidora:** *"7701 — IPSEMG ASSIST. MED. 13º SALARIO: fórmula é a mesma"*.
+- **Não entendido ainda:** se é a mesma verba de "Desconto de IPSEMG (3,2%)" (`calculadoras/ipsemg.py`, código 7700) só que aplicada sobre a base do 13º em vez da base mensal — ou se é uma verba genuinamente distinta que só compartilha a mesma alíquota/fórmula, mas com base de cálculo diferente (por ser referente ao 13º). Se for o segundo caso, o cálculo provavelmente muda mesmo (base do 13º, não a base mensal).
+- **Nada implementado** — precisa confirmar com a área antes de decidir entre: (a) não fazer nada, se for coberto pelo cálculo já existente; (b) criar uma verba nova (`Desconto de IPSEMG sobre 13º` ou nome similar) com a base de incidência do 13º; (c) outra coisa.
+
+### 4.33 🟡 Pendente — esclarecer com a área o "desconto de IPSEMG para dependente"
+
+- **Relato da servidora:** mencionado como necessário adicionalmente, mas **sem detalhamento** — não ficou claro se é uma das verbas de IPSEMG já previstas/citadas (ex.: a 7701 acima, ou o desconto de 3,2% já implementado) aplicada a um cenário específico, ou se é uma verba própria e distinta. Também não foi informada a fórmula de cálculo.
+- **Nada implementado** — precisa de mais detalhamento da servidora/área antes de qualquer ação (nem dá pra tratar como campo livre com segurança, já que nem o conceito da verba está claro ainda).
 
 ---
 
@@ -615,6 +662,7 @@ Observações do levantamento:
 - ~~GIEFS 13º: o valor a sofrer incidência é o próprio valor da GIEFS?~~ ✅ Esclarecido — a base do INSS sobre 13º é a soma (13º + GIEFS 13º). A alíquota e a dedução usam essa mesma soma (13º + GIEFS 13º), não só o 13º isolado.
 - **INSS sobre 13º Salário**: base hoje é só `13º Salário + GIEFS 13º`. Falta avaliar se **Piso Enfermagem — 13º** e **GRS — 13º** também devem entrar, seguindo o mesmo raciocínio aplicado ao INSS Mensal (ver seção 14 e pendência 4.6). Confirmar também se os valores desses dois estão corretos.
 - **"Vencimento Básico — Dias" pode contar em dobro na base do INSS Mensal** — ver pendência **4.25** (seção 4) para o detalhamento completo.
+- **"Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" entram na soma de "Outras Vantagens" do INSS Mensal, sem exclusão** (decisão tomada em 28/09, não excluídas de `NOMES_EXCLUIDOS_INSS`) — ver pendência **4.27** (seção 4) para o detalhamento completo. Acumula com o ponto acima (4.25): ambas fazem parte da mesma revisão maior, ainda não agendada, de "o que entra de fato na base do INSS Mensal".
 
 ### Aumento Salarial
 - **Checado em 25/09:** `calculadoras/aumento_salarial.py` não tem nenhuma lógica de composição automática — cada cálculo é isolado, um ano por vez (`vencimento_basico × alíquota do ano`). A dúvida é sobre o **uso manual**: se o usuário precisa aplicar 2024 e 2026 sobre o mesmo vencimento, deve calcular os dois separadamente sobre o valor **original**, ou calcular 2024 primeiro e usar o resultado (já reajustado) como base pra calcular 2026 em seguida (`base × 1,0462 × 1,054`, cálculo composto)? Aguardando confirmação da área. **Relacionado:** o campo `valor_outras_vantagens` do INSS Mensal soma automaticamente todas as ocorrências de "Aumento Salarial" no histórico (2024 e 2026 juntos, se ambas existirem) — se o cálculo composto for confirmado, pode ser necessário revisar essa soma simples.
@@ -635,7 +683,7 @@ Observações do levantamento:
 - **Novo (25/09), falas de uma servidora sobre o piso, ainda sem resposta:**
   - *"Complemento do piso também não tem (tem só piso 13º)"* — confirma que falta algo equivalente ao "Complemento Piso Enfermagem" fora do 13º. **Não confirmado** se isso corresponde a uma verba "Piso Enfermagem — Dias" (ver pendência 4.26) ou é outra coisa.
   - *"O ideal é que no cabeçalho a gente consiga marcar se o PISO se aplica, e já inserir o valor pra que ele fique predefinido depois, ou se der que ele já entenda o valor do piso a partir do salário inserido no cabeçalho."* — hoje não existe isso: `valor_piso` só é persistido campo a campo depois que o usuário digita manualmente uma vez numa verba (mecanismo genérico de `persistidos`, igual a qualquer outro campo monetário — não vem do cabeçalho nem de nenhuma tabela). **Precisa confirmar com a área/usuária** se esse comportamento (persistir depois da 1ª digitação) já atende, ou se ela realmente quer um campo no cabeçalho pra marcar "faz jus ao piso" com pré-preenchimento automático a partir do vencimento básico.
-  - Pergunta em aberto da própria servidora: **existe alguma regra de cálculo vinculando o valor do piso ao vencimento básico?** Não identificada nenhuma relação assim no código ou nos dados hoje — `valor_piso` é sempre um valor independente digitado pelo usuário. Precisa perguntar à área qual é essa regra, se existir.
+  - Pergunta em aberto da própria servidora: **existe alguma regra de cálculo vinculando o valor do piso ao vencimento básico?** Não identificada nenhuma relação assim no código ou nos dados hoje — `valor_piso` é sempre um valor independente digitado pelo usuário. Precisa perguntar à área qual é essa regra, se existir. **Elevado a pendência formal 4.28** (seção 4).
 
 ### Plantão Médico Complementar (PMC)
 - **Fórmula não validada com a área (25/09):** verba 2961 implementada como **campo livre** (`valor_pmc`, sem fórmula — o usuário digita o valor total do PMC diretamente, mesmo padrão do `valor_giefs`), porque não foi possível confirmar a fórmula de cálculo com a área a tempo. Pendente confirmar se existe uma fórmula de fato (ex.: valor de plantão × quantidade, algum piso/teto) e, se sim, implementá-la — ver seção 22.6.
@@ -1347,9 +1395,9 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py`, `ui/config.py` (campo `valor_pmc`) e `data/tabelas.json` (código 2961, tipo Vantagem).
 - **Pendência registrada na seção 6** ("Plantão Médico Complementar (PMC)"): validar com a área se existe fórmula de cálculo de fato, e implementá-la se houver.
 
-### 22.7 📋 Plano (não implementado) — Piso Enfermagem como verba(s) independente(s) (3154)
+### 22.7 📋 Plano (não implementado nesta sessão) — Piso Enfermagem como verba(s) independente(s) (3154)
 
-> **Nada foi implementado nesta sessão** — só o plano abaixo, registrado a pedido do usuário pra retomar na próxima sessão, depois de validar as interpretações forçadas com a área. Ver pendência **4.26**.
+> **Nada foi implementado nesta sessão** — só o plano abaixo, registrado a pedido do usuário pra retomar na próxima sessão, depois de validar as interpretações forçadas com a área. Ver pendência **4.26**. **Atualização (28/09):** plano aprovado e implementado — ver seção 23.1.
 
 **Feedback que originou o pedido** (Leudmarlen Rubia Gusmao Figueiredo — mesma servidora da sessão de ajustes de regras de negócio):
 - 3154 — COMPLEMENTO PISO ENFERMAGEM: *"preciso informar quantos dias tenho que pagar. Então valor do PISO ÷ 30 × quant. dias ="* → pedido explícito: inserir o piso como verba independente.
@@ -1374,4 +1422,59 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - **4.26** (nova) — validar com a área o plano de "Piso Enfermagem — Dias" (e possivelmente "— Meses") descrito na seção 22.7, antes de implementar.
 - Continuar o levantamento de verbas que devem virar independentes (feedback ainda chegando aos poucos — próximos itens já visíveis em `feedback_servidores.md`: 9154 REPOSIÇÃO COMP.PISO ENFERMAGEM, 7810 PERDA SEXTO/OITAVO, IPSEMG filho 21-39 anos, 7701 IPSEMG ASSIST. MÉD. 13º, desconto de IPSEMG para dependente).
 - Demais pendências das sessões anteriores continuam em aberto: **4.21**, **4.22**, **4.23**.
+
+---
+
+## 23. Plano de desenvolvimento — sessão 28/09
+
+> **Sessão:** implementação do plano da seção 22.7 (Piso Enfermagem), aprovado pelo usuário com ajustes.
+
+### 23.1 ✅ Concluído — Novas verbas independentes "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" (ambas código 3154)
+
+- **Implementado:** `calculadoras/piso_enfermagem_dias.py` (`valor_piso ÷ 30 × dias_trabalhados`) e `calculadoras/piso_enfermagem_meses.py` (`valor_piso × numero_meses`) — mesmo padrão das verbas "— Dias"/"— Meses" já existentes, reaproveitando campos já existentes (`valor_piso`, `dias_trabalhados`, `numero_meses`). Registradas em `calculadoras/__init__.py`, `calculadoras/factory.py` e `data/tabelas.json`.
+- **Código duplicado, de propósito, por ora:** o usuário só tinha o código 3154 (do feedback original "COMPLEMENTO PISO ENFERMAGEM") e pediu pra usar o mesmo nas duas verbas — deixei registrado como achado na pendência 4.26 que isso provavelmente não é o código real da variante Meses, já que um sistema de folha normalmente não repete código entre verbas diferentes.
+- **Persistência entre verbas — esclarecimento (não gerou mudança de código):** o pedido original era acerca do mecanismo genérico de persistência por sessão (`persistidos[campo]`), não da lógica mais específica de "puxar do histórico" usada por outros campos (`grat_final_semana`, `valor_ajuda_custo`, etc.). Como `valor_piso` já cai no branch genérico de campo monetário em `ui/selecao_verba.py` (linha ~185), o valor digitado numa verba de Piso já reaparece pré-preenchido nas demais que usam o mesmo campo (Faltas — Dias/Horas, Piso Enfermagem — 13º) dentro da mesma sessão — confirmado pelo usuário testando antes de eu mexer em qualquer código. **Nenhuma mudança foi necessária em `ui/selecao_verba.py`.**
+- **INSS Mensal — decisão tomada:** as duas novas verbas **não** foram excluídas de `NOMES_EXCLUIDOS_INSS` — continuam entrando na soma de "Outras Vantagens". Registrada como pendência **4.27**, motivo: essa regra de "o que entra no INSS Mensal e como evitar dupla contagem" precisa de uma revisão completa (já acumulando com a 4.25), não só decisões pontuais verba a verba — combinado fazer esse redesenho com calma numa sessão futura dedicada.
+- Testadas isoladamente as duas calculadoras — valores conferem (R$ 1.500 ÷ 30 × 15 dias = R$ 750,00; R$ 1.500 × 2 meses = R$ 3.000,00).
+- Fecha a parte de implementação da pendência **4.26** — resta só a validação com a área (código real de Meses, e se as interpretações fazem sentido).
+
+### 23.2 🟡 Pendências para a próxima sessão
+
+- **4.25** e **4.27** — juntas, formam a revisão completa (ainda não agendada) da regra de "Outras Vantagens" do INSS Mensal.
+- **4.26** — validar com a área as interpretações forçadas de Piso Enfermagem — Dias/Meses, e o código real da variante Meses.
+- **4.28** (nova) — investigar com a área se existe vinculação formal entre o valor do Piso Enfermagem e o Vencimento Básico.
+- **4.29** (nova) — confirmar com a área a interpretação de "Piso Enfermagem — Desconto" (9154) como desconto sobre o mesmo `valor_piso`.
+- **4.30** (nova) — confirmar com a área se "Faltas — Horas" corresponde mesmo à verba 7810 (PERDA SEXTO/OITAVO).
+- **4.31** (nova) — descobrir o código real e a fórmula (se houver) de "IPSEMG Filho 21 a 39 anos", hoje campo livre com código placeholder "----".
+- **4.32** (nova) — confirmar se "IPSEMG Assist. Méd. 13º Salário" (7701) é a mesma verba/fórmula do "Desconto de IPSEMG (3,2%)".
+- **4.33** (nova) — esclarecer com a servidora/área o que é o "desconto de IPSEMG para dependente" (sem detalhamento ainda).
+- Validar com a área a fórmula do Plantão Médico Complementar (PMC) — ver seção 6.
+- **Ajuda de Custo — fixa vs. variável** — validar com a área, nada implementado ainda.
+- Todo o backlog de `feedback_servidores.md` já foi processado nesta sessão (25 e 28/09) — próximo passo é aguardar as respostas da área pras pendências 4.25 a 4.33, e/ou receber uma nova leva de feedback.
+- Demais pendências das sessões anteriores continuam em aberto: **4.21**, **4.22**, **4.23**.
+
+### 23.3 ✅ Concluído — Nova verba "Piso Enfermagem — Desconto" (9154), como Desconto e campo livre
+
+- **Pedido original da servidora:** "pode deixar livre por enquanto, pra inserir só o valor (verba negativa)" — verba 9154 (REPOSIÇÃO COMP.PISO ENFERMAGEM).
+- **Implementado inicialmente** como "Reposição Comp. Piso Enfermagem" com campo próprio (`valor_reposicao_piso`).
+- **Renomeada e ajustada logo em seguida (mesma sessão), a pedido do usuário, forçando uma interpretação:** virou **"Piso Enfermagem — Desconto"** (nome seguindo o padrão das demais verbas de Piso Enfermagem — Dias/Meses/13º), e o campo próprio foi **trocado pelo `valor_piso` já existente** — o mesmo reaproveitado pelas outras verbas de Piso Enfermagem (Dias, Meses, 13º, Faltas — Dias/Horas). Arquivo renomeado pra `calculadoras/piso_enfermagem_desconto.py`; a entrada antiga em `ui/config.py` (`valor_reposicao_piso`) foi removida por não ter mais uso.
+- **Interpretação forçada, não confirmada:** que "Reposição Comp. Piso Enfermagem" (9154) é de fato um **desconto sobre o mesmo valor do Piso Enfermagem** (por isso reaproveitar `valor_piso`), e não algo com valor independente — ver pendência **4.29** (nova).
+- Testada isoladamente: R$ 300,00 → R$ 300,00 ✓.
+
+### 23.4 🐛 Achado (verba 7810) e ✅ Concluído (verba IPSEMG Filho)
+
+- **7810 — PERDA SEXTO/OITAVO:** servidora suspeita que essa verba é a mesma que já implementamos como "Faltas — Horas". Checado no código: `data/tabelas.json` já usa o código 7810 pra "Faltas — Horas" — bate com a suspeita, mas não implementei nada, só registrei como pendência **4.30** (nada muda até confirmação da área).
+- **"IPSEMG Filho 21 a 39 anos" — implementada:** `calculadoras/ipsemg_filho.py` (novo) — campo livre puro (`valor_ipsemg_filho`), sem fórmula, código placeholder **"----"** (mesmo recurso do "Aumento Salarial"). Registrada em `calculadoras/__init__.py`, `calculadoras/factory.py`, `ui/config.py` e `data/tabelas.json`, tipo Desconto.
+- Motivo do campo livre: a própria servidora não sabe o código nem se existe fórmula de fato ("acho que não é padrão"). Registrado como pendência **4.31**: descobrir código real e fórmula (se houver) posteriormente.
+- Testada isoladamente: R$ 45,50 → R$ 45,50 ✓.
+
+### 23.5 ✅ Concluído — Reordenação do select de verbas
+
+- A pedido do usuário: as verbas "Piso Enfermagem — Dias/Meses/Desconto" passaram a aparecer logo depois de "Licença Maternidade"; "IPSEMG Filho 21 a 39 anos" passou a aparecer logo depois de "Desconto de IPSEMG (3,2%)".
+- **Implementação:** só reordenei as chaves dentro de `data/tabelas.json` (`verbas`) — a ordem do select em `ui/selecao_verba.py` vem diretamente de `list(verbas_json.keys())`, então não foi preciso mexer em nenhum código Python.
+
+### 23.6 🟡 Duas novas pendências — verbas de IPSEMG a esclarecer com a área
+
+- **4.32** (nova) — "IPSEMG Assist. Méd. 13º Salário" (7701): a servidora disse que "a fórmula é a mesma" do "Desconto de IPSEMG (3,2%)" já implementado, mas não ficou claro se é a mesma verba (só que sobre a base do 13º) ou uma verba distinta que compartilha a fórmula. Nada implementado.
+- **4.33** (nova) — "Desconto de IPSEMG para dependente": mencionado pela servidora sem detalhamento — não está claro se é uma das verbas já citadas/previstas ou uma verba própria, nem qual seria o cálculo. Nada implementado, precisa de mais informação antes de qualquer ação.
 
