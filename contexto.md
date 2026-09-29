@@ -645,6 +645,12 @@ Observações do levantamento:
 - **Complicador técnico:** os itens do histórico (dicionários com `nome_verba`, `codigo`, `tipo`, `competencia`, `observacao`, `valor`, `memoria`) não têm nenhum identificador único hoje — pra selecionar "qual item remover" seria preciso adicionar um id a cada item (ex.: um índice estável ou um `uuid`), e trocar a exibição de `st.dataframe` (só leitura) por algo que suporte seleção de linha (`st.dataframe` com `on_select`, disponível em versões recentes do Streamlit, ou `st.data_editor` com suporte a exclusão de linhas).
 - **Nada implementado ainda** — registrado só como avaliação a fazer, sem decisão de abordagem tomada.
 
+### 4.36 🟡 Pendente — criar rotina de atualização automática da base de dados funcionais dos servidores
+
+- Hoje a tabela `servidores` no Supabase (~2861 registros, usada pra pré-preencher nome/cargo/vencimento a partir do MASP) é populada **manualmente**, rodando `scripts/populate_servidores.py` a partir de um CSV exportado à parte (`data/dados_funcionais_calculadora_verbas.csv`) — é um script avulso, sem agendamento nem automação nenhuma.
+- Sem uma rotina de atualização, a base tende a ficar desatualizada com o tempo (novas admissões, desligamentos, mudanças de cargo/nível/grau/vencimento não refletidas), fazendo o pré-preenchimento por MASP cada vez menos confiável.
+- **A avaliar:** de onde viria a atualização automática (exportação periódica de algum sistema de RH, reimportação manual periódica, outra fonte de dados), e qual mecanismo usar pra automatizar (`pg_cron` no Supabase, um job agendado fora do Supabase, etc.) — nada definido ainda, só registrado como necessidade.
+
 ---
 
 ## 5. Observações sobre regras de negócio
