@@ -12,7 +12,15 @@ O que o `.exe` faz sozinho: nada é instalado na máquina do usuário além do
 próprio arquivo — não mexe em registro, não precisa de admin, não instala
 serviço. É um programa autocontido rodando localmente.
 
-## Por que `secrets.toml` NÃO vai dentro do `.exe`
+> **ATUALIZAÇÃO (30/09):** por decisão do responsável pelo projeto, o build agora
+> **empacota** `.streamlit/secrets.toml` dentro do `.exe` (o arquivo precisa existir
+> em `.streamlit/` na raiz do projeto na hora do build; sem ele o build aborta).
+> Se houver um `secrets.toml` ao lado do `.exe`, ele tem prioridade sobre o embutido.
+> Quem receber o `.exe` consegue extrair as credenciais (chave admin do Supabase e
+> senha SMTP) — os riscos descritos abaixo continuam valendo. O restante desta seção
+> e a pasta de distribuição descrevem o modelo anterior (secrets fora do `.exe`).
+
+## Por que `secrets.toml` NÃO vai dentro do `.exe` (modelo anterior)
 
 `.streamlit/secrets.toml` tem a chave admin do Supabase e a senha SMTP. Um
 `.exe` do PyInstaller é trivialmente extraível (7-zip, `pyinstxtractor` etc.),
