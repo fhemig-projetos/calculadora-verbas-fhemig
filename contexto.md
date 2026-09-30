@@ -1508,21 +1508,52 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 ### 24.1 ✅ Concluído — Esqueleto do build PyInstaller (`desktop/`)
 
 - **Criado `desktop/launcher.py`:** ponto de entrada do `.exe`. Sobe o Streamlit via API interna (`streamlit.web.cli`), escolhe porta livre automaticamente e abre o navegador padrão em `localhost`.
-- **Criado `desktop/calculadora.spec`:** spec do PyInstaller — empacota `app.py`, `ui/`, `data/`, `calculadoras/`, `utils/`, `assets/` e `.streamlit/config.toml` dentro do `.exe`. Ícone precisa ser convertido pra `.ico` antes do build (instruções em `docs/build_exe.md`).
+- **Criado `desktop/calculadora.spec`:** spec do PyInstaller — empacota `app.py`, `ui/`, `data/`, `calculadoras/`, `utils/`, `assets/` e `.streamlit/config.toml` dentro do `.exe`. Ícone precisa ser convertido pra `.ico` antes do build (instruções em `desktop/build_exe.md`).
 - **Criado `desktop/requirements-build.txt`:** dependências de build (`requirements.txt` + `pyinstaller`).
-- **Criado `docs/build_exe.md`:** passo a passo completo de build (precisa rodar em **Windows**, não no WSL/Linux — PyInstaller gera binário pra a plataforma onde roda), preparação da pasta de distribuição e problemas comuns.
+- **Criado `desktop/build_exe.md`** (movido de `docs/`; reescrito em 30/09 — ver 24.6): passo a passo completo de build (precisa rodar em **Windows**, não no WSL/Linux — PyInstaller gera binário pra a plataforma onde roda), preparação da pasta de distribuição e problemas comuns.
 - **`.gitignore` atualizado:** `build/`, `dist/`, `venv-build/`, `desktop/*.ico` — artefatos de build não entram no repositório.
 
-### 24.2 ⚠️ Decisão de segurança tomada — `secrets.toml` NÃO vai dentro do `.exe`
+### 24.2 ⚠️ Decisão de segurança (SUPERADA no mesmo dia) — `secrets.toml` NÃO vai dentro do `.exe`
+
+> **Atualização:** o responsável pelo projeto decidiu depois **empacotar** o `secrets.toml` dentro do `.exe` (commit `34843b6`). O texto abaixo registra o raciocínio original e o risco, que **continua valendo** — ver 24.4 e pendência 4.34.
 
 - **Problema identificado:** `.streamlit/secrets.toml` tem a chave admin do Supabase (`supabase_admin`) e a senha SMTP. Um `.exe` do PyInstaller é trivialmente extraível (7-zip, `pyinstxtractor`), então qualquer coisa embutida nele deve ser tratada como pública.
 - **Decisão:** o build **não** empacota `secrets.toml`. Em vez disso, `launcher.py` aponta `STREAMLIT_SECRETS_FILES` pra um `.streamlit/secrets.toml` que precisa existir **ao lado do `.exe`** (não dentro dele) — se não existir, o launcher avisa e encerra.
 - **Consequência prática, ainda não resolvida:** cada pessoa que for rodar o `.exe` precisa receber esse `secrets.toml` por canal separado e confiável — não escala pra "qualquer um baixa o exe". Ver pendência **4.34**.
 
-### 24.3 🟡 Pendências para a próxima sessão
+### 24.3 ✅ Concluído (30/09) — Build corrigido no Windows
 
-- **4.34** (nova) — decidir o modelo de distribuição de credenciais antes de distribuir o `.exe` pra mais de uma pessoa: manter a chave admin única do Supabase replicada manualmente por canal seguro (viável só pra grupo pequeno e controlado), ou criar credenciais com permissão mais restrita que `service_role` por usuário/grupo. Sem essa decisão, não faz sentido distribuir o executável amplamente.
-- **4.35** (nova) — fazer o build de fato no Windows (ainda não executado nesta sessão — ambiente de desenvolvimento é WSL/Linux) e testar numa máquina limpa: login, geração de PDF (reportlab) e persistência (Supabase), que são as áreas mais propensas a erro de import/arquivo faltando em builds do PyInstaller (ver `docs/build_exe.md`).
-- **4.36** (nova) — avaliar se vale assinar digitalmente o `.exe` (custo + processo à parte) pra evitar o aviso do Windows Defender SmartScreen em executáveis não assinados — hoje o plano assume que esse aviso vai aparecer e que os usuários precisam ser orientados a ignorá-lo.
+- **Build executado no Windows** e iterado até o `.exe` subir (commit `34843b6`, `3d3a7c7`): `SPECPATH` no lugar de `__file__` (não existe em `.spec`), `copy_metadata` de streamlit/supabase (evita `PackageNotFoundError`), `collect_data_files("tzdata")`, `collect_submodules("reportlab")` e stdlib usada só pelo código da app (que entra como dado) em `hiddenimports`.
+- **Erro `No such component directory ...streamlit_cookies_controller\frontend\build`:** o pacote tem frontend próprio (HTML/JS) que o PyInstaller não empacota sozinho. Corrigido com `collect_data_files("streamlit_cookies_controller")` no `calculadora.spec`.
+- **`secrets.toml` agora é empacotado** (build aborta se não existir em `.streamlit/`); um `secrets.toml` ao lado do `.exe` tem prioridade sobre o embutido (`localizar_secrets` em `launcher.py`).
+
+### 24.4 ✅ Concluído (30/09) — Experiência do usuário final no `.exe`
+
+- **Janela de app sem barra de endereço:** `launcher.py` abre `chrome --app=URL` (fallback: Edge; fallback final: navegador padrão) com perfil temporário (`--user-data-dir`). Fechar a janela encerra o servidor (`os._exit(0)` após o `wait()` do processo do navegador). Ordem de busca: **Chrome → Edge → `webbrowser`**.
+- **Console escondido:** `console=False` no spec. Como sem console `stdout/stderr/stdin` são `None` (quebra o Streamlit e o `print`/`input`), o launcher redireciona a saída para `%LOCALAPPDATA%\CalculadoraFhemig\app.log` (`redirecionar_saida_para_log`, só no `.exe`) e mostra erros por caixa de diálogo do Windows (`mostrar_erro`, via `ctypes`).
+- ⚠️ **Não testado após essas duas mudanças** (feitas depois do último build testado pelo usuário): rebuild com `--clean` e teste ainda pendentes — ver 4.35.
+
+### 24.5 ✅ Concluído (30/09) — Reset de senha por **código** (em vez de só link)
+
+- **Problema:** o link do e-mail (`url_base/?token_reset=...`) abre o navegador comum, exige o app já aberto e aponta para `localhost:8501` fixo (o launcher pode usar outra porta). Protocolo próprio (`calculadora-fhemig://`) descartado — Gmail/Outlook removem links não-http.
+- **Fluxo novo:** e-mail traz um **código `XXXXX-XXXXX`** (10 caracteres, alfabeto sem `I/O/0/1`); o usuário volta à janela do app, em "Esqueci minha senha" informa **e-mail + código + nova senha**. O link continua no e-mail como alternativa (versão web).
+- `data/provedor_usuarios.py`: `_gerar_codigo_redefinicao()`, `normalizar_codigo()` (aceita hífen/espaço/minúscula), `validar_codigo_redefinicao(email, codigo)` (**código só vale para o usuário daquele e-mail** — o que torna seguro um código curto) e novo texto do e-mail. `redefinir_senha`/`validar_token_redefinicao` inalterados.
+- `ui/login.py`: expander "Esqueci minha senha" com 2 passos (solicitar código / informar código); `MAX_TENTATIVAS_CODIGO = 5` por sessão.
+- **Sem migração de banco:** o código é gravado na própria coluna `token` (PK) de `redefinicoes_senha`. Tokens longos antigos ainda funcionam pelo link, mas não pelo campo de código.
+- ⚠️ Só sintaxe e normalização foram verificadas localmente; **fluxo ponta a ponta (Supabase + SMTP) não testado**.
+
+### 24.6 ✅ Concluído (30/09) — Documentação do build
+
+- `desktop/build_exe.md` **reescrito** para o modelo atual (secrets embutido, janela de app, sem console, log em `%LOCALAPPDATA%`, `--clean --noconfirm`, o que zipar, aviso de segurança, problemas comuns).
+
+### 24.7 🟡 Pendências para a próxima sessão
+
+- **4.34** (em aberto, **agravada**) — com o `secrets.toml` embutido, qualquer pessoa que receba o `.exe` extrai a chave **admin (`service_role`) do Supabase** e a senha SMTP. Decidir antes de distribuir além de um grupo pequeno e de confiança: credenciais de permissão restrita (ex.: chave publishable + RLS, ou uma camada intermediária) e, se for o caso, **rotacionar** a chave/senha atuais. Relacionada à pendência já registrada de remoção pontual de credencial do histórico do Git (commit `9594e39`).
+- **4.35** (atualizada) — **rebuild com `--clean` e teste** no Windows (e idealmente numa VM limpa) após as mudanças de 24.4 e 24.5: janela sem console abre? fechar encerra o processo? login, **reset por código**, geração de PDF e persistência (Supabase) funcionam? Em caso de falha, ver `app.log`.
+- **4.36** — avaliar assinatura digital do `.exe` (custo + processo) p/ evitar o SmartScreen; hoje o plano é orientar os usuários a ignorar o aviso.
+- **4.37** (nova) — **sem Chrome nem Edge**, o launcher cai no navegador padrão e **fechar a aba não encerra o servidor** (agora invisível, sem console). Sugestão: caixa de diálogo avisando e encerrar, ou encerramento automático por inatividade.
+- **4.38** (nova) — **login não persiste entre aberturas** do `.exe`: o perfil temporário do navegador (e o cookie de sessão) é apagado ao fechar a janela. Se a persistência deve sobreviver, trocar por pasta fixa em `%LOCALAPPDATA%\CalculadoraFhemig`.
+- **4.39** (nova) — limite de tentativas do código de reset é **só por sessão** (reabrir o app zera). Limite real exige coluna `tentativas` em `redefinicoes_senha` (migração manual no Supabase). Risco prático baixo (código + e-mail + ~10¹⁵ combinações), mas não é à prova de script.
+- **4.40** (nova) — `app.log` cresce sem limite (modo append); considerar rotação. E `url_base` no `secrets.toml` é `http://localhost:8501`, inútil para o link do e-mail no `.exe` — avaliar remover o link do e-mail no build desktop.
 - Demais pendências de calculadoras/verbas das sessões anteriores continuam em aberto e não têm relação com esta frente: **4.21** a **4.33**.
 

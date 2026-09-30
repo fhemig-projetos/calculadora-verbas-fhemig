@@ -36,6 +36,9 @@ if _config_toml.is_file():
 # sem isso o exe sobe mas quebra na primeira tela com "module not found" silencioso.
 datas += collect_data_files("streamlit")
 datas += collect_data_files("supabase")
+# componente Streamlit com frontend próprio (frontend/build): declare_component()
+# falha com "No such component directory" se esses arquivos não estiverem no bundle.
+datas += collect_data_files("streamlit_cookies_controller")
 # zoneinfo no Windows depende dos dados do pacote tzdata (usado em utils/exportador_pdf.py).
 datas += collect_data_files("tzdata")
 # streamlit lê a própria versão (e a de dependências) via importlib.metadata; sem os
@@ -105,7 +108,7 @@ exe = EXE(
     debug=False,
     strip=False,
     upx=False,
-    console=True,  # mantenha True no começo p/ ver erros; troque p/ False quando estabilizar
+    console=False,  # sem janela de console; logs vão p/ %LOCALAPPDATA%\CalculadoraFhemig\app.log (ver launcher.py)
     # PyInstaller exige .ico no Windows (não aceita .png) — converta antes do build,
     # ver docs/build_exe.md. Se o arquivo não existir, comente esta linha.
     icon=str(RAIZ / "desktop" / "icone.ico") if sys.platform == "win32" else None,

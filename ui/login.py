@@ -5,6 +5,7 @@ from streamlit_cookies_controller import CookieController
 
 CHAVE_COOKIE_SESSAO = "token_sessao"
 VALIDADE_SESSAO_HORAS = 1
+MAX_TENTATIVAS_CODIGO = 5
 
 class Login:
     """Tela de login e controle de sessão do usuário autenticado."""
@@ -125,13 +126,51 @@ class Login:
         self._render_esqueci_senha()
 
     def _render_esqueci_senha(self):
-        with st.expander("Esqueci minha senha"):
+        with st.expander("Esqueci minha senha", expanded=st.session_state.get("_reset_aberto", False)):
+            st.markdown("**1. Solicite o código**")
             with st.form("form_esqueci_senha"):
                 email = st.text_input("E-mail cadastrado", type="email", placeholder="exemplo@fhemig.mg.gov.br", key="esqueci_email")
-                enviado = st.form_submit_button("Enviar link de redefinição")
+                enviado = st.form_submit_button("Enviar código por e-mail")
             if enviado:
+                st.session_state["_reset_aberto"] = True
                 mensagem = ProvedorUsuarios.solicitar_redefinicao_senha(email)
                 st.info(mensagem)
+
+            st.markdown("**2. Informe o código recebido**")
+            self._render_redefinir_com_codigo()
+
+    def _render_redefinir_com_codigo(self):
+        with st.form("form_codigo_reset"):
+            email = st.text_input("E-mail cadastrado", type="email", placeholder="exemplo@fhemig.mg.gov.br", key="codigo_email")
+            codigo = st.text_input("Código recebido por e-mail", placeholder="XXXXX-XXXXX")
+            senha = st.text_input("Nova senha", type="password", key="codigo_senha")
+            confirmacao = st.text_input("Confirme a nova senha", type="password", key="codigo_confirmacao")
+            enviado = st.form_submit_button("Redefinir senha")
+
+        if not enviado:
+            return
+        st.session_state["_reset_aberto"] = True
+
+        tentativas = st.session_state.get("_tentativas_codigo", 0)
+        if tentativas >= MAX_TENTATIVAS_CODIGO:
+            st.error("Muitas tentativas incorretas. Feche e abra o aplicativo e solicite um novo código.")
+            return
+        if len(senha) < 8:
+            st.error("A senha deve ter pelo menos 8 caracteres.")
+            return
+        if senha != confirmacao:
+            st.error("As senhas não coincidem.")
+            return
+
+        token = ProvedorUsuarios.validar_codigo_redefinicao(email, codigo)
+        if not token or not ProvedorUsuarios.redefinir_senha(token, senha):
+            st.session_state["_tentativas_codigo"] = tentativas + 1
+            st.error("Código inválido ou expirado. Confira o e-mail e o código, ou solicite um novo.")
+            return
+
+        st.session_state["_tentativas_codigo"] = 0
+        st.session_state["_reset_aberto"] = False
+        st.success('Senha redefinida com sucesso! Faça login com a nova senha na aba "Entrar".')
 
     def _render_nova_senha(self, token: str):
         st.markdown("### Definir nova senha")

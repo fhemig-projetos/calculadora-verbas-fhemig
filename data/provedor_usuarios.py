@@ -61,17 +61,37 @@ def _conectar_smtp(host: str, port: int, timeout: float = 15) -> smtplib.SMTP_SS
         raise smtplib.SMTPConnectError(codigo, msg)
     return cliente_smtp
 
+_ALFABETO_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem I/O/0/1 (confundem na digitação)
+_TAMANHO_CODIGO = 10
+
+
+def _gerar_codigo_redefinicao() -> str:
+    return "".join(secrets.choice(_ALFABETO_CODIGO) for _ in range(_TAMANHO_CODIGO))
+
+
+def normalizar_codigo(codigo: str) -> str:
+    """Aceita o código como digitado/colado: ignora espaços, hífens e caixa."""
+    return "".join(c for c in (codigo or "").upper() if c.isalnum())
+
+
 def _enviar_email_redefinicao(email: str, token: str) -> None:
     """Envia o e-mail de redefinição de senha via SMTP (Gmail por ora).
 
     Isolada de propósito: trocar para SMTP institucional da FHEMIG ou uma
     API transacional no futuro é só reescrever esta função, sem tocar no
     resto do fluxo de redefinição.
+
+    O código é o fluxo principal (vale para o app desktop); o link é alternativa
+    para quem usa a versão web.
     """
     url = f"{st.secrets['app']['url_base']}?token_reset={token}"
+    codigo = f"{token[:5]}-{token[5:]}"
     corpo = (
         f"Recebemos uma solicitação para redefinir sua senha na Calculadora de Verbas FHEMIG.\n\n"
-        f"Clique no link abaixo para criar uma nova senha (válido por 30 minutos):\n{url}\n\n"
+        f"Seu código de redefinição (válido por 30 minutos):\n\n    {codigo}\n\n"
+        f"No aplicativo, abra \"Esqueci minha senha\", informe seu e-mail, o código "
+        f"acima e a nova senha.\n\n"
+        f"Se você usa a versão web, também pode usar o link:\n{url}\n\n"
         f"Se você não solicitou isso, ignore este e-mail."
     )
     mensagem = MIMEText(corpo, "plain", "utf-8")
@@ -238,7 +258,7 @@ class ProvedorUsuarios:
         reais de envio ficam só no console (`print`), para depuração.
         """
         email_normalizado = email.strip().lower()
-        mensagem_generica = "Se esse e-mail estiver cadastrado, você receberá um link para redefinir sua senha."
+        mensagem_generica = "Se esse e-mail estiver cadastrado, você receberá um código para redefinir sua senha."
 
         try:
             resposta = (
@@ -257,7 +277,7 @@ class ProvedorUsuarios:
             return mensagem_generica
 
         usuario_id = resposta.data[0]["id"]
-        token = secrets.token_urlsafe(32)
+        token = _gerar_codigo_redefinicao()
         expira_em = datetime.now(timezone.utc) + timedelta(minutes=30)
 
         _cliente().table("redefinicoes_senha").insert({
@@ -313,6 +333,35 @@ class ProvedorUsuarios:
             return None
 
         return redefinicao
+
+    @staticmethod
+    def validar_codigo_redefinicao(email: str, codigo: str) -> Optional[str]:
+        """Confere se o código é válido E pertence ao usuário desse e-mail.
+
+        Retorna o token (para passar a `redefinir_senha`) ou None. O vínculo com o
+        e-mail é o que torna seguro um código curto: um código vazado/adivinhado
+        não serve para a conta de outra pessoa.
+        """
+        token = normalizar_codigo(codigo)
+        redefinicao = ProvedorUsuarios.validar_token_redefinicao(token)
+        if not redefinicao:
+            return None
+
+        try:
+            resposta = (
+                _cliente()
+                .table("usuarios")
+                .select("id")
+                .eq("email", email.strip().lower())
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            return None
+
+        if not resposta.data or resposta.data[0]["id"] != redefinicao["usuario_id"]:
+            return None
+        return token
 
     @staticmethod
     def redefinir_senha(token: str, nova_senha: str) -> bool:
