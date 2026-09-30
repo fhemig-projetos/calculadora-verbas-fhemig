@@ -1499,3 +1499,30 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - **4.32** (nova) — "IPSEMG Assist. Méd. 13º Salário" (7701): a servidora disse que "a fórmula é a mesma" do "Desconto de IPSEMG (3,2%)" já implementado, mas não ficou claro se é a mesma verba (só que sobre a base do 13º) ou uma verba distinta que compartilha a fórmula. Nada implementado.
 - **4.33** (nova) — "Desconto de IPSEMG para dependente": mencionado pela servidora sem detalhamento — não está claro se é uma das verbas já citadas/previstas ou uma verba própria, nem qual seria o cálculo. Nada implementado, precisa de mais informação antes de qualquer ação.
 
+---
+
+## 24. Plano de desenvolvimento — sessão 30/09
+
+> **Motivação:** acesso via Streamlit Community Cloud instável. Avaliada (com Claude) a viabilidade de empacotar a aplicação como executável Windows local (PyInstaller), que sobe um servidor Streamlit em `localhost` e abre o navegador — sem depender do hosting na nuvem.
+
+### 24.1 ✅ Concluído — Esqueleto do build PyInstaller (`desktop/`)
+
+- **Criado `desktop/launcher.py`:** ponto de entrada do `.exe`. Sobe o Streamlit via API interna (`streamlit.web.cli`), escolhe porta livre automaticamente e abre o navegador padrão em `localhost`.
+- **Criado `desktop/calculadora.spec`:** spec do PyInstaller — empacota `app.py`, `ui/`, `data/`, `calculadoras/`, `utils/`, `assets/` e `.streamlit/config.toml` dentro do `.exe`. Ícone precisa ser convertido pra `.ico` antes do build (instruções em `docs/build_exe.md`).
+- **Criado `desktop/requirements-build.txt`:** dependências de build (`requirements.txt` + `pyinstaller`).
+- **Criado `docs/build_exe.md`:** passo a passo completo de build (precisa rodar em **Windows**, não no WSL/Linux — PyInstaller gera binário pra a plataforma onde roda), preparação da pasta de distribuição e problemas comuns.
+- **`.gitignore` atualizado:** `build/`, `dist/`, `venv-build/`, `desktop/*.ico` — artefatos de build não entram no repositório.
+
+### 24.2 ⚠️ Decisão de segurança tomada — `secrets.toml` NÃO vai dentro do `.exe`
+
+- **Problema identificado:** `.streamlit/secrets.toml` tem a chave admin do Supabase (`supabase_admin`) e a senha SMTP. Um `.exe` do PyInstaller é trivialmente extraível (7-zip, `pyinstxtractor`), então qualquer coisa embutida nele deve ser tratada como pública.
+- **Decisão:** o build **não** empacota `secrets.toml`. Em vez disso, `launcher.py` aponta `STREAMLIT_SECRETS_FILES` pra um `.streamlit/secrets.toml` que precisa existir **ao lado do `.exe`** (não dentro dele) — se não existir, o launcher avisa e encerra.
+- **Consequência prática, ainda não resolvida:** cada pessoa que for rodar o `.exe` precisa receber esse `secrets.toml` por canal separado e confiável — não escala pra "qualquer um baixa o exe". Ver pendência **4.34**.
+
+### 24.3 🟡 Pendências para a próxima sessão
+
+- **4.34** (nova) — decidir o modelo de distribuição de credenciais antes de distribuir o `.exe` pra mais de uma pessoa: manter a chave admin única do Supabase replicada manualmente por canal seguro (viável só pra grupo pequeno e controlado), ou criar credenciais com permissão mais restrita que `service_role` por usuário/grupo. Sem essa decisão, não faz sentido distribuir o executável amplamente.
+- **4.35** (nova) — fazer o build de fato no Windows (ainda não executado nesta sessão — ambiente de desenvolvimento é WSL/Linux) e testar numa máquina limpa: login, geração de PDF (reportlab) e persistência (Supabase), que são as áreas mais propensas a erro de import/arquivo faltando em builds do PyInstaller (ver `docs/build_exe.md`).
+- **4.36** (nova) — avaliar se vale assinar digitalmente o `.exe` (custo + processo à parte) pra evitar o aviso do Windows Defender SmartScreen em executáveis não assinados — hoje o plano assume que esse aviso vai aparecer e que os usuários precisam ser orientados a ignorá-lo.
+- Demais pendências de calculadoras/verbas das sessões anteriores continuam em aberto e não têm relação com esta frente: **4.21** a **4.33**.
+
