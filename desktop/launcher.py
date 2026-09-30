@@ -6,8 +6,9 @@ Como funciona quando empacotado pelo PyInstaller:
   (app.py, ui/, data/, calculadoras/, utils/, assets/, .streamlit/config.toml).
 - Chamamos o Streamlit via API interna (bootstrap), não via subprocess, para não
   depender de um segundo binário python/streamlit solto no PATH do usuário.
-- secrets.toml NÃO é empacotado (ver build_exe.md) — é lido de uma pasta ao lado
-  do .exe, para não vazar credenciais do Supabase/SMTP dentro do binário.
+- secrets.toml é empacotado junto (ver build_exe.md). Se existir um secrets.toml ao
+  lado do .exe, ele tem prioridade sobre o embutido (permite trocar credenciais
+  sem refazer o build).
 """
 import os
 import socket
@@ -39,17 +40,18 @@ def porta_livre(preferida: int = 8501) -> int:
             return s.getsockname()[1]
 
 
-def checar_secrets(pasta_config: str) -> None:
-    secrets_path = os.path.join(pasta_config, ".streamlit", "secrets.toml")
-    if not os.path.isfile(secrets_path):
-        print(
-            "\n[ERRO] Arquivo de configuração não encontrado:\n"
-            f"  {secrets_path}\n\n"
-            "Copie o arquivo 'secrets.toml' (fornecido separadamente, por canal seguro)\n"
-            "para a pasta '.streamlit' ao lado deste executável antes de abrir.\n"
-        )
-        input("Pressione ENTER para sair...")
-        sys.exit(1)
+def localizar_secrets(base: str, pasta_config: str) -> str:
+    """Prefere o secrets.toml ao lado do .exe; senão usa o embutido no bundle."""
+    for pasta in (pasta_config, base):
+        caminho = os.path.join(pasta, ".streamlit", "secrets.toml")
+        if os.path.isfile(caminho):
+            return caminho
+    print(
+        "\n[ERRO] Arquivo de configuração 'secrets.toml' não encontrado nem ao lado\n"
+        "do executável nem dentro dele. Refaça o build com o arquivo presente.\n"
+    )
+    input("Pressione ENTER para sair...")
+    sys.exit(1)
 
 
 def main() -> None:
@@ -60,11 +62,7 @@ def main() -> None:
     # Streamlit procura .streamlit/secrets.toml relativo ao cwd por padrão;
     # apontamos explicitamente para a pasta do usuário via env var
     # (opção "secrets.files" é `multiple=True` -> STREAMLIT_SECRETS_FILES, no plural).
-    os.environ["STREAMLIT_SECRETS_FILES"] = os.path.join(
-        pasta_config, ".streamlit", "secrets.toml"
-    )
-
-    checar_secrets(pasta_config)
+    os.environ["STREAMLIT_SECRETS_FILES"] = localizar_secrets(base, pasta_config)
 
     porta = porta_livre()
     url = f"http://localhost:{porta}"
