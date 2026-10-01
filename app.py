@@ -1,33 +1,20 @@
+import json
 import streamlit as st
-from ui import Cabecalho, FormularioServidor, SelecaoVerba, Login
+from ui import Cabecalho, FormularioServidor, SelecaoVerba, BaseServidores
 from data import ProvedorAnalises
 
 st.set_page_config(page_title="Calculadora de Verbas - Fhemig", page_icon="assets/icone.png", layout="centered")
 
 cabecalho = Cabecalho()
 
-# Dispara tentativa de restaurar sessão no init
-login = Login()
-
-# Se realmente não tem usuário logado renderiza o formulário de login
-if not login.autenticado():
-    cabecalho.render()
-    login.render_formulario()
-    st.stop()
-
-# Após validar o login do usuário, busca o id associado a ele
-usuario_id = st.session_state["usuario_logado"]["id"]
-
 if "analise_carregada" not in st.session_state:
-    # Carregar análise salva na última sessão do usuário.
+    # Carrega a análise salva na última sessão (SQLite local deste computador).
 
-    # A checagem dessa flag no session_state é p/ garantir que a busca no banco só acontece
-    # uma vez após login ou F5 (já que o streamlit roda inteiro a cada interação).
-
-    # Carrega do banco se tiver análise salva 
-    analise = ProvedorAnalises.carregar(usuario_id)
+    # A checagem dessa flag no session_state é p/ garantir que a leitura só acontece
+    # uma vez após abrir o app ou F5 (já que o streamlit roda inteiro a cada interação).
+    analise = ProvedorAnalises.carregar()
     if analise:
-        # Carrega o session_state com os dados salvos no banco 
+        # Carrega o session_state com os dados salvos
         ds_restaurado = ProvedorAnalises.desserializar_dados_servidor(analise["dados_servidor"])
 
         # Carrega os session_state c/ os dados de cada formulário
@@ -44,11 +31,18 @@ if "analise_carregada" not in st.session_state:
 # Renderização dos formulários
 form_servidor = FormularioServidor()
 sv = SelecaoVerba()
+bs = BaseServidores()
 
 cabecalho.render()
-login.render_logout()
+bs.render()
 form_servidor.render()
 sv.render()
 
-# Salva os dados no banco a cada rerun (é o que persiste os dados)
-ProvedorAnalises.salvar(usuario_id, st.session_state["dados_servidor"], st.session_state["historico"])
+# Salva a análise a cada rerun (é o que persiste os dados), mas só grava no disco se mudou
+instantaneo = json.dumps(
+    [ProvedorAnalises.serializar_dados_servidor(st.session_state["dados_servidor"]), st.session_state["historico"]],
+    default=str,
+)
+if instantaneo != st.session_state.get("_analise_salva"):
+    ProvedorAnalises.salvar(st.session_state["dados_servidor"], st.session_state["historico"])
+    st.session_state["_analise_salva"] = instantaneo

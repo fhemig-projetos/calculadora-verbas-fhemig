@@ -1,5 +1,5 @@
 import streamlit as st
-from data import ProvedorDadosFhemig, ProvedorServidoresSupabase
+from data import ProvedorDadosFhemig, ProvedorServidoresLocal
 from utils import FormatadorCampos, on_change_masp, on_change_maiusculo_strip, on_change_strip
 import datetime
 
@@ -11,7 +11,7 @@ class FormularioServidor:
     """
 
     def __init__(self):
-        # Carrega o session_state["dados_servidor"] se não houver dados salvos no banco
+        # Carrega o session_state["dados_servidor"] se não houver análise salva no SQLite local
         if "dados_servidor" not in st.session_state:
             st.session_state["dados_servidor"] = {
                 "nome": "",
@@ -57,7 +57,7 @@ class FormularioServidor:
                     essa atribuição já reflete diretamente na variável de session_state.
                     """
                     st.session_state["ultima_busca_servidor"] = busca_atual
-                    servidor_encontrado = ProvedorServidoresSupabase.buscar_servidor(ds["masp"], ds["admissao"])
+                    servidor_encontrado = ProvedorServidoresLocal.buscar_servidor(ds["masp"], ds["admissao"])
 
                     # Incrementa o nonce que será usado nas chaves dos campos (evita bugs de preenchimento) 
                     st.session_state["servidor_nonce"] += 1

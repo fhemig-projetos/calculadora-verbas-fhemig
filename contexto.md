@@ -1508,10 +1508,10 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 ### 24.1 ✅ Concluído — Esqueleto do build PyInstaller (`desktop/`)
 
 - **Criado `desktop/launcher.py`:** ponto de entrada do `.exe`. Sobe o Streamlit via API interna (`streamlit.web.cli`), escolhe porta livre automaticamente e abre o navegador padrão em `localhost`.
-- **Criado `desktop/calculadora.spec`:** spec do PyInstaller — empacota `app.py`, `ui/`, `data/`, `calculadoras/`, `utils/`, `assets/` e `.streamlit/config.toml` dentro do `.exe`. Ícone precisa ser convertido pra `.ico` antes do build (instruções em `desktop/build_exe.md`).
-- **Criado `desktop/requirements-build.txt`:** dependências de build (`requirements.txt` + `pyinstaller`).
+- **Criado `desktop/calculadora.spec`:** spec do PyInstaller — empacota `app.py`, `ui/`, `data/`, `calculadoras/`, `utils/`, `assets/` e `.streamlit/config.toml` dentro do `.exe`. Ícone precisa ser convertido pra `.ico` antes do build (passo 3 em `desktop/build_exe.md`).
+- **`pyinstaller` adicionado ao `requirements.txt`:** o `desktop/requirements-build.txt` (que era `requirements.txt` + `pyinstaller`) foi removido; o build usa `pip install -r requirements.txt`.
 - **Criado `desktop/build_exe.md`** (movido de `docs/`; reescrito em 30/09 — ver 24.6): passo a passo completo de build (precisa rodar em **Windows**, não no WSL/Linux — PyInstaller gera binário pra a plataforma onde roda), preparação da pasta de distribuição e problemas comuns.
-- **`.gitignore` atualizado:** `build/`, `dist/`, `venv-build/`, `desktop/*.ico` — artefatos de build não entram no repositório.
+- **`.gitignore` atualizado:** `build/`, `dist/`, `venv-build/` (legado), `desktop/*.ico` — artefatos de build não entram no repositório.
 
 ### 24.2 ⚠️ Decisão de segurança (SUPERADA no mesmo dia) — `secrets.toml` NÃO vai dentro do `.exe`
 
@@ -1557,3 +1557,28 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - **4.40** (nova) — `app.log` cresce sem limite (modo append); considerar rotação. E `url_base` no `secrets.toml` é `http://localhost:8501`, inútil para o link do e-mail no `.exe` — avaliar remover o link do e-mail no build desktop.
 - Demais pendências de calculadoras/verbas das sessões anteriores continuam em aberto e não têm relação com esta frente: **4.21** a **4.33**.
 
+
+---
+
+## 25. Plano de desenvolvimento — sessão 01/10
+
+### 25.1 ✅ Concluído — Fim do login e do Supabase; SQLite local no `.exe`
+
+- **Motivação:** o `.exe` falhava nas redes das unidades (`httpx.ConnectTimeout`/`ProxyError 504` ao Supabase): saída direta bloqueada, proxy corporativo (PAC + NTLM, e redes diferentes por unidade). Diagnóstico completo em conversa: o login só existia para salvar o histórico, e a tabela `servidores` também dependia da rede.
+- **Decisão:** abandonar login, Supabase e SMTP. Histórico e base de servidores passam a viver num **SQLite local** (`%LOCALAPPDATA%\CalculadoraFhemig\calculadora.db`, um por usuário do Windows). Funciona sem rede/proxy e o `.exe` **não embute mais credenciais** (resolve também a pendência 4.34).
+- **`data/armazenamento_local.py` (novo):** conexão + esquema (`servidores`, `analise_ativa` com linha única, `meta`). `CALCULADORA_DB` sobrescreve o caminho (testes).
+- **`data/provedor_servidores.py`:** `ProvedorServidoresLocal` (substitui `ProvedorServidoresSupabase`) — `buscar_servidor` (mesmo formato de retorno, nível romano→arábico, **sem cache** pois a base pode ser reimportada), `info_base` e `importar_planilha` (CSV ou XLSX; substitui a base inteira numa transação; valida as 11 colunas obrigatórias; ignora linhas sem MASP/admissão e zera datas inválidas, informando a contagem).
+- **`data/provedor_analises.py`:** agora grava/lê a análise ativa no SQLite, sem `usuario_id`. `app.py` só grava quando o conteúdo muda.
+- **`ui/base_servidores.py` (novo):** painel "Base de servidores" (situação + upload + "Importar base"), aberto sozinho quando não há base.
+- **Removidos:** `ui/login.py`, `data/provedor_usuarios.py`, dependências `supabase`, `bcrypt`, `streamlit-cookies-controller`; no `launcher.py` o `secrets.toml` e toda a lógica de proxy/Px (experimento da mesma sessão, funcionou nas redes PRODEMGE mas não numa unidade — e deixou de ser necessário). `calculadora.spec` sem `secrets.toml`; `openpyxl` e `sqlite3` em hiddenimports. `requirements.txt` enxuto (+`openpyxl`).
+- **Testado (fora do `.exe`):** provedores com CSV/XLSX de exemplo, rollback com planilha inválida, e `app.py` via `AppTest` (busca → preenchimento → persistência → restauração em nova sessão).
+- **Fluxo mensal:** gerar a planilha (ideal: só os servidores da unidade), enviar à unidade, importar pelo painel — sem novo build. Documentado em `desktop/build_exe.md`.
+
+### 25.2 🟡 Pendências
+
+- **4.35** (atualizada) — rebuild com `--clean` e teste do `.exe` numa máquina de unidade: abrir, importar planilha `.csv`/`.xlsx`, buscar servidor, gerar PDF, fechar e reabrir (análise restaurada).
+- **4.41** (nova) — `scripts/populate_servidores.py` ficou obsoleto (envia para o Supabase). Remover ou transformar em gerador da planilha mensal por unidade.
+- **4.42** (nova) — a **versão web (Streamlit Cloud) deixa de fazer sentido** nesta base de código: com SQLite local, todos os visitantes compartilhariam a mesma análise/base no servidor. Se a web continuar, manter um branch separado com login.
+- **4.43** (nova) — planilha de servidores = dados pessoais (LGPD): definir canal e quem pode receber; o `.db` local não é criptografado.
+- **4.36** a **4.40** — as de login/e-mail/cookie (4.38, 4.39 e o link de e-mail em 4.40) ficam **sem objeto**; 4.37 (sem Chrome/Edge) e a rotação do `app.log` continuam valendo.
+- **Credenciais antigas:** a chave admin do Supabase e a senha SMTP já circularam em `.exe` anteriores e a senha do proxy foi colada em conversa — considerar **rotacionar** todas.

@@ -1,55 +1,56 @@
-from datetime import date
+import json
+from datetime import date, datetime
 from typing import Optional
-import streamlit as st
-from supabase import create_client
 
-@st.cache_resource
-def _cliente():
-    return create_client(
-        st.secrets["supabase_admin"]["url"],
-        st.secrets["supabase_admin"]["key"],
-    )
+from .armazenamento_local import conexao
 
 CAMPOS_DATA = ("dt_admissao", "dt_fim_efetiva")
 
 class ProvedorAnalises:
-    """Persiste a análise ativa (dados do servidor + histórico de cálculos) de cada usuário.
+    """Persiste, no SQLite local, a análise ativa (dados do servidor + histórico de cálculos).
 
-    Só existe uma análise ativa por usuário — `usuario_id` é a chave primária
-    da tabela, então salvar sempre sobrescreve a análise anterior (não há
-    conceito de "várias análises salvas" por decisão do usuário).
+    Só existe uma análise ativa por computador — a tabela tem uma única linha
+    (id = 1), então salvar sempre sobrescreve a anterior (não há conceito de
+    "várias análises salvas" por decisão do usuário).
     """
 
     @staticmethod
-    def carregar(usuario_id) -> Optional[dict]:
-        """Busca a análise salva de um usuário. Retorna None se nunca salvou nada."""
+    def carregar() -> Optional[dict]:
+        """Busca a análise salva. Retorna None se nunca salvou nada (ou se o arquivo estiver ilegível)."""
         try:
-            resposta = (
-                _cliente()
-                .table("analises")
-                .select("dados_servidor, historico")
-                .eq("usuario_id", usuario_id)
-                .limit(1)
-                .execute()
-            )
+            with conexao() as con:
+                linha = con.execute(
+                    "SELECT dados_servidor, historico FROM analise_ativa WHERE id = 1"
+                ).fetchone()
+            if linha is None:
+                return None
+            return {
+                "dados_servidor": json.loads(linha["dados_servidor"]),
+                "historico": json.loads(linha["historico"]),
+            }
         except Exception:
             return None
 
-        return resposta.data[0] if resposta.data else None
-
     @staticmethod
-    def salvar(usuario_id, dados_servidor: dict, historico: list) -> None:
-        """Grava (upsert) a análise ativa do usuário.
+    def salvar(dados_servidor: dict, historico: list) -> None:
+        """Grava (upsert) a análise ativa.
 
-        Falha silenciosa: um erro de rede aqui não deve travar a aplicação,
+        Falha silenciosa: um erro de disco aqui não deve travar a aplicação,
         já que a análise ainda está íntegra em st.session_state.
         """
         try:
-            _cliente().table("analises").upsert({
-                "usuario_id": usuario_id,
-                "dados_servidor": ProvedorAnalises.serializar_dados_servidor(dados_servidor),
-                "historico": historico,
-            }, on_conflict="usuario_id").execute()
+            with conexao() as con:
+                con.execute(
+                    "INSERT INTO analise_ativa (id, dados_servidor, historico, atualizado_em) "
+                    "VALUES (1, ?, ?, ?) "
+                    "ON CONFLICT(id) DO UPDATE SET dados_servidor = excluded.dados_servidor, "
+                    "historico = excluded.historico, atualizado_em = excluded.atualizado_em",
+                    (
+                        json.dumps(ProvedorAnalises.serializar_dados_servidor(dados_servidor)),
+                        json.dumps(historico),
+                        datetime.now().isoformat(timespec="seconds"),
+                    ),
+                )
         except Exception:
             pass
 
