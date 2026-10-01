@@ -25,10 +25,11 @@ nos Resumos Funcionais da FHEMIG.
 - GIEFS — 1/3 de Férias
 - 1/3 de Férias
 - Férias Indenizadas
-- Faltas — Horas (desconto)
+- Perda Sexto/Oitavo (desconto)
 - Faltas — Dias (desconto)
-- Ajuda de Custo Mensal
-- Desconto de Ajuda de Custo
+- Ajuda de Custo Fixa (3198)
+- Ajuda de Custo Variável (2070)
+- Devolução Custeio Ajuda de Custo
 - Aumento Salarial (multi-alíquotas)
 - Desconto de IPSEMG (3,2%)
 - INSS Mensal (tabela progressiva 2024/2025/2026)

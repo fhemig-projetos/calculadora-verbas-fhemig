@@ -3,6 +3,15 @@ CONFIG_CAMPOS = {
     "carga_horaria_mensal":    {"label": "Carga Horária Mensal (h/mês)", "tipo": "hora_mensal"},
     "horas_realizadas": {"label": "Horas Realizadas", "tipo": "horas_realizadas"},
     "ano_referencia":   {"label": "Ano de Referência", "tipo": "ano"},
+    "ano_referencia_aumento": {
+        "label": "Ano de Referência",
+        "tipo": "ano",
+        "help": (
+            "Aplica, em sequência (composto), todas as alíquotas do ano de referência em diante. "
+            "Em 2024 aplica as alíquotas de 2024 e 2026; em 2026 aplica só a de 2026. "
+            "Resultado = valor reajustado − Venc. Básico."
+        ),
+    },
     "valor_grs": {
         "label": "GRS (R$)",
         "tipo": "moeda",
@@ -18,7 +27,8 @@ CONFIG_CAMPOS = {
     "dias_ferias_indenizadas": {"label": "Nº de Dias de Férias Indenizadas", "tipo": "dias"},
     "faltas_horas": {"label": "Nº de Horas de Faltas", "tipo": "horas"},
     "faltas_dias": {"label": "Nº de Dias de Faltas", "tipo": "dias"},
-    "ajuda_custo_diario": {"label": "Valor Diário da Ajuda de Custo (R$)", "tipo": "moeda"},
+    "ajuda_custo_fixa_diario": {"label": "Valor Diário da Ajuda de Custo Fixa (R$)", "tipo": "moeda"},
+    "ajuda_custo_variavel_diario": {"label": "Valor Diário da Ajuda de Custo Variável (R$)", "tipo": "moeda"},
     "valor_ajuda_custo": {"label": "Valor da Ajuda de Custo (R$)", "tipo": "moeda"},
     "valor_13_salario":  {"label": "Valor do 13º Salário (R$)", "tipo": "moeda"},
     "giefs_13_salario":  {"label": "Valor da GIEFS do 13º (R$)", "tipo": "moeda"},

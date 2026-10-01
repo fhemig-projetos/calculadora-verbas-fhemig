@@ -50,5 +50,13 @@ class ProvedorDadosFhemig:
         dados = cls._carregar_dados_globais()
         return dados["tabela_reajustes"][str(ano)]
 
-    
+    @classmethod
+    def obter_reajustes_a_partir_de(cls, ano: int) -> list[tuple[int, float]]:
+        """Retorna (ano, alíquota) de todos os reajustes do ano informado em diante, em ordem cronológica.
 
+        Ex.: com reajustes em 2024 e 2026, ano=2024 devolve os dois e ano=2026 devolve só o de 2026.
+        """
+        dados = cls._carregar_dados_globais()
+        return sorted(
+            (int(a), aliquota) for a, aliquota in dados["tabela_reajustes"].items() if int(a) >= ano
+        )

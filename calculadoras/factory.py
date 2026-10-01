@@ -24,7 +24,7 @@ from .ferias_terco import CalculadoraTercoFerias
 from .ferias_indenizadas import CalculadoraFeriasIndenizadas
 from .faltas_horas import CalculadoraFaltasHoras
 from .faltas_dias import CalculadoraFaltasDias
-from .ajuda_custo import CalculadoraAjudaCusto
+from .ajuda_custo import CalculadoraAjudaCustoFixa, CalculadoraAjudaCustoVariavel
 from .ajuda_custo_desconto import CalculadoraDescontoAjudaCusto
 from .aumento_salarial import CalculadoraAumentoSalarial
 from .ipsemg import CalculadoraIPSEMG
@@ -56,10 +56,11 @@ REGISTRO_CALCULADORAS = {
     "1/3 de Férias": CalculadoraTercoFerias(),
     "GIEFS — 1/3 de Férias": CalculadoraGIEFSTercoFerias(),
     "Férias Indenizadas": CalculadoraFeriasIndenizadas(),
-    "Faltas — Horas": CalculadoraFaltasHoras(),
+    "Perda Sexto/Oitavo": CalculadoraFaltasHoras(),
     "Faltas — Dias": CalculadoraFaltasDias(),
-    "Ajuda de Custo Mensal": CalculadoraAjudaCusto(),
-    "Desconto de Ajuda de Custo": CalculadoraDescontoAjudaCusto(),
+    "Ajuda de Custo Fixa": CalculadoraAjudaCustoFixa(),
+    "Ajuda de Custo Variável": CalculadoraAjudaCustoVariavel(),
+    "Devolução Custeio Ajuda de Custo": CalculadoraDescontoAjudaCusto(),
     "Aumento Salarial": CalculadoraAumentoSalarial(),
     "Desconto de IPSEMG (3,2%)": CalculadoraIPSEMG(),
     "Licença Maternidade": CalculadoraLicencaMaternidade(),

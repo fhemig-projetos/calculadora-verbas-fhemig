@@ -1582,3 +1582,77 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - **4.43** (nova) — planilha de servidores = dados pessoais (LGPD): definir canal e quem pode receber; o `.db` local não é criptografado.
 - **4.36** a **4.40** — as de login/e-mail/cookie (4.38, 4.39 e o link de e-mail em 4.40) ficam **sem objeto**; 4.37 (sem Chrome/Edge) e a rotação do `app.log` continuam valendo.
 - **Credenciais antigas:** a chave admin do Supabase e a senha SMTP já circularam em `.exe` anteriores e a senha do proxy foi colada em conversa — considerar **rotacionar** todas.
+
+---
+
+## 26. Retorno da reunião com a unidade HEM (Hospital Eduardo de Menezes) — pendências resolvidas e em aberto
+
+> Registro, a pedido do usuário, da lista de itens tratados a partir da última reunião do projeto com a unidade HEM. Os itens "resolvidos" foram implementados e testados no app (via `AppTest`, fora do `.exe`); o **`.exe` ainda precisa de novo build** para trazê-los (pendência **4.35**). O projeto será retomado a partir das pendências da seção 26.3.
+
+### 26.1 ✅ Resolvidas — regras de negócio e interface
+
+- **Ajuda de Custo dividida em duas verbas** (antes: "Ajuda de Custo Mensal"). Mesma fórmula (**Valor Diário × Dias Trabalhados**):
+  - **Ajuda de Custo Fixa — código 3198:** valor diário pré-preenchido com **R$ 50,00** (editável).
+  - **Ajuda de Custo Variável — código 2070:** valor diário em **campo aberto** (começa em R$ 0,00).
+  - Implementação: `calculadoras/ajuda_custo.py` com base comum e duas subclasses; **cada parcela tem o próprio campo** (`ajuda_custo_fixa_diario` / `ajuda_custo_variavel_diario`) para o valor digitado numa não vazar para a outra e o default de R$ 50,00 não se perder. Default da fixa em `ui/selecao_verba.py`. O nome antigo "Ajuda de Custo Mensal" foi removido por completo (o histórico agora é SQLite, criado em 01/10: nenhum usuário tem esse nome salvo).
+  - **Interpretações adotadas:** a base da "Devolução Custeio Ajuda de Custo" (ver renomeação abaixo) é a **soma de todos os lançamentos** de Fixa e Variável no histórico, não só o último de cada (definido pelo usuário); e **ambas as parcelas ficam fora** da soma de "Outras Vantagens" do INSS Mensal (`NOMES_EXCLUIDOS_INSS`), como a ajuda de custo já era (decisão minha, não confirmada com a unidade).
+- **GIEFS — Meses:** removido o campo de meses; ficou só o campo aberto "Valor da GIEFS (R$)" e o resultado é o próprio valor lançado (`calculadoras/giefs_meses.py`). O nome "GIEFS — Meses" já não descreve a verba — avaliar renomear. As demais GIEFS não mudaram (Dias: valor + dias; 13º: valor + meses, ÷12; 1/3 de Férias: valor).
+- **Aumento Salarial — reajuste acumulado:** em **2024** aplica as duas alíquotas em sequência (**composto**: 4,62% de 2024 e depois 5,40% de 2026 sobre o valor já reajustado); em **2026** aplica só a de 2026. O resultado continua sendo só o valor do aumento (novo valor − atual). Ex.: R$ 2.000,00 → 2024: **R$ 205,39**; 2026: **R$ 108,00**. Composição (e não soma das alíquotas) escolhida pelo usuário. A regra é dirigida pela tabela `tabela_reajustes` do `tabelas.json`: o ano escolhido **e todos os posteriores** entram (`ProvedorDadosFhemig.obter_reajustes_a_partir_de`) — um reajuste de 2027 passaria a valer sozinho. A explicação da regra ficou no balão (`help`) do campo, que agora tem chave própria **`ano_referencia_aumento`** em `CONFIG_CAMPOS` (o `ano_referencia` continua compartilhado pelos INSS).
+- **Select de verbas em ordem alfabética** (ignora acentos e maiúsculas).
+- **Filtro "Tipo de verba" antes do select:** Todas (padrão) / Vantagens / Descontos (`FILTROS_TIPO_VERBA` em `ui/selecao_verba.py`). Só encurta a lista; se a verba selecionada não pertencer ao tipo escolhido, o select volta ao placeholder.
+- **Connection timeout error:** resolvido pela refatoração para app e banco locais — ver seção **25.1**.
+
+### 26.2 ✅ Resolvidas — códigos e nomes das verbas (`data/tabelas.json`)
+
+| Verba | Código antigo | Código novo |
+|---|---|---|
+| Aumento Salarial (AS) | `----` | **2400** |
+| Ajuda de Custo Fixa | — (nova) | **3198** |
+| Ajuda de Custo Variável | 2070 (era "Mensal") | **2070** |
+| Gratificação de Final de Semana (GFS) | 416 | **2416** |
+| Adicional Noturno (AN) | 773 | **2773** |
+| Hora Extra (HE) | 2412 | **2094** |
+| Licença Maternidade (LM) | 1200 | **3200** |
+| Piso Enfermagem — Dias / Meses | 3154 | **3154** (já estava assim) |
+| 13º Salário | 491 | **2491** |
+| GIEFS — 13º Salário | 417 | **3171** |
+| Piso Enfermagem — 13º Salário | 1164 | **3164** |
+| GIEFS — Dias | 417 | **2417** |
+| GIEFS — Meses | 417 | **2417** |
+| GRS — Dias | 774 | **2774** |
+| GRS — Meses | 774 | **2774** |
+| 1/3 de Férias | 492 | **2492** |
+| GIEFS — 1/3 de Férias | 3242 | **3242** (já estava assim) |
+| Férias Indenizadas | 2432 | **1324** |
+| Faltas — Dias | 7811 | **7803** |
+| Desconto de IPSEMG (3,2%) | 7700 | **7801** |
+
+**Renomeações (o registro em `calculadoras/factory.py` acompanha o nome):**
+- "Desconto de Ajuda de Custo" → **"Devolução Custeio Ajuda de Custo"**, código 9018 → **8070**.
+- "Faltas — Horas" → **"Perda Sexto/Oitavo"** (código 7810, inalterado). Isso resolve a pendência **4.30** (o nome agora segue a verba 7810 PERDA SEXTO/OITAVO).
+
+**Observações:**
+- "Verba Aumento Salarial: 2400" e "AS: 2400" da lista eram o mesmo item. O código 2400 é igual ao de "Vencimento Básico — Dias"; foi aplicado como informado pela unidade.
+- **Itens já salvos no histórico guardam nome e código da época do lançamento** — continuam aparecendo com o nome/código antigo (inclusive no PDF) até serem lançados de novo.
+- **Não alteradas porque não constavam na lista:** Piso Enfermagem — Desconto (9154), GRS — 13º Salário (774), GRS — Desconto de Horas (7820), IPSEMG Filho (`----`).
+
+### 26.3 🟡 Pendentes (a retomar)
+
+Todas ainda sem definição de regra/detalhamento pela unidade (marcadas com "???" na lista original).
+
+- **4.44** (nova) — **Código de verba "atual" — corrigir para as atrasadas.** Sem detalhamento; ligar à observação da unidade sobre "código das verbas em atraso" (ver `gestao/feedback_servidores.md`, "Código das verbas"): confirmar se as verbas lançadas em atraso usam código diferente das do mês corrente e, se sim, como a calculadora deve escolher (por competência? por seleção do técnico?).
+- **4.45** (nova) — **Competência:** avaliar se é possível abrir **mais de um campo de competência** durante o preenchimento (hoje há um mês/ano único por item — ver `_render_competencia` em `ui/selecao_verba.py`). Ligado à 4.44 se a competência passar a definir o código.
+- **4.46** (nova) — **Conferir os valores dos cargos.** `tabela_cargos` em `data/tabelas.json` tem hoje só **4 registros** (PENF 2/4, TOS 1, AGAS 1, 40 h). A migração para o Supabase prevista na **4.21** fica **sem objeto** (Supabase abandonado — seção 25); o que resta é validar os valores com a unidade e **completar a tabela local**.
+- **4.47** (nova) — **GRS — Desconto de Horas (7820):** definir o ponto em aberto (a lista original não detalha). Hoje: `(valor_grs ÷ carga_horária_mensal) × horas de falta`.
+- **4.48** (nova) — **GRS — 13º Salário:** avaliar **remover a verba** (hoje código 774, entra em `NOMES_EXCLUIDOS_INSS`, competência só por ano, usada na base do INSS sobre 13º). Se remover: tirar de `tabelas.json`, `factory.py`, `__init__`, README e das listas em `ui/selecao_verba.py`.
+- **4.49** (atualiza a **4.32**) — **Desconto de IPSEMG sobre o 13º (código 7701):** a unidade indicou que **incide sobre GIEFS 13º, 13º e Piso 13º** — falta confirmar fórmula e alíquota (igual ao 3,2% do mensal?) e se vira verba própria; nada implementado.
+- **4.50** (nova) — **Regras do piso:** consolidar com a unidade. Reúne as pendências antigas **4.26** (interpretações de Piso — Dias/Meses), **4.28** (vínculo do valor do piso com o vencimento básico) e **4.29** (Desconto 9154 sobre o mesmo `valor_piso`).
+
+### 26.4 Atualização do status de pendências anteriores
+
+- **4.30** — ✅ resolvida: "Faltas — Horas" renomeada para "Perda Sexto/Oitavo" (7810).
+- **4.21** — ❎ sem objeto (Supabase abandonado); substituída pela **4.46**.
+- **4.22** (modularizar a restauração da análise do `app.py`) — segue em aberto, agora com `ProvedorAnalises.carregar()` sem `usuario_id`.
+- **4.23**, **4.34**, **4.38**, **4.39** e o link de e-mail da **4.40** — ❎ sem objeto (login/Supabase/SMTP removidos — seção 25).
+- **4.35** (rebuild e teste do `.exe`) — **segue em aberto e agora cobre também** as mudanças desta seção (filtro de tipo, ajuda de custo, aumento salarial, códigos).
+- **4.25**, **4.27** (revisão da base do INSS Mensal), **4.31** (código/fórmula do IPSEMG Filho), **4.33** (IPSEMG de dependente), **4.36**, **4.37**, **4.41**, **4.42**, **4.43** — inalteradas.

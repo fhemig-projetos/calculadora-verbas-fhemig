@@ -1,9 +1,13 @@
+import unicodedata
 import streamlit as st
 from data import ProvedorDadosFhemig
 from calculadoras import CalculadoraVerba, REGISTRO_CALCULADORAS
 from utils import FormatadorCampos, GeradorPDF
 from datetime import date 
 from .config import CONFIG_CAMPOS
+
+# Filtro do select de verbas: rótulo exibido → valor do campo "tipo" em tabelas.json (None = todas)
+FILTROS_TIPO_VERBA = {"Todas": None, "Vantagens": "Vantagem", "Descontos": "Desconto"}
 
 class SelecaoVerba:
 
@@ -28,9 +32,24 @@ class SelecaoVerba:
 
     def render(self):
         verbas_json = ProvedorDadosFhemig.obter_verbas()
-        nomes_verbas = list(verbas_json.keys())
-
         st.markdown("### 1. Selecione a verba")
+
+        # Filtro por tipo, só para encurtar a lista do select (não altera nada do cálculo).
+        # Se a verba selecionada não pertencer ao tipo escolhido, o select volta para o placeholder.
+        filtro_tipo = st.radio(
+            "Tipo de verba",
+            options=list(FILTROS_TIPO_VERBA),
+            horizontal=True,
+            key="filtro_tipo_verba",
+        )
+        tipo_filtrado = FILTROS_TIPO_VERBA[filtro_tipo]
+
+        # Ordem alfabética ignorando acentos e maiúsculas (ex.: "Décimo..." entre "D" e não depois do "Z")
+        nomes_verbas = sorted(
+            (nome for nome, meta in verbas_json.items() if tipo_filtrado is None or meta["tipo"] == tipo_filtrado),
+            key=lambda nome: unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode().casefold(),
+        )
+
         opcoes = ["— Selecione uma verba —"] + nomes_verbas
         verba_input   = st.selectbox(
             "Verba",
@@ -135,8 +154,8 @@ class SelecaoVerba:
             elif campo == "valor_base_aumento":
                 valor_default = persistidos.get(campo, ds.get("vencimento_basico"))
             ## Campos de selectbox → índice vem do persistido (se a opção existir)
-            elif campo == "ano_referencia":
-                opcoes_ano = [2024, 2026] if nome_verba == "Aumento Salarial" else [2024, 2025, 2026]
+            elif campo in ("ano_referencia", "ano_referencia_aumento"):
+                opcoes_ano = [2024, 2026] if campo == "ano_referencia_aumento" else [2024, 2025, 2026]
                 valor_persistido = persistidos.get(campo)
                 if valor_persistido in opcoes_ano:
                     ano_default = valor_persistido
@@ -147,7 +166,8 @@ class SelecaoVerba:
             ## tipo Vantagem, exceto Ajuda de Custo e as verbas de 13º, que entram no INSS do 13º)
             elif campo == "valor_outras_vantagens":
                 NOMES_EXCLUIDOS_INSS = {
-                    "Ajuda de Custo Mensal",
+                    "Ajuda de Custo Fixa",
+                    "Ajuda de Custo Variável",
                     "13º Salário",
                     "GIEFS — 13º Salário",
                     "Piso Enfermagem — 13º Salário",
@@ -159,15 +179,23 @@ class SelecaoVerba:
                     if item.get("tipo") == "Vantagem" and item.get("nome_verba") not in NOMES_EXCLUIDOS_INSS),
                     start=0.0, # inicializa o campo com 0.0 caso não tenha verba calculada
                 )
+            ## Devolução Custeio Ajuda de Custo → soma de TODAS as parcelas fixa e variável lançadas no
+            ## histórico (a base do desconto é a ajuda de custo total), persistido como fallback
+            elif campo == "valor_ajuda_custo":
+                NOMES_AJUDA_CUSTO = ("Ajuda de Custo Fixa", "Ajuda de Custo Variável")
+                lancamentos = [
+                    item["valor"] for item in st.session_state.get("historico", [])
+                    if item.get("nome_verba") in NOMES_AJUDA_CUSTO
+                ]
+                valor_default = sum(lancamentos) if lancamentos else persistidos.get(campo, 0.0)
             ## Campos do Histórico → histórico primeiro, persistido como fallback
             elif campo in ("grat_final_semana", "adicional_noturno", "valor_13_salario",
-                        "giefs_13_salario", "valor_ajuda_custo"):
+                        "giefs_13_salario"):
                 nome_alvo_dict = { ## tentar melhorar essa lógica depois para ficar mais eficiente
                     "grat_final_semana": "Gratificação de Final de Semana",
                     "adicional_noturno": "Adicional Noturno",
                     "valor_13_salario": "13º Salário",
                     "giefs_13_salario": "GIEFS — 13º Salário",
-                    "valor_ajuda_custo": "Ajuda de Custo Mensal",
                 }
                 nome_alvo = nome_alvo_dict[campo]
                 historico = st.session_state.get("historico", [])
@@ -178,8 +206,8 @@ class SelecaoVerba:
                 else:
                     valor_default = persistidos.get(campo, 0.0)
             # Demais manuais → persistido, com default puro
-            elif campo == "ajuda_custo_diario":
-                valor_default = persistidos.get(campo, 75.0)
+            elif campo == "ajuda_custo_fixa_diario":
+                valor_default = persistidos.get(campo, 50.0)  # parcela fixa (3198): valor previsto, editável
             elif campo in ("dias_trabalhados", "numero_meses", "dias_ferias_indenizadas", "faltas_horas", "faltas_dias"):
                 valor_default = persistidos.get(campo, 1)
             else:  # horas_realizadas, abono_emergencia, valor_giefs, valor_piso, valor_grs, etc.
@@ -192,11 +220,12 @@ class SelecaoVerba:
             campo_key = f"{nonce}::{campo}"
 
             with cols[i % 2]:
-                if campo == "ano_referencia":
+                if campo in ("ano_referencia", "ano_referencia_aumento"):
                     valores[campo] = st.selectbox(
                         config["label"],
                         options=opcoes_ano,
                         index=indice_default_ano,
+                        help=config.get("help"),
                         key=campo_key,
                     )
                 elif campo in ("dias_trabalhados", "dias_ferias_indenizadas", "faltas_dias"):
@@ -238,7 +267,7 @@ class SelecaoVerba:
             # Se for Aumento Salarial, inclui o ano no nome p/ diferenciar no histórico
             nome_verba_historico = nome_verba
             if nome_verba == "Aumento Salarial":
-                nome_verba_historico = f"{nome_verba} ({valores['ano_referencia']})"
+                nome_verba_historico = f"{nome_verba} ({valores['ano_referencia_aumento']})"
 
             st.session_state["ultimo_resultado"] = {
                 "nome_verba": nome_verba_historico,
