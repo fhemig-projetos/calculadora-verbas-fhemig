@@ -25,6 +25,7 @@ class FormularioServidor:
                 "ch_semanal": 0,
                 "ch_mensal": 0,
                 "vencimento_basico": 0.0,
+                "piso_enfermagem": 0.0,
                 "servidor_encontrado": None,
             }
         if "servidor_nonce" not in st.session_state:
@@ -156,6 +157,7 @@ class FormularioServidor:
             c10.number_input("Carga Horária Mensal", value=ds["ch_mensal"], disabled=True, key=key_ch_mensal)
 
             cargo_encontrado = None
+            ds["piso_enfermagem"] = 0.0  # só vira > 0 se o cargo encontrado tiver piso (PENF II/IV contratados)
             # Se campos preenchidos
             if ds["cargo_classe"] and ds["cargo_nivel"] and ds["cargo_grau"] and ds["ch_semanal"]:
                 # Busca o cargo
@@ -168,9 +170,11 @@ class FormularioServidor:
 
                 # Se cargo encontrado retorna valor do vencimento básico e deixa o campo editável
                 if cargo_encontrado:
-                    st.success(
-                        f"✅ Cargo encontrado. Vencimento básico pré-preenchido!\n\n"
-                    )
+                    ds["piso_enfermagem"] = cargo_encontrado.get("piso_enfermagem", 0.0)
+                    mensagem_cargo = "✅ Cargo encontrado. Vencimento básico pré-preenchido!"
+                    if ds["piso_enfermagem"]:
+                        mensagem_cargo += f" Piso de Enfermagem ({FormatadorCampos.brl(ds['piso_enfermagem'])}) pré-preenchido nas verbas de piso."
+                    st.success(mensagem_cargo)
                     ds["vencimento_basico"] = st.number_input("Vencimento Básico (R$)", value=cargo_encontrado["vencimento_basico"], format="%.2f", key=key_vencimento)
                 # Se cargo não encontrado abre campos para preenchimento
                 else:

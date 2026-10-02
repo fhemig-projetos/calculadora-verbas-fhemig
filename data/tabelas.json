@@ -1,9 +1,25 @@
 {
   "tabela_cargos": [
-    {"classe": "PENF", "nivel": "2", "grau": "A", "ch_semanal": 40, "vencimento_basico": 2138.08, "dt_inicio": "01/01/2026"},
-    {"classe": "PENF", "nivel": "4", "grau": "A", "ch_semanal": 40, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"},
-    {"classe": "TOS",  "nivel": "1", "grau": "A", "ch_semanal": 40, "vencimento_basico": 1732.73, "dt_inicio": "01/01/2026"},
-    {"classe": "AGAS", "nivel": "1", "grau": "A", "ch_semanal": 40, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"}
+    {"classe": "TOS", "nivel": "1", "grau": "A", "ch_semanal": 30, "vencimento_basico": 1357.19, "dt_inicio": "01/01/2026"},
+    {"classe": "TOS", "nivel": "1", "grau": "A", "ch_semanal": 40, "vencimento_basico": 1732.73, "dt_inicio": "01/01/2026"},
+    {"classe": "TOS", "nivel": "2", "grau": "A", "ch_semanal": 30, "vencimento_basico": 1605.06, "dt_inicio": "01/01/2026"},
+    {"classe": "TOS", "nivel": "2", "grau": "A", "ch_semanal": 40, "vencimento_basico": 2063.20, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "2", "grau": "A", "ch_semanal": 30, "vencimento_basico": 1691.01, "piso_enfermagem": 576.03, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "2", "grau": "A", "ch_semanal": 40, "vencimento_basico": 2131.08, "piso_enfermagem": 891.65, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "4", "grau": "A", "ch_semanal": 30, "vencimento_basico": 3211.03, "piso_enfermagem": 27.61, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "4", "grau": "A", "ch_semanal": 40, "vencimento_basico": 4204.52, "piso_enfermagem": 113.66, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "6", "grau": "A", "ch_semanal": 30, "vencimento_basico": 4666.68, "dt_inicio": "01/01/2026"},
+    {"classe": "PENF", "nivel": "6", "grau": "A", "ch_semanal": 40, "vencimento_basico": 6145.37, "dt_inicio": "01/01/2026"},
+    {"classe": "AGAS", "nivel": "1", "grau": "A", "ch_semanal": 30, "vencimento_basico": 3211.03, "dt_inicio": "01/01/2026"},
+    {"classe": "AGAS", "nivel": "1", "grau": "A", "ch_semanal": 40, "vencimento_basico": 4204.52, "dt_inicio": "01/01/2026"},
+    {"classe": "AGAS", "nivel": "3", "grau": "A", "ch_semanal": 30, "vencimento_basico": 4666.68, "dt_inicio": "01/01/2026"},
+    {"classe": "AGAS", "nivel": "3", "grau": "A", "ch_semanal": 40, "vencimento_basico": 6145.37, "dt_inicio": "01/01/2026"},
+    {"classe": "MED", "nivel": "1", "grau": "A", "ch_semanal": 12, "vencimento_basico": 2518.37, "dt_inicio": "01/01/2026"},
+    {"classe": "MED", "nivel": "1", "grau": "A", "ch_semanal": 24, "vencimento_basico": 4806.16, "dt_inicio": "01/01/2026"},
+    {"classe": "MED", "nivel": "3", "grau": "A", "ch_semanal": 12, "vencimento_basico": 3635.74, "dt_inicio": "01/01/2026"},
+    {"classe": "MED", "nivel": "3", "grau": "A", "ch_semanal": 24, "vencimento_basico": 7040.85, "dt_inicio": "01/01/2026"},
+    {"classe": "MED", "nivel": "6", "grau": "A", "ch_semanal": 12, "vencimento_basico": 6721.65, "dt_inicio": "01/01/2026"},
+    {"classe": "MED", "nivel": "6", "grau": "A", "ch_semanal": 24, "vencimento_basico": 13212.64, "dt_inicio": "01/01/2026"}
   ],
   "tabela_inss": {
     "2026": [
@@ -26,25 +42,57 @@
     ]
   },
   "verbas": {
-    "Vencimento Básico — Dias": {
+    "Vencimento Básico — Dias (Atraso)": {
       "codigo": "2400",
       "tipo": "Vantagem"
     },
-    "Abono de Emergência — Dias": {
+    "Vencimento Básico — Dias (Reposição)": {
+      "codigo": "7400",
+      "tipo": "Desconto"
+    },
+    "Vencimento Básico — Meses (Atraso)": {
+      "codigo": "2400",
+      "tipo": "Vantagem"
+    },
+    "Vencimento Básico — Meses (Reposição)": {
+      "codigo": "7400",
+      "tipo": "Desconto"
+    },
+    "Abono de Emergência — Dias (Atraso)": {
       "codigo": "2435",
       "tipo": "Vantagem"
+    },
+    "Abono de Emergência — Dias (Reposição)": {
+      "codigo": "7435",
+      "tipo": "Desconto"
+    },
+    "Abono de Emergência — Meses (Atraso)": {
+      "codigo": "2435",
+      "tipo": "Vantagem"
+    },
+    "Abono de Emergência — Meses (Reposição)": {
+      "codigo": "7435",
+      "tipo": "Desconto"
     },
     "Plantão Médico Complementar (PMC)": {
       "codigo": "2961",
       "tipo": "Vantagem"
     },
-    "Gratificação de Final de Semana": {
+    "Gratificação de Final de Semana (Atraso)": {
       "codigo": "2416",
       "tipo": "Vantagem"
     },
-    "Adicional Noturno": {
+    "Gratificação de Final de Semana (Reposição)": {
+      "codigo": "7416",
+      "tipo": "Desconto"
+    },
+    "Adicional Noturno (Atraso)": {
       "codigo": "2773",
       "tipo": "Vantagem"
+    },
+    "Adicional Noturno (Reposição)": {
+      "codigo": "7773",
+      "tipo": "Desconto"
     },
     "Hora Extra": {
       "codigo": "2094",
@@ -71,65 +119,109 @@
       "tipo": "Desconto"
     },
 
-    "13º Salário": {
+    "13º Salário (Atraso)": {
       "codigo": "2491",
       "tipo": "Vantagem"
     },
-    "GIEFS — 13º Salário": {
+    "13º Salário (Reposição)": {
+      "codigo": "7491",
+      "tipo": "Desconto"
+    },
+    "GIEFS — 13º Salário (Atraso)": {
       "codigo": "3171",
       "tipo": "Vantagem"
+    },
+    "GIEFS — 13º Salário (Reposição)": {
+      "codigo": "9171",
+      "tipo": "Desconto"
     },
     "INSS sobre 13º Salário": {
       "codigo": "7708",
       "tipo": "Desconto"
     },
-    "Piso Enfermagem — 13º Salário": {
+    "Piso Enfermagem — 13º Salário (Atraso)": {
       "codigo": "3164",
       "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — 13º Salário (Reposição)": {
+      "codigo": "9164",
+      "tipo": "Desconto"
     },
     "GRS — 13º Salário": {
       "codigo": "774",
       "tipo": "Vantagem"
     },
-    "GIEFS — Dias": {
+    "GIEFS — Dias (Atraso)": {
       "codigo": "2417",
       "tipo": "Vantagem"
     },
-    "GIEFS — Meses": {
+    "GIEFS — Dias (Reposição)": {
+      "codigo": "5812",
+      "tipo": "Desconto"
+    },
+    "GIEFS — Meses (Atraso)": {
       "codigo": "2417",
       "tipo": "Vantagem"
     },
-    "GRS — Dias": {
+    "GIEFS — Meses (Reposição)": {
+      "codigo": "5812",
+      "tipo": "Desconto"
+    },
+    "GRS — Dias (Atraso)": {
       "codigo": "2774",
       "tipo": "Vantagem"
     },
-    "GRS — Meses": {
+    "GRS — Dias (Reposição)": {
+      "codigo": "7774",
+      "tipo": "Desconto"
+    },
+    "GRS — Meses (Atraso)": {
       "codigo": "2774",
       "tipo": "Vantagem"
+    },
+    "GRS — Meses (Reposição)": {
+      "codigo": "7774",
+      "tipo": "Desconto"
     },
     "GRS — Desconto de Horas": {
       "codigo": "7820",
       "tipo": "Desconto"
     },
-    "1/3 de Férias": {
+    "1/3 de Férias (Atraso)": {
       "codigo": "2492",
       "tipo": "Vantagem"
     },
-    "GIEFS — 1/3 de Férias": {
+    "1/3 de Férias (Reposição)": {
+      "codigo": "7492",
+      "tipo": "Desconto"
+    },
+    "GIEFS — 1/3 de Férias (Atraso)": {
       "codigo": "3242",
       "tipo": "Vantagem"
+    },
+    "GIEFS — 1/3 de Férias (Reposição)": {
+      "codigo": "9242",
+      "tipo": "Desconto"
     },
     "Férias Indenizadas": {
       "codigo": "1324",
       "tipo": "Vantagem"
     },
-    "Ajuda de Custo Fixa": {
+    "Ajuda de Custo Fixa (Atraso)": {
       "codigo": "3198",
       "tipo": "Vantagem"
     },
-    "Ajuda de Custo Variável": {
+    "Ajuda de Custo Fixa (Reposição)": {
+      "codigo": "9198",
+      "tipo": "Desconto"
+    },
+    "Ajuda de Custo Variável (Atraso)": {
       "codigo": "2070",
       "tipo": "Vantagem"
+    },
+    "Ajuda de Custo Variável (Reposição)": {
+      "codigo": "8070",
+      "tipo": "Desconto"
     },
     "Devolução Custeio Ajuda de Custo": {
       "codigo": "8070",
@@ -149,6 +241,14 @@
     },
     "Desconto de IPSEMG (3,2%)": {
       "codigo": "7801",
+      "tipo": "Desconto"
+    },
+    "Auxílio Transporte (Atraso)": {
+      "codigo": "2979",
+      "tipo": "Vantagem"
+    },
+    "Auxílio Transporte (Reposição)": {
+      "codigo": "7979",
       "tipo": "Desconto"
     },
     "IPSEMG Filho 21 a 39 anos": {

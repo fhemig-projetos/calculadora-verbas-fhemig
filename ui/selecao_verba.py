@@ -9,6 +9,14 @@ from .config import CONFIG_CAMPOS
 # Filtro do select de verbas: rótulo exibido → valor do campo "tipo" em tabelas.json (None = todas)
 FILTROS_TIPO_VERBA = {"Todas": None, "Vantagens": "Vantagem", "Descontos": "Desconto"}
 
+# Verbas de meses de direito em que o valor mensal é fixo: cada mês vira um lançamento com sua competência.
+# (GIEFS — Meses fica de fora porque o valor muda de mês a mês.)
+VERBAS_COMPETENCIA_POR_MES = {
+    "GRS — Meses (Atraso)", "GRS — Meses (Reposição)", "Piso Enfermagem — Meses",
+    "Vencimento Básico — Meses (Atraso)", "Vencimento Básico — Meses (Reposição)",
+    "Abono de Emergência — Meses (Atraso)", "Abono de Emergência — Meses (Reposição)",
+}
+
 class SelecaoVerba:
 
     def __init__(self):
@@ -134,9 +142,9 @@ class SelecaoVerba:
         widgets — assim o cabeçalho novo "irradia" para os campos, e a partir daí
         o usuário pode editá-los livremente até a próxima troca de servidor.
         """
-        referencia_cabecalho = (ds.get("vencimento_basico"), ds.get("ch_mensal"))
+        referencia_cabecalho = (ds.get("vencimento_basico"), ds.get("ch_mensal"), ds.get("piso_enfermagem"))
         if st.session_state["ultima_referencia_cabecalho"] is not None and st.session_state["ultima_referencia_cabecalho"] != referencia_cabecalho:
-            for campo_cabecalho in ("vencimento_basico", "carga_horaria_mensal", "valor_base_aumento"):
+            for campo_cabecalho in ("vencimento_basico", "carga_horaria_mensal", "valor_base_aumento", "valor_piso"):
                 persistidos.pop(campo_cabecalho, None)
             st.session_state["verba_nonce"] = st.session_state.get("verba_nonce", 0) + 1
             nonce = st.session_state["verba_nonce"]  # atualiza a variável já usada nas keys abaixo
@@ -153,6 +161,9 @@ class SelecaoVerba:
                 valor_default = persistidos.get(campo, ds.get("ch_mensal"))
             elif campo == "valor_base_aumento":
                 valor_default = persistidos.get(campo, ds.get("vencimento_basico"))
+            ## Piso Enfermagem → default do cabeçalho (PENF II/IV contratados, 0 nos demais cargos)
+            elif campo == "valor_piso":
+                valor_default = persistidos.get(campo, ds.get("piso_enfermagem", 0.0))
             ## Campos de selectbox → índice vem do persistido (se a opção existir)
             elif campo in ("ano_referencia", "ano_referencia_aumento"):
                 opcoes_ano = [2024, 2026] if campo == "ano_referencia_aumento" else [2024, 2025, 2026]
@@ -166,11 +177,11 @@ class SelecaoVerba:
             ## tipo Vantagem, exceto Ajuda de Custo e as verbas de 13º, que entram no INSS do 13º)
             elif campo == "valor_outras_vantagens":
                 NOMES_EXCLUIDOS_INSS = {
-                    "Ajuda de Custo Fixa",
-                    "Ajuda de Custo Variável",
-                    "13º Salário",
-                    "GIEFS — 13º Salário",
-                    "Piso Enfermagem — 13º Salário",
+                    "Ajuda de Custo Fixa (Atraso)",
+                    "Ajuda de Custo Variável (Atraso)",
+                    "13º Salário (Atraso)",
+                    "GIEFS — 13º Salário (Atraso)",
+                    "Piso Enfermagem — 13º Salário (Atraso)",
                     "GRS — 13º Salário",
                 }
                 historico = st.session_state.get("historico", [])
@@ -182,7 +193,7 @@ class SelecaoVerba:
             ## Devolução Custeio Ajuda de Custo → soma de TODAS as parcelas fixa e variável lançadas no
             ## histórico (a base do desconto é a ajuda de custo total), persistido como fallback
             elif campo == "valor_ajuda_custo":
-                NOMES_AJUDA_CUSTO = ("Ajuda de Custo Fixa", "Ajuda de Custo Variável")
+                NOMES_AJUDA_CUSTO = ("Ajuda de Custo Fixa (Atraso)", "Ajuda de Custo Variável (Atraso)")
                 lancamentos = [
                     item["valor"] for item in st.session_state.get("historico", [])
                     if item.get("nome_verba") in NOMES_AJUDA_CUSTO
@@ -192,10 +203,10 @@ class SelecaoVerba:
             elif campo in ("grat_final_semana", "adicional_noturno", "valor_13_salario",
                         "giefs_13_salario"):
                 nome_alvo_dict = { ## tentar melhorar essa lógica depois para ficar mais eficiente
-                    "grat_final_semana": "Gratificação de Final de Semana",
-                    "adicional_noturno": "Adicional Noturno",
-                    "valor_13_salario": "13º Salário",
-                    "giefs_13_salario": "GIEFS — 13º Salário",
+                    "grat_final_semana": "Gratificação de Final de Semana (Atraso)",
+                    "adicional_noturno": "Adicional Noturno (Atraso)",
+                    "valor_13_salario": "13º Salário (Atraso)",
+                    "giefs_13_salario": "GIEFS — 13º Salário (Atraso)",
                 }
                 nome_alvo = nome_alvo_dict[campo]
                 historico = st.session_state.get("historico", [])
@@ -275,6 +286,7 @@ class SelecaoVerba:
                 "tipo": verba_meta["tipo"],
                 "valor": resultado.valor,
                 "memoria": resultado.memoria_calculo,
+                "numero_meses": valores.get("numero_meses"),
             }
         # Fica fora do if p/ persistir o resultado mesmo se clicar em outro campo (rerender do streamlit)
         self._render_resultado()
@@ -295,29 +307,90 @@ class SelecaoVerba:
             st.code(texto_memoria, language="text")
 
         # Renderiza os campos correspondentes e retorna a competência e a observação
-        competencia = self._render_competencia(ur["nome_verba"])
+        ## Se verba selecionada for da lista das de múltiplos meses de competência e o número de meses for maior que 1
+        por_mes = ur["nome_verba"] in VERBAS_COMPETENCIA_POR_MES and (ur.get("numero_meses") or 1) > 1
+        if por_mes:
+            competencias = self._render_competencias_meses(ur["numero_meses"])
+            competencia = None
+        else:
+            competencia = self._render_competencia(ur["nome_verba"])
         observacao = self._render_observacao()
 
-        if st.button("➕ Adicionar à lista", type="secondary", use_container_width=True):
-            st.session_state["historico"].append({
-                "nome_verba": ur["nome_verba"],
-                "codigo": ur["codigo"],
-                "tipo": ur["tipo"],
-                "valor": ur["valor"],
-                "memoria": ur["memoria"],
-                "competencia": competencia,
-                "observacao": observacao
-            })
+        # Meses repetidos bloqueiam o lançamento
+        repetidas = por_mes and len(set(competencias)) < len(competencias)
+        if repetidas:
+            st.warning("Há competências repetidas. Ajuste os meses para poder adicionar à lista.")
+
+        if st.button("➕ Adicionar à lista", type="secondary", use_container_width=True, disabled=repetidas):
+            if por_mes:
+                # Um lançamento por mês de competência; a última parcela absorve a diferença de centavos
+                n = len(competencias)
+                parcela = round(ur["valor"] / n, 2)
+                for i, comp in enumerate(competencias):
+                    valor_item = round(ur["valor"] - parcela * (n - 1), 2) if i == n - 1 else parcela
+                    st.session_state["historico"].append({
+                        "nome_verba": ur["nome_verba"],
+                        "codigo": ur["codigo"],
+                        "tipo": ur["tipo"],
+                        "valor": valor_item,
+                        "memoria": ur["memoria"] + [
+                            f"Competência {comp} ({i + 1}/{n}): {FormatadorCampos.brl(valor_item)}"
+                        ],
+                        "competencia": comp,
+                        "observacao": observacao,
+                    })
+            else:
+                st.session_state["historico"].append({
+                    "nome_verba": ur["nome_verba"],
+                    "codigo": ur["codigo"],
+                    "tipo": ur["tipo"],
+                    "valor": ur["valor"],
+                    "memoria": ur["memoria"],
+                    "competencia": competencia,
+                    "observacao": observacao
+                })
             st.rerun()
+
+    def _render_competencias_meses(self, numero_meses: int) -> list[str]:
+        """Um seletor mês/ano por mês de direito. Sugere meses consecutivos a partir do mês anterior;
+        a chave de cada seletor inclui a escolha do anterior, então mudar um mês reajusta os seguintes."""
+        st.divider()
+        st.markdown("#### 📅 Competências")
+        st.caption(f"Selecione o mês/ano de referência de cada um dos {numero_meses} meses de direito")
+
+        hoje = date.today()
+        mes, ano = (12, hoje.year - 1) if hoje.month == 1 else (hoje.month - 1, hoje.year)
+
+        competencias = []
+        chave_anterior = ""
+        for i in range(numero_meses):
+            col_mes, col_ano = st.columns(2)
+            mes = col_mes.selectbox(
+                f"Mês {i + 1}", options=range(1, 13), format_func=lambda m: f"{m:02d}",
+                index=mes - 1, key=f"comp_mes_{i}{chave_anterior}",
+            )
+            ano = col_ano.selectbox(
+                f"Ano {i + 1}", options=range(2000, 2031),
+                index=ano - 2000, key=f"comp_ano_{i}{chave_anterior}",
+            )
+            competencias.append(f"{mes:02d}/{ano}")
+            chave_anterior = f"_{mes}_{ano}"
+            # Sugestão do próximo seletor: mês seguinte
+            mes, ano = (1, ano + 1) if mes == 12 else (mes + 1, ano)
+            ano = min(ano, 2030)
+        return competencias
 
     def _render_competencia(self, nome_verba: str):
         st.divider()
         st.markdown("#### 📅 Competência")
 
         if nome_verba in (
-            "13º Salário",
-            "GIEFS — 13º Salário",
-            "Piso Enfermagem — 13º Salário",
+            "13º Salário (Atraso)",
+            "13º Salário (Reposição)",
+            "GIEFS — 13º Salário (Atraso)",
+            "GIEFS — 13º Salário (Reposição)",
+            "Piso Enfermagem — 13º Salário (Atraso)",
+            "Piso Enfermagem — 13º Salário (Reposição)",
             "GRS — 13º Salário",
             "INSS sobre 13º Salário",
         ):

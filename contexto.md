@@ -595,12 +595,13 @@ Observações do levantamento:
 - Essa é mais uma peça de uma questão maior, já em aberto desde a pendência 4.25 (Vencimento Básico — Dias): a regra de "quais verbas entram na base do INSS Mensal, e como evitar dupla contagem entre um campo direto e a soma automática do histórico" precisa de um **redesenho completo**, não só ajustes pontuais verba a verba. Fica combinado fazer essa revisão com calma numa sessão futura dedicada a isso, depois de conversar com a área.
 - Ver seção 6, "INSS Mensal e INSS sobre 13º", pra lista completa de dúvidas relacionadas.
 
-### 4.28 🟡 Pendente — investigar com a área possível vinculação entre Piso Enfermagem e Vencimento Básico
+### 4.28 ✅ Resolvido (02/10) — Piso Enfermagem pré-preenchido a partir do cabeçalho
 
-- **Origem (fala de servidora, feedback registrado em 25/09):** *"O ideal é que no cabeçalho a gente consiga marcar se o PISO se aplica, e já inserir o valor pra que ele fique predefinido depois, ou se der que ele já entenda o valor do piso a partir do salário inserido no cabeçalho."*
-- A própria servidora não soube dizer se existe uma regra de cálculo formal ligando o valor do piso ao vencimento básico — só levantou a possibilidade. **Hoje não existe nenhuma relação assim no código**: `valor_piso` é sempre um campo independente, digitado manualmente (persistido entre verbas dentro da sessão, mas nunca derivado do vencimento básico ou de qualquer outro dado do cabeçalho).
-- **A investigar com a área:** existe de fato uma fórmula ou tabela oficial que relacione o piso da enfermagem ao vencimento básico (ex.: um percentual, uma diferença mínima garantida, etc.)? Se existir, isso mudaria o pré-preenchimento de `valor_piso` (hoje só reaproveita o que foi digitado antes, nunca deriva do vencimento básico).
-- Ver seção 6, "Piso Enfermagem", pra esse ponto e os demais relacionados (pré-preenchimento pelo cabeçalho, "faz jus ao piso" como flag).
+- **Origem (fala de servidora, feedback de 25/09):** pedido para o valor do piso ficar predefinido a partir do cabeçalho.
+- **Regra (planilha "Verificação do PISO 1.XLSX"):** complemento = `piso nacional (por função e CH) − vencimento básico`, ou 0 se o vencimento já alcança o piso. Pisos nacionais: Aux. 20h/30h/40h = 1.079,54 / 1.619,31 / 2.159,09; Téc. = 1.511,36 / 2.267,04 / 3.022,73; Enfermeiro = 2.159,09 / 3.238,64 / 4.318,18. A comparação é só com o vencimento básico. PENF II = Técnico, PENF IV = Enfermeiro.
+- **Escopo:** apenas contratados e apenas PENF nível II e IV (CH 30 e 40). Efetivos, PENF VI, TOS, AGAS e MED ficam com piso 0 (campo manual).
+- **Implementação:** o valor pronto fica em `tabela_cargos` (`data/tabelas.json`, campo `piso_enfermagem`): PENF II = 576,03 (30h) / 891,65 (40h); PENF IV = 27,61 (30h) / 113,66 (40h). `FormularioServidor` grava em `dados_servidor["piso_enfermagem"]` e `SelecaoVerba` usa como default de `valor_piso` (todas as verbas que usam o campo, inclusive Piso — Desconto), editável e persistido como o vencimento básico. Se vencimento/piso do cabeçalho mudarem, o `valor_piso` persistido é limpo.
+- **Manutenção:** se o vencimento ou o piso nacional mudar, atualizar `vencimento_basico` e `piso_enfermagem` juntos na tabela.
 
 ### 4.29 🟡 Pendente — confirmar com a área a interpretação de "Piso Enfermagem — Desconto" (9154)
 
@@ -650,6 +651,37 @@ Observações do levantamento:
 - Hoje a tabela `servidores` no Supabase (~2861 registros, usada pra pré-preencher nome/cargo/vencimento a partir do MASP) é populada **manualmente**, rodando `scripts/populate_servidores.py` a partir de um CSV exportado à parte (`data/dados_funcionais_calculadora_verbas.csv`) — é um script avulso, sem agendamento nem automação nenhuma.
 - Sem uma rotina de atualização, a base tende a ficar desatualizada com o tempo (novas admissões, desligamentos, mudanças de cargo/nível/grau/vencimento não refletidas), fazendo o pré-preenchimento por MASP cada vez menos confiável.
 - **A avaliar:** de onde viria a atualização automática (exportação periódica de algum sistema de RH, reimportação manual periódica, outra fonte de dados), e qual mecanismo usar pra automatizar (`pg_cron` no Supabase, um job agendado fora do Supabase, etc.) — nada definido ainda, só registrado como necessidade.
+
+### 4.50 🟡 Pendente — confirmar com a área o que fazer com "GRS — 13º Salário" (774) e "GRS — Desconto de Horas" (7820)
+
+- **Origem (02/10):** ao implementar as reposições das verbas em atraso (lista da unidade: coluna "Vencimentos em atraso" × "Débitos – reposição"), essas duas verbas já existentes no app **não aparecem na lista**. Por isso foram mantidas como estavam, sem versão "(Atraso)" / "(Reposição)".
+- **A confirmar com a área:** (1) se "GRS — 13º Salário" (774) e "GRS — Desconto de Horas" (7820) continuam válidas no escopo; (2) se precisam de contrapartida de reposição/atraso e com quais códigos; (3) se o código 774 do GRS 13º está correto (as demais verbas de GRS usam 2774/7774).
+
+### 4.51 🟡 Pendente — confirmar com a área como as verbas "(Reposição)" devem interagir com bases e pré-preenchimentos que leem o histórico
+
+- **Origem (02/10):** ao criar as reposições (Desconto) das verbas em atraso, os campos que são pré-preenchidos a partir do histórico, buscando o lançamento por **nome da verba**, passaram a procurar apenas a versão "(Atraso)" (Vantagem). Uma "(Reposição)" lançada na sessão **não** alimenta esses campos. Decisão tomada: manter assim por ora, sem casar o tipo (Atraso com Atraso, Reposição com Reposição).
+- **Onde acontece:**
+  1. **Campos de entrada do 13º** (tanto "13º Salário (Atraso)" quanto "13º Salário (Reposição)", que compartilham a calculadora): "Grat. Final de Semana" e "Ad. Noturno" vêm do último lançamento "(Atraso)" da gratificação/adicional noturno. Quem calcula o 13º (Reposição) pode precisar digitar esses valores à mão. O mesmo vale para o **Adicional Noturno** nas demais verbas que o usam como campo de entrada: 1/3 de Férias, Férias Indenizadas e IPSEMG (as duas variantes de cada, quando existirem).
+  2. **INSS sobre 13º Salário:** a base soma `valor_13_salario` + `giefs_13_salario`, lidos só de "13º Salário (Atraso)" e "GIEFS — 13º Salário (Atraso)". Reposição de 13º não abate essa base.
+  3. **INSS Mensal ("Outras Vantagens"):** soma só verbas do tipo Vantagem; as reposições, por serem Desconto, não reduzem a base (ver também 4.25 e 4.27).
+- **A confirmar com a área:** (a) a reposição deve abater a base do INSS Mensal e do INSS sobre 13º? (b) no 13º (Reposição), os campos de gratificação e adicional noturno devem puxar o lançamento de reposição correspondente? (c) o comportamento deve ser o mesmo para todas as reposições da lista?
+- **Se a área confirmar o casamento por tipo:** ajustar `nome_alvo_dict` em `ui/selecao_verba.py` para escolher o nome "(Atraso)" ou "(Reposição)" conforme a verba que está sendo calculada.
+
+### 4.52 🟡 Pendente — confirmar com a unidade as variantes "Meses" de Vencimento Básico e Abono de Emergência
+
+- **Origem (02/10):** criadas por iniciativa do desenvolvimento, por analogia com GRS/Piso — Meses (ninguém na unidade pediu explicitamente): "Vencimento Básico — Meses" (2400/7400) e "Abono de Emergência — Meses" (2435/7435), cada uma com "(Atraso)" e "(Reposição)". Usam os mesmos códigos das variantes "Dias".
+- **A confirmar com a unidade:** (1) se as variantes "Meses" são mesmo necessárias; (2) se o valor mensal é o mesmo em todos os meses — o vencimento básico pode mudar entre meses (reajuste, progressão); nesse caso a variante "Meses" não serve para períodos que atravessem a mudança (mesma razão de GIEFS — Meses ficar fora da competência mês a mês); (3) se os códigos 2400/7400 e 2435/7435 valem para as duas variantes.
+
+### 4.53 🟡 Pendente — entender com a área o "Desconto Custeio Ajuda de Custo" e onde ele entra no bloco de Ajuda de Custo
+
+- **Estado (02/10):** a ajuda de custo ficou assim: "Ajuda de Custo Fixa" 3198 (Atraso) / 9198 (Reposição) e "Ajuda de Custo Variável" 2070 (Atraso) / 8070 (Reposição), seguindo a lógica da tabela da unidade (cada vantagem em atraso tem sua reposição). A "Devolução Custeio Ajuda de Custo" (desconto de 4% sobre o valor da ajuda de custo) foi **mantida como estava**, a pedido, com o código **8070**.
+- **Conflito de código:** o **8070** passou a identificar duas verbas Desconto no app: "Ajuda de Custo Variável (Reposição)" (da tabela da unidade: "Reposição ajuda de custo 70% - G. Saúde") e a "Devolução Custeio Ajuda de Custo". Um sistema de folha normalmente não tem dois significados para o mesmo código.
+- **A confirmar com a área:** (1) o que de fato é o "Desconto Custeio Ajuda de Custo" (a regra de 4%) e qual é o código oficial dele; (2) se é uma verba independente das reposições 9198/8070 ou se é a própria reposição de alguma parcela; (3) sobre quais parcelas incide (hoje soma as lançadas de "Ajuda de Custo Fixa (Atraso)" e "Variável (Atraso)"; reposições lançadas **não** entram nessa base); (4) se a ajuda de custo e suas reposições entram na base do INSS Mensal (hoje as parcelas (Atraso) estão excluídas dessa soma e as reposições, por serem Desconto, também não a afetam; ver 4.51).
+
+### 4.54 🟡 Pendente — definir com a unidade a regra do Auxílio Transporte (campo livre hoje) e sua relação com o INSS e com as verbas de restituição/custeio
+
+- **Estado (02/10):** "Auxílio Transporte (Atraso)" (2979, Vantagem) e "Auxílio Transporte (Reposição)" (7979, Desconto) foram criadas como **campo livre**: o técnico digita o valor e a calculadora só o repassa (mesmo padrão do Piso — Desconto e do IPSEMG Filho). Não há fórmula nem valor pré-definido; a regra de cálculo não foi informada.
+- **A confirmar com a unidade:** (1) a fórmula do auxílio transporte (valor diário × dias? depende de trajeto/tarifa? desconto de 6% do vencimento?); (2) se deve haver um campo de dias/valor diário em vez de valor total; (3) **INSS:** como é Vantagem, hoje o auxílio transporte entra automaticamente em "Outras Vantagens" do INSS Mensal; ajuda de custo e verbas de 13º já são excluídas dessa soma — confirmar se o auxílio transporte também deve ser excluído (costuma ser indenizatório); (4) as verbas relacionadas da lista, ainda não implementadas: 948 "Restituição desconto aux. transporte" e 8849 "Desconto custeio aux. transporte - atraso".
 
 ---
 
@@ -1383,6 +1415,7 @@ Usuário testou o fluxo completo manualmente pelo navegador: pedido de reset pel
 - **Nome escolhido:** "Vencimento Básico — Dias", seguindo o padrão já usado por outras verbas fracionadas por dia (GRS — Dias, GIEFS — Dias).
 - **Cuidado tomado:** o campo `vencimento_basico` usado como input direto em todas as outras calculadoras continua vindo do cabeçalho normalmente — a nova verba não interfere nesse pré-preenchimento.
 - **Risco identificado e não resolvido:** possível dupla contagem do vencimento básico na base da INSS Mensal se as duas verbas forem calculadas na mesma sessão — ver pendência **4.25** (nova) e seção 6.
+- **Atualização (02/10):** a verba foi renomeada para "Vencimento Básico — Dias (Atraso)" (2400, Vantagem) e ganhou a contrapartida "Vencimento Básico — Dias (Reposição)" (7400, Desconto — pagamento a maior), com a mesma fórmula e a mesma calculadora. Primeira de uma série de reposições (lista de verbas em atraso × débitos-reposição da unidade): cada vantagem em atraso ganha um desconto de reposição com o código da coluna "Débitos".
 
 ### 22.3 ✅ Concluído — Nova verba independente "Abono de Emergência — Dias" (2435)
 
@@ -1656,3 +1689,56 @@ Todas ainda sem definição de regra/detalhamento pela unidade (marcadas com "??
 - **4.23**, **4.34**, **4.38**, **4.39** e o link de e-mail da **4.40** — ❎ sem objeto (login/Supabase/SMTP removidos — seção 25).
 - **4.35** (rebuild e teste do `.exe`) — **segue em aberto e agora cobre também** as mudanças desta seção (filtro de tipo, ajuda de custo, aumento salarial, códigos).
 - **4.25**, **4.27** (revisão da base do INSS Mensal), **4.31** (código/fórmula do IPSEMG Filho), **4.33** (IPSEMG de dependente), **4.36**, **4.37**, **4.41**, **4.42**, **4.43** — inalteradas.
+
+## 27. Sessão 02/10 — competência por mês, tabela de cargos/piso e reposições das verbas em atraso
+
+### 27.1 ✅ Concluído — Competência mês a mês nas verbas "Meses"
+
+- Em `ui/selecao_verba.py`, as verbas listadas em `VERBAS_COMPETENCIA_POR_MES` (valor mensal fixo), com `numero_meses > 1`, abrem um seletor de mês/ano por mês de direito (sugestão de meses consecutivos; mudar um mês reajusta os seguintes). "Adicionar à lista" gera **um lançamento por mês**, com valor dividido igualmente (a última parcela absorve os centavos) e memória de cálculo com a competência. Meses repetidos bloqueiam o botão.
+- Hoje a lista contém: GRS — Meses (Atraso/Reposição), Vencimento Básico — Meses (Atraso/Reposição), Abono de Emergência — Meses (Atraso/Reposição) e **"Piso Enfermagem — Meses" (ainda com o nome antigo, ver 27.4)**. **GIEFS — Meses fica de fora** (o valor muda de mês a mês). Os 13º não usam isso (competência só por ano).
+
+### 27.2 ✅ Concluído — Tabela de cargos e piso de enfermagem pré-preenchido
+
+- `tabela_cargos` (`data/tabelas.json`) substituída pela tabela de 20 linhas (TOS, PENF, AGAS e MED; níveis em arábico). PENF nível II/IV (CH 30 e 40) ganharam `piso_enfermagem`, que pré-preenche `valor_piso` em todas as verbas de piso. Detalhes e regra da planilha de verificação do piso na pendência resolvida **4.28**.
+
+### 27.3 ✅ Concluído — Reposições das verbas em atraso (lista da unidade)
+
+Cada vantagem "em atraso" da lista ganhou o desconto de "reposição" correspondente, mantendo os códigos oficiais e renomeando as duas verbas para "(Atraso)" e "(Reposição)". Em geral, mesma fórmula e mesma calculadora (só mudam tipo e código em `data/tabelas.json`).
+
+| Verba | Atraso (Vantagem) | Reposição (Desconto) | Observação |
+|---|---|---|---|
+| Vencimento Básico — Dias | 2400 | 7400 | |
+| Vencimento Básico — Meses (nova) | 2400 | 7400 | ver 4.52 |
+| 13º Salário | 2491 | 7491 | ver 4.51 |
+| Piso Enfermagem — 13º Salário | 3164 | 9164 | |
+| GIEFS — 13º Salário | 3171 | 9171 | ver 4.51 |
+| 1/3 de Férias | 2492 | 7492 | |
+| GIEFS — 1/3 de Férias | 3242 | 9242 | |
+| GIEFS — Dias e Meses | 2417 | 5812 | mesmo código nas duas variantes |
+| GRS — Dias e Meses | 2774 | 7774 | |
+| Gratificação de Final de Semana | 2416 | 7416 | ver 4.51 |
+| Adicional Noturno | 2773 | 7773 | ver 4.51 |
+| Abono de Emergência — Dias | 2435 | 7435 | |
+| Abono de Emergência — Meses (nova) | 2435 | 7435 | ver 4.52 |
+| Ajuda de Custo Fixa | 3198 | 9198 | ver 4.53 |
+| Ajuda de Custo Variável | 2070 | 8070 | **8070 duplicado** com a Devolução Custeio — ver 4.53 |
+| Auxílio Transporte (nova, campo livre) | 2979 | 7979 | ver 4.54 |
+
+- **Referências por nome em `ui/selecao_verba.py`** atualizadas para os nomes "(Atraso)": exclusão da base do INSS Mensal (`NOMES_EXCLUIDOS_INSS`), busca no histórico (`nome_alvo_dict`: gratificação de final de semana, adicional noturno, 13º e GIEFS 13º), base da Devolução Custeio (`NOMES_AJUDA_CUSTO`) e competência só por ano dos 13º. Efeito: lançamentos "(Reposição)" **não** alimentam esses campos nem abatem essas bases (pendência 4.51).
+- Novos arquivos de calculadora: `vencimento_basico_meses.py`, `abono_emergencia_meses.py` e `auxilio_transporte.py`.
+
+### 27.4 🟡 Próximos passos (retomar daqui)
+
+**Linhas da lista da unidade ainda não implementadas** (seguir o mesmo padrão: renomear "(Atraso)"/"(Reposição)", checar referências por nome e registrar pendência quando houver efeito colateral):
+
+1. **3154 / 9154 — Piso Enfermagem:** hoje existem "Piso Enfermagem — Dias" e "— Meses" (3154, Vantagem) e "Piso Enfermagem — Desconto" (9154, Desconto, campo livre). Falta padronizar nomes para "(Atraso)"/"(Reposição)" e **atualizar `VERBAS_COMPETENCIA_POR_MES`**, que ainda cita "Piso Enfermagem — Meses". Decidir se a Reposição de Dias/Meses substitui o "Desconto" atual (campo livre).
+2. **2961 / 8961 — Plantão Médico Complementar (PMC):** criar a reposição (8961) do PMC existente.
+3. **948 / 8849** — Restituição de desconto do aux. transporte (Vantagem) e Desconto custeio aux. transporte (Desconto): ainda não existem. Proposta: campo livre, junto da pendência 4.54.
+4. **3018 / 9018** — Restituição custeio alimentação (Vantagem) e Custeio alimentação local de trabalho (Desconto): não existem; precisam da regra da área (campo livre se não houver).
+5. **1549 / 7701** — Restituição IPSEMG 13º (Vantagem) e IPSEMG 13º atraso (Desconto): não existem; ver pendência 4.32 (IPSEMG 13º × Desconto de IPSEMG 3,2%).
+6. **Restituições (Vantagem) dos descontos já existentes:** 1411 (IPSEMG, par do 7801), 408 (INSS, par do 7808), 548 (INSS 13º, par do 7708) e 839 (Falta, par do 7803). Os descontos 7801, 7808, 7708 e 7803 já existem; falta a contrapartida em Vantagem.
+7. **7810 (Perda Sexto/Oitavo):** já existe, sem par na lista da unidade.
+
+**Pendências abertas desta sessão:** 4.50 (GRS 13º e Desconto de Horas fora da lista), 4.51 (reposições × bases/pré-preenchimentos do histórico), 4.52 (variantes "Meses" de vencimento/abono), 4.53 (Devolução Custeio Ajuda de Custo e código 8070 duplicado) e 4.54 (regra do Auxílio Transporte e INSS).
+
+**Antes de entregar:** (a) testar no app o fluxo de competência mês a mês e o pré-preenchimento do piso (nada disso foi aberto no navegador nesta sessão, só validado por script); (b) rebuild e teste do `.exe` (pendência 4.35 cobre também estas mudanças); (c) **nenhuma alteração desta sessão foi commitada**; o arquivo `Verificação do PISO 1.XLSX` na raiz está sem versionar (decidir se entra no repositório).

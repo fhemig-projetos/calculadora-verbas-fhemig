@@ -23,7 +23,14 @@ CONFIG_CAMPOS = {
     "adicional_noturno": {"label": "Adicional Noturno (R$)", "tipo": "moeda"},
     "numero_meses": {"label": "Nº de Meses de Direito", "tipo": "meses"},
     "valor_giefs": {"label": "Valor da GIEFS (R$)", "tipo": "moeda"},
-    "valor_piso": {"label": "Valor do Piso (R$)", "tipo": "moeda"},
+    "valor_piso": {
+        "label": "Valor do Piso (R$)",
+        "tipo": "moeda",
+        "help": (
+            "Pré-preenchido apenas para PENF nível II e IV (contratados) com CH 30 ou 40, "
+            "conforme o cargo informado no cabeçalho. Nos demais cargos, informe manualmente."
+        ),
+    },
     "dias_ferias_indenizadas": {"label": "Nº de Dias de Férias Indenizadas", "tipo": "dias"},
     "faltas_horas": {"label": "Nº de Horas de Faltas", "tipo": "horas"},
     "faltas_dias": {"label": "Nº de Dias de Faltas", "tipo": "dias"},
@@ -35,5 +42,6 @@ CONFIG_CAMPOS = {
     "valor_outras_vantagens": {"label": "Outras Vantagens (soma automática do histórico) (R$)", "tipo": "moeda"},
     "outras_verbas": {"label": "Outras Verbas (R$)", "tipo": "moeda"},
     "valor_pmc": {"label": "Valor do PMC (R$)", "tipo": "moeda"},
+    "valor_auxilio_transporte": {"label": "Valor do Auxílio Transporte (R$)", "tipo": "moeda"},
     "valor_ipsemg_filho": {"label": "Valor do Desconto IPSEMG Filho 21 a 39 anos (R$)", "tipo": "moeda"},
 }
