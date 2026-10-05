@@ -43,5 +43,11 @@ CONFIG_CAMPOS = {
     "outras_verbas": {"label": "Outras Verbas (R$)", "tipo": "moeda"},
     "valor_pmc": {"label": "Valor do PMC (R$)", "tipo": "moeda"},
     "valor_auxilio_transporte": {"label": "Valor do Auxílio Transporte (R$)", "tipo": "moeda"},
+    "valor_restituicao_aux_transporte": {"label": "Valor da Restituição do Desconto do Aux. Transporte (R$)", "tipo": "moeda"},
+    "valor_custeio_aux_transporte": {"label": "Valor do Desconto de Custeio do Aux. Transporte (R$)", "tipo": "moeda"},
+    "valor_restituicao_custeio_alimentacao": {"label": "Valor da Restituição do Custeio de Alimentação (R$)", "tipo": "moeda"},
+    "valor_custeio_alimentacao": {"label": "Valor do Desconto de Custeio de Alimentação (R$)", "tipo": "moeda"},
+    "valor_restituicao_ipsemg_13": {"label": "Valor da Restituição do IPSEMG sobre o 13º (R$)", "tipo": "moeda"},
+    "valor_ipsemg_13": {"label": "Valor do Desconto de IPSEMG sobre o 13º (R$)", "tipo": "moeda"},
     "valor_ipsemg_filho": {"label": "Valor do Desconto IPSEMG Filho 21 a 39 anos (R$)", "tipo": "moeda"},
 }

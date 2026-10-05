@@ -7,7 +7,11 @@ from .piso_enfermagem_dias import CalculadoraPisoEnfermagemDias
 from .piso_enfermagem_meses import CalculadoraPisoEnfermagemMeses
 from .piso_enfermagem_desconto import CalculadoraPisoEnfermagemDesconto
 from .ipsemg_filho import CalculadoraIPSEMGFilho
-from .auxilio_transporte import CalculadoraAuxilioTransporte
+from .auxilio_transporte import (
+    CalculadoraAuxilioTransporte, CalculadoraRestituicaoAuxilioTransporte, CalculadoraCusteioAuxilioTransporte,
+)
+from .custeio_alimentacao import CalculadoraRestituicaoCusteioAlimentacao, CalculadoraCusteioAlimentacao
+from .ipsemg_13 import CalculadoraRestituicaoIPSEMG13, CalculadoraIPSEMG13
 from .hora_extra import CalculadoraHoraExtra
 from .adicional_noturno import CalculadoraAdicionalNoturno
 from .gratificacao_final_semana import CalculadoraGratificacaoFinalSemana
@@ -46,14 +50,27 @@ REGISTRO_CALCULADORAS = {
     "Abono de Emergência — Dias (Reposição)": CalculadoraAbonoEmergenciaDias(),
     "Abono de Emergência — Meses (Atraso)": CalculadoraAbonoEmergenciaMeses(),
     "Abono de Emergência — Meses (Reposição)": CalculadoraAbonoEmergenciaMeses(),
-    "Plantão Médico Complementar (PMC)": CalculadoraPlantaoMedicoComplementar(),
-    "Piso Enfermagem — Dias": CalculadoraPisoEnfermagemDias(),
-    "Piso Enfermagem — Meses": CalculadoraPisoEnfermagemMeses(),
+    # 2961 (Vantagem) e 8961 (reposição, Desconto): campo livre, mesma calculadora
+    "PMC (Atraso)": CalculadoraPlantaoMedicoComplementar(),
+    "PMC (Reposição)": CalculadoraPlantaoMedicoComplementar(),
+    # 3154 (Vantagem) e 9154 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
+    "Piso Enfermagem — Dias (Atraso)": CalculadoraPisoEnfermagemDias(),
+    "Piso Enfermagem — Dias (Reposição)": CalculadoraPisoEnfermagemDias(),
+    "Piso Enfermagem — Meses (Atraso)": CalculadoraPisoEnfermagemMeses(),
+    "Piso Enfermagem — Meses (Reposição)": CalculadoraPisoEnfermagemMeses(),
     "Piso Enfermagem — Desconto": CalculadoraPisoEnfermagemDesconto(),
     "IPSEMG Filho 21 a 39 anos": CalculadoraIPSEMGFilho(),
     # Auxílio Transporte: campo livre (regra de cálculo ainda não definida pela unidade — ver contexto.md)
     "Auxílio Transporte (Atraso)": CalculadoraAuxilioTransporte(),
     "Auxílio Transporte (Reposição)": CalculadoraAuxilioTransporte(),
+    "Desconto Auxílio Transporte Restituição (Atraso)": CalculadoraRestituicaoAuxilioTransporte(),
+    "Desconto Auxílio Transporte (Reposição)": CalculadoraCusteioAuxilioTransporte(),
+    # Custeio Alimentação: campo livre (regra de cálculo ainda não definida pela unidade — ver contexto.md)
+    "Custeio Alimentação Restituição (Atraso)": CalculadoraRestituicaoCusteioAlimentacao(),
+    "Custeio Alimentação (Reposição)": CalculadoraCusteioAlimentacao(),
+    # IPSEMG 13º: campo livre (regra de cálculo ainda não definida pela unidade — ver contexto.md, pendências 4.32 e 4.58)
+    "IPSEMG 13º Salário Restituição (Atraso)": CalculadoraRestituicaoIPSEMG13(),
+    "IPSEMG 13º Salário (Reposição)": CalculadoraIPSEMG13(),
     "Hora Extra": CalculadoraHoraExtra(),
     # 2773 (Vantagem) e 7773 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
     "Adicional Noturno (Atraso)": CalculadoraAdicionalNoturno(),
@@ -64,14 +81,18 @@ REGISTRO_CALCULADORAS = {
     # 2491 (Vantagem) e 7491 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
     "13º Salário (Atraso)": CalculadoraDecimoTerceiro(),
     "13º Salário (Reposição)": CalculadoraDecimoTerceiro(),
-    "INSS Mensal (tabela progressiva)": CalculadoraINSS(),
+    # 408 (restituição, Vantagem) e 7808 (reposição, Desconto): mesma fórmula (tabela progressiva), só muda tipo/código
+    "INSS Mensal Restituição (Atraso)": CalculadoraINSS(),
+    "INSS Mensal (Reposição)": CalculadoraINSS(),
     # 3171 (Vantagem) e 9171 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
     "GIEFS — 13º Salário (Atraso)": CalculadoraGIEFS13(),
     "GIEFS — 13º Salário (Reposição)": CalculadoraGIEFS13(),
     # 3164 (Vantagem) e 9164 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
     "Piso Enfermagem — 13º Salário (Atraso)": CalculadoraPisoEnfermagem13(),
     "Piso Enfermagem — 13º Salário (Reposição)": CalculadoraPisoEnfermagem13(),
-    "INSS sobre 13º Salário": CalculadoraINSSDecimoTerceiro(),
+    # 548 (restituição, Vantagem) e 7708 (reposição, Desconto): mesma fórmula, só muda tipo/código
+    "INSS sobre 13º Salário Restituição (Atraso)": CalculadoraINSSDecimoTerceiro(),
+    "INSS sobre 13º Salário (Reposição)": CalculadoraINSSDecimoTerceiro(),
     "GRS — 13º Salário": CalculadoraGRS13(),
     # 2417 (Vantagem) e 5812 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
     "GIEFS — Dias (Atraso)": CalculadoraGIEFSDias(),
@@ -91,8 +112,10 @@ REGISTRO_CALCULADORAS = {
     "GIEFS — 1/3 de Férias (Atraso)": CalculadoraGIEFSTercoFerias(),
     "GIEFS — 1/3 de Férias (Reposição)": CalculadoraGIEFSTercoFerias(),
     "Férias Indenizadas": CalculadoraFeriasIndenizadas(),
-    "Perda Sexto/Oitavo": CalculadoraFaltasHoras(),
-    "Faltas — Dias": CalculadoraFaltasDias(),
+    "Perda Sexto Oitavo (Reposição)": CalculadoraFaltasHoras(),
+    # 839 (restituição de falta, Vantagem) e 7803 (reposição, Desconto): mesma fórmula (base ÷ 30 × dias de falta), só muda tipo/código
+    "Faltas Restituição (Atraso)": CalculadoraFaltasDias(),
+    "Faltas (Reposição)": CalculadoraFaltasDias(),
     # 3198/9198 (fixa) e 2070/8070 (variável): atraso (Vantagem) e reposição (Desconto) com a mesma fórmula
     "Ajuda de Custo Fixa (Atraso)": CalculadoraAjudaCustoFixa(),
     "Ajuda de Custo Fixa (Reposição)": CalculadoraAjudaCustoFixa(),
@@ -100,6 +123,8 @@ REGISTRO_CALCULADORAS = {
     "Ajuda de Custo Variável (Reposição)": CalculadoraAjudaCustoVariavel(),
     "Devolução Custeio Ajuda de Custo": CalculadoraDescontoAjudaCusto(),
     "Aumento Salarial": CalculadoraAumentoSalarial(),
-    "Desconto de IPSEMG (3,2%)": CalculadoraIPSEMG(),
+    # 1411 (restituição, Vantagem) e 7801 (reposição, Desconto): mesma fórmula (base × 3,2%), só muda tipo/código
+    "IPSEMG Restituição (Atraso)": CalculadoraIPSEMG(),
+    "IPSEMG (Reposição)": CalculadoraIPSEMG(),
     "Licença Maternidade": CalculadoraLicencaMaternidade(),
 }

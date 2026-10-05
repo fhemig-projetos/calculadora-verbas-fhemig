@@ -74,9 +74,13 @@
       "codigo": "7435",
       "tipo": "Desconto"
     },
-    "Plantão Médico Complementar (PMC)": {
+    "PMC (Atraso)": {
       "codigo": "2961",
       "tipo": "Vantagem"
+    },
+    "PMC (Reposição)": {
+      "codigo": "8961",
+      "tipo": "Desconto"
     },
     "Gratificação de Final de Semana (Atraso)": {
       "codigo": "2416",
@@ -106,13 +110,21 @@
       "codigo": "3200",
       "tipo": "Vantagem"
     },
-    "Piso Enfermagem — Dias": {
+    "Piso Enfermagem — Dias (Atraso)": {
       "codigo": "3154",
       "tipo": "Vantagem"
     },
-    "Piso Enfermagem — Meses": {
+    "Piso Enfermagem — Dias (Reposição)": {
+      "codigo": "9154",
+      "tipo": "Desconto"
+    },
+    "Piso Enfermagem — Meses (Atraso)": {
       "codigo": "3154",
       "tipo": "Vantagem"
+    },
+    "Piso Enfermagem — Meses (Reposição)": {
+      "codigo": "9154",
+      "tipo": "Desconto"
     },
     "Piso Enfermagem — Desconto": {
       "codigo": "9154",
@@ -135,7 +147,11 @@
       "codigo": "9171",
       "tipo": "Desconto"
     },
-    "INSS sobre 13º Salário": {
+    "INSS sobre 13º Salário Restituição (Atraso)": {
+      "codigo": "548",
+      "tipo": "Vantagem"
+    },
+    "INSS sobre 13º Salário (Reposição)": {
       "codigo": "7708",
       "tipo": "Desconto"
     },
@@ -227,19 +243,31 @@
       "codigo": "8070",
       "tipo": "Desconto"
     },
-    "Perda Sexto/Oitavo": {
+    "Perda Sexto Oitavo (Reposição)": {
       "codigo": "7810",
       "tipo": "Desconto"
     },
-    "Faltas — Dias": {
+    "Faltas Restituição (Atraso)": {
+      "codigo": "839",
+      "tipo": "Vantagem"
+    },
+    "Faltas (Reposição)": {
       "codigo": "7803",
       "tipo": "Desconto"
     },
-    "INSS Mensal (tabela progressiva)": {
+    "INSS Mensal Restituição (Atraso)": {
+      "codigo": "408",
+      "tipo": "Vantagem"
+    },
+    "INSS Mensal (Reposição)": {
       "codigo": "7808",
       "tipo": "Desconto"
     },
-    "Desconto de IPSEMG (3,2%)": {
+    "IPSEMG Restituição (Atraso)": {
+      "codigo": "1411",
+      "tipo": "Vantagem"
+    },
+    "IPSEMG (Reposição)": {
       "codigo": "7801",
       "tipo": "Desconto"
     },
@@ -249,6 +277,30 @@
     },
     "Auxílio Transporte (Reposição)": {
       "codigo": "7979",
+      "tipo": "Desconto"
+    },
+    "Desconto Auxílio Transporte Restituição (Atraso)": {
+      "codigo": "948",
+      "tipo": "Vantagem"
+    },
+    "Desconto Auxílio Transporte (Reposição)": {
+      "codigo": "8849",
+      "tipo": "Desconto"
+    },
+    "Custeio Alimentação Restituição (Atraso)": {
+      "codigo": "3018",
+      "tipo": "Vantagem"
+    },
+    "Custeio Alimentação (Reposição)": {
+      "codigo": "9018",
+      "tipo": "Desconto"
+    },
+    "IPSEMG 13º Salário Restituição (Atraso)": {
+      "codigo": "1549",
+      "tipo": "Vantagem"
+    },
+    "IPSEMG 13º Salário (Reposição)": {
+      "codigo": "7701",
       "tipo": "Desconto"
     },
     "IPSEMG Filho 21 a 39 anos": {

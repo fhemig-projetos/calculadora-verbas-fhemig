@@ -12,7 +12,8 @@ FILTROS_TIPO_VERBA = {"Todas": None, "Vantagens": "Vantagem", "Descontos": "Desc
 # Verbas de meses de direito em que o valor mensal é fixo: cada mês vira um lançamento com sua competência.
 # (GIEFS — Meses fica de fora porque o valor muda de mês a mês.)
 VERBAS_COMPETENCIA_POR_MES = {
-    "GRS — Meses (Atraso)", "GRS — Meses (Reposição)", "Piso Enfermagem — Meses",
+    "GRS — Meses (Atraso)", "GRS — Meses (Reposição)",
+    "Piso Enfermagem — Meses (Atraso)", "Piso Enfermagem — Meses (Reposição)",
     "Vencimento Básico — Meses (Atraso)", "Vencimento Básico — Meses (Reposição)",
     "Abono de Emergência — Meses (Atraso)", "Abono de Emergência — Meses (Reposição)",
 }
@@ -26,6 +27,11 @@ class SelecaoVerba:
 
         if "ultimo_resultado" not in st.session_state:
             st.session_state["ultimo_resultado"] = None
+
+        # Entra na `key` da tabela do histórico: mudar o número recria a tabela sem linhas marcadas
+        # (a seleção guarda posições, que deixam de valer quando a lista muda)
+        if "historico_nonce" not in st.session_state:
+            st.session_state["historico_nonce"] = 0
 
         if "ultima_verba_selecionada" not in st.session_state:
             st.session_state["ultima_verba_selecionada"] = None
@@ -349,6 +355,7 @@ class SelecaoVerba:
                     "competencia": competencia,
                     "observacao": observacao
                 })
+            st.session_state["historico_nonce"] += 1
             st.rerun()
 
     def _render_competencias_meses(self, numero_meses: int) -> list[str]:
@@ -392,7 +399,8 @@ class SelecaoVerba:
             "Piso Enfermagem — 13º Salário (Atraso)",
             "Piso Enfermagem — 13º Salário (Reposição)",
             "GRS — 13º Salário",
-            "INSS sobre 13º Salário",
+            "INSS sobre 13º Salário Restituição (Atraso)",
+            "INSS sobre 13º Salário (Reposição)",
         ):
             # Apenas ano
             st.caption("Selecione o ano de referência do cálculo")
@@ -453,7 +461,14 @@ class SelecaoVerba:
                 "Valor (R$)": FormatadorCampos.brl(item["valor"]),
             })
 
-        st.dataframe(dados, width="stretch", hide_index=True)
+        # Seleção de linhas: as posições marcadas coincidem com as posições em `historico`
+        # (a tabela é montada na mesma ordem da lista)
+        evento = st.dataframe(
+            dados, width="stretch", hide_index=True,
+            on_select="rerun", selection_mode="multi-row",
+            key=f"tabela_historico_{st.session_state['historico_nonce']}",
+        )
+        linhas_selecionadas = [i for i in evento.selection.rows if i < len(historico)]
 
         # Exibe totais separados
         vantagens = sum(item["valor"] for item in historico if item.get("tipo") == "Vantagem")
@@ -465,15 +480,29 @@ class SelecaoVerba:
         col2.metric("Total Descontos", FormatadorCampos.brl(descontos))
         col3.metric("Líquido", FormatadorCampos.brl(liquido))
 
-        # Botões de ação sobre a lista (remover / limpar / gerar PDF)
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        # Botões de ação sobre a lista (remover selecionadas / remover último / limpar / gerar PDF)
+        # Duas colunas por linha, para o texto dos botões caber
+        col_btn0, col_btn1 = st.columns(2)
+        col_btn2, col_btn3 = st.columns(2)
+        with col_btn0:
+            rotulo_remover = "🗑️ Remover selecionadas"
+            if linhas_selecionadas:
+                rotulo_remover += f" ({len(linhas_selecionadas)})"
+            if st.button(rotulo_remover, type="secondary", use_container_width=True, disabled=not linhas_selecionadas):
+                # De trás para frente, para as posições seguintes não se deslocarem
+                for i in sorted(linhas_selecionadas, reverse=True):
+                    st.session_state["historico"].pop(i)
+                st.session_state["historico_nonce"] += 1
+                st.rerun()
         with col_btn1:
             if st.button("🗑️ Remover último", type="secondary", use_container_width=True):
                 st.session_state["historico"].pop()
+                st.session_state["historico_nonce"] += 1
                 st.rerun()
         with col_btn2:
             if st.button("🗑️ Limpar lista", type="secondary", use_container_width=True):
                 st.session_state["historico"] = []
+                st.session_state["historico_nonce"] += 1
                 st.rerun()
         with col_btn3:
             ds = st.session_state.get("dados_servidor", {})

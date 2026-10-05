@@ -640,11 +640,11 @@ Observações do levantamento:
 - **Validado:** simulação com o processo Python forçado a rodar em UTC confirmou a diferença de 3h antes da correção, e o horário correto depois.
 - **Achado relacionado, não corrigido agora (baixa prioridade):** o mesmo padrão frágil (`date.today()` sem fuso) aparece em mais 4 pontos — `ui/selecao_verba.py` (linhas ~144, 297, 305: defaults de ano/mês de competência; linha ~379: data no nome do arquivo PDF) e `ui/form_servidor.py` (linhas ~110/115: limite máximo dos seletores de data de admissão/fim efetiva). O impacto ali é bem menor — só afetaria por poucas horas perto da virada de mês/ano/dia — mas segue o mesmo risco estrutural. Vale uma limpeza futura centralizando um helper `agora_brasil()`/`hoje_brasil()` reaproveitável, em vez de espalhar `ZoneInfo("America/Sao_Paulo")` em cada lugar.
 
-### 4.35 🟡 Pendente — avaliar remover um item específico do histórico, não só o último
+### 4.35 ✅ Resolvido (05/10) — remover um item específico do histórico, não só o último
 
 - Hoje (`ui/selecao_verba.py`, `_render_historico`) só existem dois botões de ação sobre a lista: **"Remover último"** (`st.session_state["historico"].pop()`, sempre o último elemento) e **"Limpar lista"** (remove tudo). Não há como remover um item específico do meio da lista.
 - **Complicador técnico:** os itens do histórico (dicionários com `nome_verba`, `codigo`, `tipo`, `competencia`, `observacao`, `valor`, `memoria`) não têm nenhum identificador único hoje — pra selecionar "qual item remover" seria preciso adicionar um id a cada item (ex.: um índice estável ou um `uuid`), e trocar a exibição de `st.dataframe` (só leitura) por algo que suporte seleção de linha (`st.dataframe` com `on_select`, disponível em versões recentes do Streamlit, ou `st.data_editor` com suporte a exclusão de linhas).
-- **Nada implementado ainda** — registrado só como avaliação a fazer, sem decisão de abordagem tomada.
+- **Implementado (05/10):** a tabela do histórico (`_render_historico`, `ui/selecao_verba.py`) aceita seleção de linhas (`st.dataframe` com `on_select="rerun"` e `selection_mode="multi-row"`) e ganhou o botão **"Remover selecionadas (N)"**; "Remover último" e "Limpar lista" foram mantidos. As posições marcadas coincidem com as posições da lista `historico` (sem id). `st.session_state["historico_nonce"]` entra na `key` da tabela e sobe a cada mudança da lista (adicionar, remover, limpar), recriando a tabela sem linhas marcadas. Totais, PDF e gravação da análise já leem a lista inteira, então se atualizam sozinhos. Não foi preciso adicionar identificador aos itens.
 
 ### 4.36 🟡 Pendente — criar rotina de atualização automática da base de dados funcionais dos servidores
 
@@ -652,7 +652,7 @@ Observações do levantamento:
 - Sem uma rotina de atualização, a base tende a ficar desatualizada com o tempo (novas admissões, desligamentos, mudanças de cargo/nível/grau/vencimento não refletidas), fazendo o pré-preenchimento por MASP cada vez menos confiável.
 - **A avaliar:** de onde viria a atualização automática (exportação periódica de algum sistema de RH, reimportação manual periódica, outra fonte de dados), e qual mecanismo usar pra automatizar (`pg_cron` no Supabase, um job agendado fora do Supabase, etc.) — nada definido ainda, só registrado como necessidade.
 
-### 4.50 🟡 Pendente — confirmar com a área o que fazer com "GRS — 13º Salário" (774) e "GRS — Desconto de Horas" (7820)
+### 4.59 🟡 Pendente — confirmar com a área o que fazer com "GRS — 13º Salário" (774) e "GRS — Desconto de Horas" (7820)
 
 - **Origem (02/10):** ao implementar as reposições das verbas em atraso (lista da unidade: coluna "Vencimentos em atraso" × "Débitos – reposição"), essas duas verbas já existentes no app **não aparecem na lista**. Por isso foram mantidas como estavam, sem versão "(Atraso)" / "(Reposição)".
 - **A confirmar com a área:** (1) se "GRS — 13º Salário" (774) e "GRS — Desconto de Horas" (7820) continuam válidas no escopo; (2) se precisam de contrapartida de reposição/atraso e com quais códigos; (3) se o código 774 do GRS 13º está correto (as demais verbas de GRS usam 2774/7774).
@@ -681,7 +681,71 @@ Observações do levantamento:
 ### 4.54 🟡 Pendente — definir com a unidade a regra do Auxílio Transporte (campo livre hoje) e sua relação com o INSS e com as verbas de restituição/custeio
 
 - **Estado (02/10):** "Auxílio Transporte (Atraso)" (2979, Vantagem) e "Auxílio Transporte (Reposição)" (7979, Desconto) foram criadas como **campo livre**: o técnico digita o valor e a calculadora só o repassa (mesmo padrão do Piso — Desconto e do IPSEMG Filho). Não há fórmula nem valor pré-definido; a regra de cálculo não foi informada.
-- **A confirmar com a unidade:** (1) a fórmula do auxílio transporte (valor diário × dias? depende de trajeto/tarifa? desconto de 6% do vencimento?); (2) se deve haver um campo de dias/valor diário em vez de valor total; (3) **INSS:** como é Vantagem, hoje o auxílio transporte entra automaticamente em "Outras Vantagens" do INSS Mensal; ajuda de custo e verbas de 13º já são excluídas dessa soma — confirmar se o auxílio transporte também deve ser excluído (costuma ser indenizatório); (4) as verbas relacionadas da lista, ainda não implementadas: 948 "Restituição desconto aux. transporte" e 8849 "Desconto custeio aux. transporte - atraso".
+- **A confirmar com a unidade:** (1) a fórmula do auxílio transporte (valor diário × dias? depende de trajeto/tarifa? desconto de 6% do vencimento?); (2) se deve haver um campo de dias/valor diário em vez de valor total; (3) **INSS:** como é Vantagem, hoje o auxílio transporte entra automaticamente em "Outras Vantagens" do INSS Mensal; ajuda de custo e verbas de 13º já são excluídas dessa soma — confirmar se o auxílio transporte também deve ser excluído (costuma ser indenizatório); (4) as verbas relacionadas 948 "Restituição desconto aux. transporte" (Vantagem) e 8849 "Desconto custeio aux. transporte - atraso" (Desconto) também foram criadas como campo livre (`valor_restituicao_aux_transporte` e `valor_custeio_aux_transporte`) — confirmar se a 948 é de fato a restituição do desconto de custeio (8849) ou do auxílio em si, e se a restituição (Vantagem) também deve ficar fora da base do INSS Mensal.
+
+### 4.55 🟡 Pendente — confirmar com a área a nomenclatura das verbas 948/8849 (Auxílio Transporte) e 3018/9018 (Custeio Alimentação) e 1549/7701 (IPSEMG 13º)
+
+- **Estado (05/10):** na lista da unidade, a 948 é "RESTITUICAO DESCONTO AUX.TRANSPORTE" (Vantagem, coluna "Vencimentos em atraso") e a 8849 é "DESCONTO CUSTEIO AUX. TRANS. - ATRASO" (Desconto, coluna "Débitos – reposição"). No app ficaram como **"Desconto Auxílio Transporte Restituição (Atraso)"** (948, Vantagem) e **"Desconto Auxílio Transporte (Reposição)"** (8849, Desconto), campos livres.
+- **Por que checar:** o nome "Desconto Auxílio Transporte (Atraso)" identificaria uma verba **Vantagem** como se fosse desconto, por isso a 948 recebeu "Restituição" no nome ("Desconto Auxílio Transporte Restituição (Atraso)"), que ainda mistura "Desconto" e "Restituição". A 8849, "Desconto Auxílio Transporte (Reposição)", perdeu o termo "Custeio" da descrição original. Além disso, a lista da unidade usa descrições diferentes para as duas ("restituição" × "custeio"), então não é certo que sejam o par atraso/reposição de uma mesma verba.
+- **Mesmo padrão aplicado ao custeio de alimentação (05/10):** 3018 = "Custeio Alimentação Restituição (Atraso)" (Vantagem) e 9018 = "Custeio Alimentação (Reposição)" (Desconto). Vale a mesma dúvida: se "Atraso"/"Reposição" descrevem bem verbas que são restituição × custeio.
+- **A confirmar com a área:** se os nomes estão coerentes com o uso real e qual rótulo é melhor (ex.: voltar a "Restituição…" e "Custeio…", como na lista original). Ver também 4.54 (regra de cálculo e INSS).
+
+### 4.56 🟡 Pendente — definir com a unidade a regra do Custeio de Alimentação (campo livre hoje) e sua relação com o INSS
+
+- **Estado (05/10):** "Custeio Alimentação Restituição (Atraso)" (3018, Vantagem) e "Custeio Alimentação (Reposição)" (9018, Desconto) foram criadas como **campo livre** (`valor_restituicao_custeio_alimentacao` e `valor_custeio_alimentacao`): o técnico digita o valor e a calculadora só o repassa. Não há fórmula nem valor pré-definido.
+- **A confirmar com a unidade:** (1) a fórmula do custeio de alimentação (percentual sobre algum valor? valor fixo por dia?); (2) se a restituição (Vantagem) também deve ficar fora da base do INSS Mensal — hoje ela entra automaticamente em "Outras Vantagens"; (3) se a 9018 ("custeio alimentação local de trabalho atraso") é de fato a contrapartida da 3018 ("restituição custeio alimentação").
+
+### 4.57 🟡 Pendente — validar com a área o modelo Atraso/Reposição do Piso Enfermagem e se o "Piso Enfermagem — Desconto" pode ser removido
+
+- **Estado (05/10):** "Piso Enfermagem — Dias" e "Piso Enfermagem — Meses" (antes só Vantagem, 3154) foram replicadas no modelo das demais verbas: "(Atraso)" = 3154, Vantagem; "(Reposição)" = 9154, Desconto. Mesma fórmula e mesma calculadora de cada variante (`Piso ÷ 30 × Dias` e `Piso × Nº de Meses`); as variantes "Meses" geram um lançamento por mês, com competência por mês. O `valor_piso` continua pré-preenchido pelo cabeçalho (PENF II/IV) nas quatro verbas (ver 4.28).
+- **Validar com a área (mesma lógica da pendência 4.52 para Vencimento Básico/Abono):** (1) se as quatro variantes (Dias e Meses × Atraso e Reposição) são mesmo necessárias e usadas; (2) se o valor do piso é o mesmo em todos os meses de um período (a variante "Meses" assume isso; o piso muda com vencimento/CH/reajuste); (3) ver também 4.51 (reposição não abate bases do INSS).
+- **"Piso Enfermagem — Desconto" (9154) mantida intocada**, a pedido, como campo livre (ver 4.29). **Conflito de código:** o 9154 identifica agora três verbas Desconto: "Piso Enfermagem — Dias (Reposição)", "Piso Enfermagem — Meses (Reposição)" e "Piso Enfermagem — Desconto".
+- **A confirmar com a área:** se a "Piso Enfermagem — Desconto" ainda é necessária ou pode ser **removida**, já que as reposições de Dias/Meses cobrem o mesmo código. Se puder sair, remover de `data/tabelas.json` e `calculadoras/factory.py` (a calculadora `piso_enfermagem_desconto.py` e o campo compartilhado `valor_piso` seguem em uso pelas demais verbas).
+
+### 4.58 🟡 Pendente — definir a regra do IPSEMG 13º (1549/7701), hoje campo livre, e ligar à pendência 4.32
+
+- **Estado (05/10):** "IPSEMG 13º Salário Restituição (Atraso)" (1549, Vantagem) e "IPSEMG 13º Salário (Reposição)" (7701, Desconto) foram criadas como **campo livre** (`valor_restituicao_ipsemg_13` e `valor_ipsemg_13`): o técnico digita o valor e a calculadora só o repassa. Mesmo padrão de nomes da 948/3018 (tema, "Restituição" e o tipo entre parênteses; ver 4.55).
+- **Relação com a 4.32:** a servidora disse que a 7701 tem "fórmula é a mesma" do desconto de IPSEMG (3,2%), mas a base de incidência provavelmente é a do 13º. Enquanto não houver resposta, o campo livre evita assumir uma base. Se a área confirmar que é o mesmo cálculo sobre a base do 13º, trocar o campo livre por uma calculadora com a base do 13º (`valor_13_salario` etc.) e alíquota de 3,2%; a 1549 seria a restituição correspondente.
+- **A confirmar com a área:** (1) fórmula e base do IPSEMG 13º (7701) e da restituição (1549); (2) se "IPSEMG 13º Salário (Reposição)" é um bom nome para "IPSEMG ASSIST. MED. 13º ATRASO"; (3) se a restituição (Vantagem) deve ficar fora da base do INSS Mensal (hoje entra automaticamente em "Outras Vantagens").
+
+### 4.60 🟡 Pendente — validar com a área o par IPSEMG Restituição (Atraso) 1411 / IPSEMG (Reposição) 7801
+
+- **Estado (05/10):** o antigo "Desconto de IPSEMG (3,2%)" (7801, Desconto) foi **renomeado para "IPSEMG (Reposição)"** e criada "IPSEMG Restituição (Atraso)" (1411, Vantagem). As duas usam a **mesma calculadora** (`calculadoras/ipsemg.py`: `(Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + Ad. Noturno + GRS + 13º) × 3,2%`), por suposição de que a restituição devolve o mesmo valor que seria descontado. Os campos lidos do histórico (gratificação, adicional noturno, 13º) procuram só os lançamentos "(Atraso)" (ver 4.51).
+- **A confirmar com a área:** (1) se a restituição 1411 tem de fato a mesma fórmula e base do desconto; (2) se o nome "IPSEMG (Reposição)" não confunde, já que antes o nome trazia a alíquota (3,2%) — ver também 4.55; (3) se a restituição (Vantagem) deve ficar fora da base do INSS Mensal (hoje entra automaticamente em "Outras Vantagens"). Relacionada à 4.58 (IPSEMG 13º).
+- **Observação de numeração:** as pendências 4.37–4.50 listadas na seção 26.3 não têm cabeçalho próprio na seção 4; a pendência desta sessão que antes se chamava 4.50 foi renumerada para **4.59** para não colidir com a 4.50 ("Regras do piso") de lá. A 4.57 (modelo Atraso/Reposição do piso) complementa essa 4.50; a 4.59 complementa as 4.47 e 4.48.
+
+### 4.61 🟡 Pendente — validar com a área as restituições de INSS (408 e 548) e o efeito delas na base do INSS
+
+- **Estado (05/10):** "INSS Mensal (tabela progressiva)" (7808) virou **"INSS Mensal (Reposição)"** e "INSS sobre 13º Salário" (7708) virou **"INSS sobre 13º Salário (Reposição)"**; criadas "INSS Mensal Restituição (Atraso)" (408, Vantagem) e "INSS sobre 13º Salário Restituição (Atraso)" (548, Vantagem), cada uma com a **mesma calculadora** do desconto correspondente (por suposição de que a restituição devolve o valor que seria descontado). Nos nomes, o antigo "(tabela progressiva)" saiu (a fórmula continua na descrição do campo). O INSS sobre 13º segue com competência só por ano nas duas variantes.
+- **Efeito colateral a decidir (não alterado):** como "INSS Mensal Restituição (Atraso)" e "INSS sobre 13º Salário Restituição (Atraso)" são Vantagem, a soma automática de **"Outras Vantagens"** do INSS Mensal as inclui na base. Uma restituição de INSS dentro da base do próprio INSS provavelmente não está correta. Mesma situação das demais restituições (IPSEMG 1411/1549, aux. transporte 948, custeio de alimentação 3018). Ligada às 4.25, 4.27 e 4.51.
+- **A confirmar com a área:** (1) se a restituição usa a mesma tabela e fórmula do desconto (INSS Mensal e sobre 13º); (2) se as restituições devem ser excluídas da soma de "Outras Vantagens" (e, se sim, quais verbas de restituição entram na lista `NOMES_EXCLUIDOS_INSS` de `ui/selecao_verba.py`); (3) se os nomes sem "(tabela progressiva)" estão adequados (ver 4.55).
+
+### 4.62 🟡 Pendente — validar com a área as verbas de falta (839/7803) e a Perda Sexto Oitavo (7810)
+
+- **Estado (05/10):** "Faltas — Dias" (7803, Desconto) virou **"Faltas (Reposição)"** e foi criada "Faltas Restituição (Atraso)" (839, Vantagem), reaproveitando a mesma calculadora (`calculadoras/faltas_dias.py`: `(Venc. Básico + Ab. Emergência + GRS + Piso) ÷ 30 × Nº de Dias de Falta`) por suposição de que a restituição devolve o valor que seria descontado. "Perda Sexto/Oitavo" (7810, Desconto, `faltas_horas.py`) virou **"Perda Sexto Oitavo (Reposição)"** — registrada como reposição por ser débito (a lista da unidade traz o 7810 na coluna de reposição); não há par de Vantagem para ela na lista.
+- **A confirmar com a área:** (1) se a restituição de falta (839) usa a mesma fórmula e base do desconto (`Faltas — Dias`); (2) se a Perda Sexto Oitavo precisa de uma contrapartida em Vantagem (restituição) — a lista não traz; (3) a restituição (Vantagem) deve ficar fora da base do INSS Mensal? Ver 4.61; (4) a variante em horas (7810) e a em dias (7803) são verbas distintas na lista; confirmar que "Faltas (Reposição)" e "Perda Sexto Oitavo (Reposição)" não se confundem para quem escolhe a verba (ver 4.55).
+
+### 4.63 🟡 Pendente — validar com a área o par PMC (Atraso) 2961 / PMC (Reposição) 8961
+
+- **Estado (05/10):** "Plantão Médico Complementar (PMC)" (2961, Vantagem) foi renomeada para **"PMC (Atraso)"** e criada **"PMC (Reposição)"** (8961, Desconto, "REP. PLANTAO MEDICO COMPLEMENTAR"). As duas usam a mesma calculadora de **campo livre** (`calculadoras/plantao_medico_complementar.py`, campo `valor_pmc`): o técnico digita o valor e a calculadora só o repassa. Nomes escolhidos com base na sigla ("PMC"), sem "Plantão Médico Complementar" por extenso.
+- **A confirmar com a área:** (1) a regra de cálculo do PMC (hoje campo livre, sem fórmula); (2) se o nome abreviado "PMC" é claro para quem escolhe a verba (ver 4.55); (3) se a reposição 8961 usa o mesmo campo/valor da vantagem; (4) se o PMC (Vantagem) entra na base do INSS Mensal (hoje entra automaticamente em "Outras Vantagens").
+
+### 4.64 🟡 Pendente — confirmar com a área as verbas que ficaram sem o par de Atraso/Reposição
+
+- **Origem (05/10):** ao percorrer a lista da unidade (coluna "Vencimentos em atraso" × "Débitos – reposição"), algumas verbas do app **não têm a contrapartida** correspondente. Em parte é porque a verba não consta na lista da unidade, em parte porque a lista não traz o par. Precisa confirmar se é assim mesmo ou se falta criar o par.
+- **Verbas sem par e que não estão na lista da unidade (a confirmar se precisam de par):**
+  - **Hora Extra** (2094, Vantagem) — sem "(Atraso)"/"(Reposição)".
+  - **Aumento Salarial** (2400, Vantagem; compartilha o código com Vencimento Básico — Dias/Meses (Atraso), cuja reposição é o 7400) — sem reposição própria.
+  - **Licença Maternidade** (3200, Vantagem).
+  - **Férias Indenizadas** (1324, Vantagem).
+- **Verbas sem par já registradas em outras pendências (só referência, sem decisão nova aqui):**
+  - **GRS — 13º Salário** (774, Vantagem) e **GRS — Desconto de Horas** (7820, Desconto) — ver 4.59.
+  - **Piso Enfermagem — Desconto** (9154, Desconto; código duplicado com as reposições do piso) — ver 4.57.
+  - **Devolução Custeio Ajuda de Custo** (8070, Desconto; código duplicado com "Ajuda de Custo Variável (Reposição)") — ver 4.53.
+  - **Perda Sexto Oitavo (Reposição)** (7810, Desconto) — sem par de Vantagem na lista da unidade — ver 4.62.
+  - **IPSEMG Filho 21 a 39 anos** (sem código, Desconto) — ver 4.31 e 26.3.
+- **Pares que só existem como Restituição × Reposição (não é erro, só registrar):** Faltas (839/7803), INSS Mensal (408/7808), INSS sobre 13º (548/7708), IPSEMG (1411/7801), IPSEMG 13º (1549/7701), Desconto Auxílio Transporte (948/8849) e Custeio Alimentação (3018/9018). Nesses casos o "(Atraso)" é uma restituição de desconto e o "(Reposição)" é o próprio desconto (ver 4.55).
+- **A confirmar com a área:** (1) para as quatro verbas sem par e fora da lista (Hora Extra, Aumento Salarial, Licença Maternidade, Férias Indenizadas), se precisam das variantes "(Atraso)" e "(Reposição)" e com quais códigos; (2) se as demais ficam sem par de propósito (ligações acima).
 
 ---
 
@@ -1695,7 +1759,7 @@ Todas ainda sem definição de regra/detalhamento pela unidade (marcadas com "??
 ### 27.1 ✅ Concluído — Competência mês a mês nas verbas "Meses"
 
 - Em `ui/selecao_verba.py`, as verbas listadas em `VERBAS_COMPETENCIA_POR_MES` (valor mensal fixo), com `numero_meses > 1`, abrem um seletor de mês/ano por mês de direito (sugestão de meses consecutivos; mudar um mês reajusta os seguintes). "Adicionar à lista" gera **um lançamento por mês**, com valor dividido igualmente (a última parcela absorve os centavos) e memória de cálculo com a competência. Meses repetidos bloqueiam o botão.
-- Hoje a lista contém: GRS — Meses (Atraso/Reposição), Vencimento Básico — Meses (Atraso/Reposição), Abono de Emergência — Meses (Atraso/Reposição) e **"Piso Enfermagem — Meses" (ainda com o nome antigo, ver 27.4)**. **GIEFS — Meses fica de fora** (o valor muda de mês a mês). Os 13º não usam isso (competência só por ano).
+- Hoje a lista contém: GRS — Meses (Atraso/Reposição), Vencimento Básico — Meses (Atraso/Reposição), Abono de Emergência — Meses (Atraso/Reposição) e Piso Enfermagem — Meses (Atraso/Reposição). **GIEFS — Meses fica de fora** (o valor muda de mês a mês). Os 13º não usam isso (competência só por ano).
 
 ### 27.2 ✅ Concluído — Tabela de cargos e piso de enfermagem pré-preenchido
 
@@ -1711,6 +1775,7 @@ Cada vantagem "em atraso" da lista ganhou o desconto de "reposição" correspond
 | Vencimento Básico — Meses (nova) | 2400 | 7400 | ver 4.52 |
 | 13º Salário | 2491 | 7491 | ver 4.51 |
 | Piso Enfermagem — 13º Salário | 3164 | 9164 | |
+| Piso Enfermagem — Dias e Meses | 3154 | 9154 | **9154 duplicado** com "Piso Enfermagem — Desconto" (mantida intocada); ver 4.57 |
 | GIEFS — 13º Salário | 3171 | 9171 | ver 4.51 |
 | 1/3 de Férias | 2492 | 7492 | |
 | GIEFS — 1/3 de Férias | 3242 | 9242 | |
@@ -1723,22 +1788,35 @@ Cada vantagem "em atraso" da lista ganhou o desconto de "reposição" correspond
 | Ajuda de Custo Fixa | 3198 | 9198 | ver 4.53 |
 | Ajuda de Custo Variável | 2070 | 8070 | **8070 duplicado** com a Devolução Custeio — ver 4.53 |
 | Auxílio Transporte (nova, campo livre) | 2979 | 7979 | ver 4.54 |
+| Desconto Auxílio Transporte Restituição (Atraso) / Desconto Auxílio Transporte (Reposição) (novas, campo livre) | 948 | 8849 | linhas distintas da tabela da unidade (não são a mesma verba em atraso e reposição); ver 4.54 e 4.55 |
+| Custeio Alimentação Restituição (Atraso) / Custeio Alimentação (Reposição) (novas, campo livre) | 3018 | 9018 | mesmo padrão de nomes das verbas 948/8849; ver 4.55 e 4.56 |
+| IPSEMG 13º Salário Restituição (Atraso) / IPSEMG 13º Salário (Reposição) (novas, campo livre) | 1549 | 7701 | mesmo padrão de nomes; ver 4.32, 4.55 e 4.58 |
+| IPSEMG (antes "Desconto de IPSEMG (3,2%)") | 1411 (nova, "IPSEMG Restituição (Atraso)") | 7801 ("IPSEMG (Reposição)", renomeada) | mesma calculadora (base × 3,2%); ver 4.60 |
+| INSS Mensal (antes "INSS Mensal (tabela progressiva)") | 408 (nova, "INSS Mensal Restituição (Atraso)") | 7808 ("INSS Mensal (Reposição)", renomeada) | mesma calculadora (tabela progressiva); ver 4.61 |
+| INSS sobre 13º Salário | 548 (nova, "INSS sobre 13º Salário Restituição (Atraso)") | 7708 ("INSS sobre 13º Salário (Reposição)", renomeada) | mesma calculadora; competência só por ano nas duas; ver 4.61 |
+| Faltas — Dias | 839 (nova, "Faltas Restituição (Atraso)") | 7803 ("Faltas (Reposição)", renomeada) | mesma calculadora (base ÷ 30 × dias); ver 4.62 |
+| Plantão Médico Complementar (campo livre) | 2961 (renomeada para "PMC (Atraso)") | 8961 ("PMC (Reposição)", nova) | mesma calculadora (campo livre `valor_pmc`); ver 4.63 |
+| Perda Sexto/Oitavo | — | 7810 (renomeada para "Perda Sexto Oitavo (Reposição)") | sem par de Vantagem na lista da unidade; ver 4.62 |
 
 - **Referências por nome em `ui/selecao_verba.py`** atualizadas para os nomes "(Atraso)": exclusão da base do INSS Mensal (`NOMES_EXCLUIDOS_INSS`), busca no histórico (`nome_alvo_dict`: gratificação de final de semana, adicional noturno, 13º e GIEFS 13º), base da Devolução Custeio (`NOMES_AJUDA_CUSTO`) e competência só por ano dos 13º. Efeito: lançamentos "(Reposição)" **não** alimentam esses campos nem abatem essas bases (pendência 4.51).
 - Novos arquivos de calculadora: `vencimento_basico_meses.py`, `abono_emergencia_meses.py` e `auxilio_transporte.py`.
+
+### 27.3b ✅ Concluído (05/10) — Remoção de lançamentos específicos do histórico
+
+- Ver 4.35 (resolvida). Tabela do histórico com seleção de linhas e botão "Remover selecionadas"; exige Streamlit com `on_select` no `st.dataframe` (>= 1.35; o ambiente usa 1.64).
 
 ### 27.4 🟡 Próximos passos (retomar daqui)
 
 **Linhas da lista da unidade ainda não implementadas** (seguir o mesmo padrão: renomear "(Atraso)"/"(Reposição)", checar referências por nome e registrar pendência quando houver efeito colateral):
 
-1. **3154 / 9154 — Piso Enfermagem:** hoje existem "Piso Enfermagem — Dias" e "— Meses" (3154, Vantagem) e "Piso Enfermagem — Desconto" (9154, Desconto, campo livre). Falta padronizar nomes para "(Atraso)"/"(Reposição)" e **atualizar `VERBAS_COMPETENCIA_POR_MES`**, que ainda cita "Piso Enfermagem — Meses". Decidir se a Reposição de Dias/Meses substitui o "Desconto" atual (campo livre).
-2. **2961 / 8961 — Plantão Médico Complementar (PMC):** criar a reposição (8961) do PMC existente.
-3. **948 / 8849** — Restituição de desconto do aux. transporte (Vantagem) e Desconto custeio aux. transporte (Desconto): ainda não existem. Proposta: campo livre, junto da pendência 4.54.
-4. **3018 / 9018** — Restituição custeio alimentação (Vantagem) e Custeio alimentação local de trabalho (Desconto): não existem; precisam da regra da área (campo livre se não houver).
-5. **1549 / 7701** — Restituição IPSEMG 13º (Vantagem) e IPSEMG 13º atraso (Desconto): não existem; ver pendência 4.32 (IPSEMG 13º × Desconto de IPSEMG 3,2%).
-6. **Restituições (Vantagem) dos descontos já existentes:** 1411 (IPSEMG, par do 7801), 408 (INSS, par do 7808), 548 (INSS 13º, par do 7708) e 839 (Falta, par do 7803). Os descontos 7801, 7808, 7708 e 7803 já existem; falta a contrapartida em Vantagem.
-7. **7810 (Perda Sexto/Oitavo):** já existe, sem par na lista da unidade.
+1. ~~3154 / 9154 — Piso Enfermagem~~ ✅ feito (05/10): "Piso Enfermagem — Dias" e "— Meses" ganharam "(Atraso)" (3154, Vantagem) e "(Reposição)" (9154, Desconto), mesma calculadora; "Piso Enfermagem — Meses (Atraso/Reposição)" entraram em `VERBAS_COMPETENCIA_POR_MES`. "Piso Enfermagem — Desconto" foi mantida intocada (ver 4.57).
+2. ✅ **2961 / 8961 — Plantão Médico Complementar (PMC):** "PMC (Atraso)" (2961, Vantagem) e "PMC (Reposição)" (8961, Desconto), feitas em 05/10, campo livre.
+3. ~~948 / 8849~~ ✅ feito (02/10, retomado em 05/10): "Desconto Auxílio Transporte Restituição (Atraso)" (948, Vantagem) e "Desconto Auxílio Transporte (Reposição)" (8849, Desconto), como campo livre.
+4. ~~3018 / 9018~~ ✅ feito (05/10): "Custeio Alimentação Restituição (Atraso)" (3018, Vantagem) e "Custeio Alimentação (Reposição)" (9018, Desconto), como campo livre (`calculadoras/custeio_alimentacao.py`).
+5. ~~1549 / 7701~~ ✅ feito (05/10): "IPSEMG 13º Salário Restituição (Atraso)" (1549, Vantagem) e "IPSEMG 13º Salário (Reposição)" (7701, Desconto), como campo livre (`calculadoras/ipsemg_13.py`); regra pendente (4.32 e 4.58).
+6. ✅ **Restituições (Vantagem) dos descontos já existentes:** 1411 (IPSEMG), 408 (INSS), 548 (INSS 13º) e 839 (Falta), feitas em 05/10 (os descontos 7801, 7808, 7708 e 7803 foram renomeados para "(Reposição)").
+7. ✅ **7810 (Perda Sexto/Oitavo):** renomeada para "Perda Sexto Oitavo (Reposição)" (Desconto, por ser débito); ver 4.62.
 
-**Pendências abertas desta sessão:** 4.50 (GRS 13º e Desconto de Horas fora da lista), 4.51 (reposições × bases/pré-preenchimentos do histórico), 4.52 (variantes "Meses" de vencimento/abono), 4.53 (Devolução Custeio Ajuda de Custo e código 8070 duplicado) e 4.54 (regra do Auxílio Transporte e INSS).
+**Pendências abertas desta sessão:** 4.64 (verbas sem par atraso/reposição), 4.63 (PMC), 4.62 (faltas e perda sexto/oitavo), 4.61 (restituições de INSS e a base do INSS), 4.60 (IPSEMG restituição/reposição), 4.58 (IPSEMG 13º como campo livre), 4.57 (piso: validação do modelo atraso/reposição e possível remoção do "Piso Enfermagem — Desconto"), 4.56 (regra do custeio de alimentação), 4.55 (nomenclatura das verbas 948/8849 e 3018/9018), 4.59 (GRS 13º e Desconto de Horas fora da lista; relacionada às 4.47 e 4.48 da seção 26.3), 4.51 (reposições × bases/pré-preenchimentos do histórico), 4.52 (variantes "Meses" de vencimento/abono), 4.53 (Devolução Custeio Ajuda de Custo e código 8070 duplicado) e 4.54 (regra do Auxílio Transporte e INSS).
 
 **Antes de entregar:** (a) testar no app o fluxo de competência mês a mês e o pré-preenchimento do piso (nada disso foi aberto no navegador nesta sessão, só validado por script); (b) rebuild e teste do `.exe` (pendência 4.35 cobre também estas mudanças); (c) **nenhuma alteração desta sessão foi commitada**; o arquivo `Verificação do PISO 1.XLSX` na raiz está sem versionar (decidir se entra no repositório).
