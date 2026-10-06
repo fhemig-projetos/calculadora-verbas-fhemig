@@ -47,7 +47,19 @@ CONFIG_CAMPOS = {
     "valor_custeio_aux_transporte": {"label": "Valor do Desconto de Custeio do Aux. Transporte (R$)", "tipo": "moeda"},
     "valor_restituicao_custeio_alimentacao": {"label": "Valor da Restituição do Custeio de Alimentação (R$)", "tipo": "moeda"},
     "valor_custeio_alimentacao": {"label": "Valor do Desconto de Custeio de Alimentação (R$)", "tipo": "moeda"},
-    "valor_restituicao_ipsemg_13": {"label": "Valor da Restituição do IPSEMG sobre o 13º (R$)", "tipo": "moeda"},
-    "valor_ipsemg_13": {"label": "Valor do Desconto de IPSEMG sobre o 13º (R$)", "tipo": "moeda"},
-    "valor_ipsemg_filho": {"label": "Valor do Desconto IPSEMG Filho 21 a 39 anos (R$)", "tipo": "moeda"},
+    "piso_13_salario":   {
+        "label": "Valor do Piso Enfermagem 13º (R$)",
+        "tipo": "moeda",
+        "help": "Pré-preenchido com o último \"Piso Enfermagem — 13º Salário (Atraso)\" do histórico. Se não fizer jus, deixe R$ 0,00.",
+    },
+    "valor_ipsemg_filho_menor21": {
+        "label": "Valor do IPSEMG — Filho menor de 21 anos (R$)",
+        "tipo": "moeda",
+        "help": "Regra geral: R$ 60,00 por filho. Edite se o valor for diferente (ex.: mais de um filho, isenção por renda).",
+    },
+    "valor_ipsemg_filho_21_39": {
+        "label": "Valor do IPSEMG — Filho de 21 a 39 anos (R$)",
+        "tipo": "moeda",
+        "help": "Regra geral: R$ 90,00 por filho. Edite se o valor for diferente (ex.: mais de um filho, renda baixa).",
+    },
 }

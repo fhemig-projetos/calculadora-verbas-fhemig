@@ -31,7 +31,7 @@ nos Resumos Funcionais da FHEMIG.
 - Ajuda de Custo Variável (2070)
 - Devolução Custeio Ajuda de Custo
 - Aumento Salarial (multi-alíquotas)
-- Desconto de IPSEMG (3,2%)
+- IPSEMG: titular (1411/7801), dependentes 3,2% (816/8116), 13º (1549/7701) e filhos (1419/9619 e 815/8115)
 - INSS Mensal (tabela progressiva 2024/2025/2026)
 - Licença Maternidade
 

@@ -207,12 +207,13 @@ class SelecaoVerba:
                 valor_default = sum(lancamentos) if lancamentos else persistidos.get(campo, 0.0)
             ## Campos do Histórico → histórico primeiro, persistido como fallback
             elif campo in ("grat_final_semana", "adicional_noturno", "valor_13_salario",
-                        "giefs_13_salario"):
+                        "giefs_13_salario", "piso_13_salario"):
                 nome_alvo_dict = { ## tentar melhorar essa lógica depois para ficar mais eficiente
                     "grat_final_semana": "Gratificação de Final de Semana (Atraso)",
                     "adicional_noturno": "Adicional Noturno (Atraso)",
                     "valor_13_salario": "13º Salário (Atraso)",
                     "giefs_13_salario": "GIEFS — 13º Salário (Atraso)",
+                    "piso_13_salario": "Piso Enfermagem — 13º Salário (Atraso)",
                 }
                 nome_alvo = nome_alvo_dict[campo]
                 historico = st.session_state.get("historico", [])
@@ -222,6 +223,11 @@ class SelecaoVerba:
                         break # quebra o loop quando encontrar correspondência na tabela do histórico
                 else:
                     valor_default = persistidos.get(campo, 0.0)
+            ## IPSEMG de filhos: campo editável, com a regra geral por filho como default
+            elif campo == "valor_ipsemg_filho_menor21":
+                valor_default = persistidos.get(campo, 60.0)
+            elif campo == "valor_ipsemg_filho_21_39":
+                valor_default = persistidos.get(campo, 90.0)
             # Demais manuais → persistido, com default puro
             elif campo == "ajuda_custo_fixa_diario":
                 valor_default = persistidos.get(campo, 50.0)  # parcela fixa (3198): valor previsto, editável
@@ -399,6 +405,8 @@ class SelecaoVerba:
             "Piso Enfermagem — 13º Salário (Atraso)",
             "Piso Enfermagem — 13º Salário (Reposição)",
             "GRS — 13º Salário",
+            "IPSEMG 13º Salário Restituição (Atraso)",
+            "IPSEMG 13º Salário (Reposição)",
             "INSS sobre 13º Salário Restituição (Atraso)",
             "INSS sobre 13º Salário (Reposição)",
         ):

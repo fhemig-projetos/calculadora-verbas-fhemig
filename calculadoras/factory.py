@@ -6,12 +6,12 @@ from .plantao_medico_complementar import CalculadoraPlantaoMedicoComplementar
 from .piso_enfermagem_dias import CalculadoraPisoEnfermagemDias
 from .piso_enfermagem_meses import CalculadoraPisoEnfermagemMeses
 from .piso_enfermagem_desconto import CalculadoraPisoEnfermagemDesconto
-from .ipsemg_filho import CalculadoraIPSEMGFilho
+from .ipsemg_filho import CalculadoraIPSEMGFilhoMenor21, CalculadoraIPSEMGFilho21a39
 from .auxilio_transporte import (
     CalculadoraAuxilioTransporte, CalculadoraRestituicaoAuxilioTransporte, CalculadoraCusteioAuxilioTransporte,
 )
 from .custeio_alimentacao import CalculadoraRestituicaoCusteioAlimentacao, CalculadoraCusteioAlimentacao
-from .ipsemg_13 import CalculadoraRestituicaoIPSEMG13, CalculadoraIPSEMG13
+from .ipsemg_13 import CalculadoraIPSEMG13
 from .hora_extra import CalculadoraHoraExtra
 from .adicional_noturno import CalculadoraAdicionalNoturno
 from .gratificacao_final_semana import CalculadoraGratificacaoFinalSemana
@@ -59,7 +59,6 @@ REGISTRO_CALCULADORAS = {
     "Piso Enfermagem — Meses (Atraso)": CalculadoraPisoEnfermagemMeses(),
     "Piso Enfermagem — Meses (Reposição)": CalculadoraPisoEnfermagemMeses(),
     "Piso Enfermagem — Desconto": CalculadoraPisoEnfermagemDesconto(),
-    "IPSEMG Filho 21 a 39 anos": CalculadoraIPSEMGFilho(),
     # Auxílio Transporte: campo livre (regra de cálculo ainda não definida pela unidade — ver contexto.md)
     "Auxílio Transporte (Atraso)": CalculadoraAuxilioTransporte(),
     "Auxílio Transporte (Reposição)": CalculadoraAuxilioTransporte(),
@@ -68,9 +67,16 @@ REGISTRO_CALCULADORAS = {
     # Custeio Alimentação: campo livre (regra de cálculo ainda não definida pela unidade — ver contexto.md)
     "Custeio Alimentação Restituição (Atraso)": CalculadoraRestituicaoCusteioAlimentacao(),
     "Custeio Alimentação (Reposição)": CalculadoraCusteioAlimentacao(),
-    # IPSEMG 13º: campo livre (regra de cálculo ainda não definida pela unidade — ver contexto.md, pendências 4.32 e 4.58)
-    "IPSEMG 13º Salário Restituição (Atraso)": CalculadoraRestituicaoIPSEMG13(),
+    # 1549 (restituição, Vantagem) e 7701 (reposição, Desconto): (13º + GIEFS 13º + Piso 13º) × 3,2%
+    "IPSEMG 13º Salário Restituição (Atraso)": CalculadoraIPSEMG13(),
     "IPSEMG 13º Salário (Reposição)": CalculadoraIPSEMG13(),
+    # Dependentes do IPSEMG: cônjuge/pais/irmãos usam a mesma fórmula do titular; filhos são campo editável
+    "IPSEMG Dependente 3,2% Restituição (Atraso)": CalculadoraIPSEMG(),
+    "IPSEMG Dependente 3,2% (Reposição)": CalculadoraIPSEMG(),
+    "IPSEMG Filho Menor de 21 Restituição (Atraso)": CalculadoraIPSEMGFilhoMenor21(),
+    "IPSEMG Filho Menor de 21 (Reposição)": CalculadoraIPSEMGFilhoMenor21(),
+    "IPSEMG Filho 21 a 39 Restituição (Atraso)": CalculadoraIPSEMGFilho21a39(),
+    "IPSEMG Filho 21 a 39 (Reposição)": CalculadoraIPSEMGFilho21a39(),
     "Hora Extra": CalculadoraHoraExtra(),
     # 2773 (Vantagem) e 7773 (reposição, Desconto): mesma fórmula, só muda tipo/código em tabelas.json
     "Adicional Noturno (Atraso)": CalculadoraAdicionalNoturno(),

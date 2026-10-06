@@ -303,8 +303,28 @@
       "codigo": "7701",
       "tipo": "Desconto"
     },
-    "IPSEMG Filho 21 a 39 anos": {
-      "codigo": "----",
+    "IPSEMG Dependente 3,2% Restituição (Atraso)": {
+      "codigo": "816",
+      "tipo": "Vantagem"
+    },
+    "IPSEMG Dependente 3,2% (Reposição)": {
+      "codigo": "8116",
+      "tipo": "Desconto"
+    },
+    "IPSEMG Filho Menor de 21 Restituição (Atraso)": {
+      "codigo": "1419",
+      "tipo": "Vantagem"
+    },
+    "IPSEMG Filho Menor de 21 (Reposição)": {
+      "codigo": "9619",
+      "tipo": "Desconto"
+    },
+    "IPSEMG Filho 21 a 39 Restituição (Atraso)": {
+      "codigo": "815",
+      "tipo": "Vantagem"
+    },
+    "IPSEMG Filho 21 a 39 (Reposição)": {
+      "codigo": "8115",
       "tipo": "Desconto"
     }
   },
