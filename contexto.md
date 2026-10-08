@@ -617,17 +617,23 @@ Observações do levantamento:
 
 ### 4.31 🟡 Pendente — descobrir código e fórmula de "IPSEMG Filho 21 a 39 anos" (implementada como campo livre em 28/09)
 
+- **Atualização (06/10):** código descoberto (815/8115) e implementado como campo editável com R$ 90 de default; bases e regras em validação na **4.65**.
+
 - **Relato da própria servidora:** *"IPSEMG FILHO 21 A 39 ANOS — não sei a verba, e o desconto também acho que não é padrão. Qualquer coisa deixa livre até a gente descobrir, só pra inserir algum valor — quase não aparece."*
 - **Implementado (ver seção 23.4):** `calculadoras/ipsemg_filho.py` (novo) — campo livre puro, sem fórmula, campo `valor_ipsemg_filho`. Código registrado como **"----"** (placeholder, mesmo recurso já usado em "Aumento Salarial") até ser descoberto.
 - **Pendente descobrir:** o código oficial da verba na folha, e se existe de fato uma fórmula de cálculo (mesmo a servidora suspeitando que não é padrão) — a própria origem/regra do desconto é desconhecida por enquanto.
 
 ### 4.32 🟡 Pendente — confirmar com a área se "IPSEMG Assist. Méd. 13º Salário" (7701) é a mesma verba/fórmula do "Desconto de IPSEMG (3,2%)"
 
+- **Atualização (06/10):** implementada como `(13º + GIEFS 13º + Piso 13º) × 3,2%`; confirmação das bases na **4.65**.
+
 - **Relato da servidora:** *"7701 — IPSEMG ASSIST. MED. 13º SALARIO: fórmula é a mesma"*.
 - **Não entendido ainda:** se é a mesma verba de "Desconto de IPSEMG (3,2%)" (`calculadoras/ipsemg.py`, código 7700) só que aplicada sobre a base do 13º em vez da base mensal — ou se é uma verba genuinamente distinta que só compartilha a mesma alíquota/fórmula, mas com base de cálculo diferente (por ser referente ao 13º). Se for o segundo caso, o cálculo provavelmente muda mesmo (base do 13º, não a base mensal).
 - **Nada implementado** — precisa confirmar com a área antes de decidir entre: (a) não fazer nada, se for coberto pelo cálculo já existente; (b) criar uma verba nova (`Desconto de IPSEMG sobre 13º` ou nome similar) com a base de incidência do 13º; (c) outra coisa.
 
 ### 4.33 🟡 Pendente — esclarecer com a área o "desconto de IPSEMG para dependente"
+
+- **Atualização (06/10):** esclarecido pela Leud (816/8116 para cônjuge/pais/irmãos, 1419/9619 e 815/8115 para filhos) e implementado; validações na **4.65**.
 
 - **Relato da servidora:** mencionado como necessário adicionalmente, mas **sem detalhamento** — não ficou claro se é uma das verbas de IPSEMG já previstas/citadas (ex.: a 7701 acima, ou o desconto de 3,2% já implementado) aplicada a um cenário específico, ou se é uma verba própria e distinta. Também não foi informada a fórmula de cálculo.
 - **Nada implementado** — precisa de mais detalhamento da servidora/área antes de qualquer ação (nem dá pra tratar como campo livre com segurança, já que nem o conceito da verba está claro ainda).
@@ -704,11 +710,15 @@ Observações do levantamento:
 
 ### 4.58 🟡 Pendente — definir a regra do IPSEMG 13º (1549/7701), hoje campo livre, e ligar à pendência 4.32
 
+- **Atualização (06/10):** deixou de ser campo livre: `(13º + GIEFS 13º + Piso 13º) × 3,2%`; confirmação das bases na **4.65**.
+
 - **Estado (05/10):** "IPSEMG 13º Salário Restituição (Atraso)" (1549, Vantagem) e "IPSEMG 13º Salário (Reposição)" (7701, Desconto) foram criadas como **campo livre** (`valor_restituicao_ipsemg_13` e `valor_ipsemg_13`): o técnico digita o valor e a calculadora só o repassa. Mesmo padrão de nomes da 948/3018 (tema, "Restituição" e o tipo entre parênteses; ver 4.55).
 - **Relação com a 4.32:** a servidora disse que a 7701 tem "fórmula é a mesma" do desconto de IPSEMG (3,2%), mas a base de incidência provavelmente é a do 13º. Enquanto não houver resposta, o campo livre evita assumir uma base. Se a área confirmar que é o mesmo cálculo sobre a base do 13º, trocar o campo livre por uma calculadora com a base do 13º (`valor_13_salario` etc.) e alíquota de 3,2%; a 1549 seria a restituição correspondente.
 - **A confirmar com a área:** (1) fórmula e base do IPSEMG 13º (7701) e da restituição (1549); (2) se "IPSEMG 13º Salário (Reposição)" é um bom nome para "IPSEMG ASSIST. MED. 13º ATRASO"; (3) se a restituição (Vantagem) deve ficar fora da base do INSS Mensal (hoje entra automaticamente em "Outras Vantagens").
 
 ### 4.60 🟡 Pendente — validar com a área o par IPSEMG Restituição (Atraso) 1411 / IPSEMG (Reposição) 7801
+
+- **Atualização (06/10):** o 13º saiu da base da calculadora (tem verba própria); bases em validação na **4.65**.
 
 - **Estado (05/10):** o antigo "Desconto de IPSEMG (3,2%)" (7801, Desconto) foi **renomeado para "IPSEMG (Reposição)"** e criada "IPSEMG Restituição (Atraso)" (1411, Vantagem). As duas usam a **mesma calculadora** (`calculadoras/ipsemg.py`: `(Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + Ad. Noturno + GRS + 13º) × 3,2%`), por suposição de que a restituição devolve o mesmo valor que seria descontado. Os campos lidos do histórico (gratificação, adicional noturno, 13º) procuram só os lançamentos "(Atraso)" (ver 4.51).
 - **A confirmar com a área:** (1) se a restituição 1411 tem de fato a mesma fórmula e base do desconto; (2) se o nome "IPSEMG (Reposição)" não confunde, já que antes o nome trazia a alíquota (3,2%) — ver também 4.55; (3) se a restituição (Vantagem) deve ficar fora da base do INSS Mensal (hoje entra automaticamente em "Outras Vantagens"). Relacionada à 4.58 (IPSEMG 13º).
@@ -746,6 +756,30 @@ Observações do levantamento:
   - **IPSEMG Filho 21 a 39 anos** (sem código, Desconto) — ver 4.31 e 26.3.
 - **Pares que só existem como Restituição × Reposição (não é erro, só registrar):** Faltas (839/7803), INSS Mensal (408/7808), INSS sobre 13º (548/7708), IPSEMG (1411/7801), IPSEMG 13º (1549/7701), Desconto Auxílio Transporte (948/8849) e Custeio Alimentação (3018/9018). Nesses casos o "(Atraso)" é uma restituição de desconto e o "(Reposição)" é o próprio desconto (ver 4.55).
 - **A confirmar com a área:** (1) para as quatro verbas sem par e fora da lista (Hora Extra, Aumento Salarial, Licença Maternidade, Férias Indenizadas), se precisam das variantes "(Atraso)" e "(Reposição)" e com quais códigos; (2) se as demais ficam sem par de propósito (ligações acima).
+
+### 4.65 🟡 Pendente — área conferir as bases de cálculo do IPSEMG (mensal e 13º) e demais regras da Lei 25.143/2025
+
+- **Estado (06/10, commit `4140063`):** regras implementadas a partir da conversa com a Leud (material em `gestao/ipsemg/`) e da Lei 25.143/2025 (art. 6º), de forma simplificada:
+  - **IPSEMG mensal do titular (1411/7801) e dependentes 3,2% (816/8116)** — `calculadoras/ipsemg.py`: `(Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + Ad. Noturno + GRS) × 3,2%`, **sem o 13º** (a área disse que o 13º tem verba própria). A 816/8116 reaproveita a mesma calculadora (cônjuge, pais e irmãos dependentes), um lançamento por dependente.
+  - **IPSEMG 13º (1549/7701)** — `calculadoras/ipsemg_13.py`: `(13º + GIEFS 13º + Piso 13º) × 3,2%`; os três campos são pré-preenchidos do histórico e editáveis.
+  - **Filhos (1419/9619 menor de 21; 815/8115 de 21 a 39)** — campo editável com R$ 60 / R$ 90 como default e help com a regra geral por filho.
+- **A confirmar com a área — base do IPSEMG mensal (1411/7801 e 816/8116):**
+  1. Se a base está completa. A lei define remuneração como vencimentos, adicionais, gratificações, vantagens permanentes e hora extra (excluídas só as indenizatórias — ajuda de custo, auxílio-transporte, vale-alimentação etc., §9º). A base atual **não inclui** Hora Extra, Piso Enfermagem, 1/3 de Férias, Aumento Salarial nem PMC: confirmar se alguma delas deve entrar.
+  2. Se, para cônjuge, pais e irmãos (816/8116), a base é a remuneração do **titular**.
+  3. Se, no mês de atraso, a base deve ser a da competência do lançamento.
+- **A confirmar com a área — base do IPSEMG 13º (1549/7701):**
+  4. Se o **Piso 13º** entra mesmo na base (a Leud disse "piso 13º se tiver, mas piso é a parte") ou se tem verba própria de IPSEMG.
+  5. Se o desconto do 13º tem **mínimo (R$ 60) e máximo (R$ 500)** ou se é só 3,2% direto (hoje, só 3,2%).
+  6. Se a base do 13º inclui outras verbas além de 13º, GIEFS 13º e Piso 13º.
+- **Regras da lei não aplicadas (a validar se precisam entrar):** mínimo de R$ 60 e máximo de R$ 500 por beneficiário (§1º); adicional de 1% para 59 anos ou mais, limitado a R$ 500 (§3º); regra de renda baixa, até 2 salários mínimos (§5º a §7º: filho menor de 21 isento, filho de 21 a 39 com 3,2% limitado a R$ 90); valores fixos reajustados pela revisão geral (§4º); maior vínculo como base (§8º); dependentes com deficiência. A memória de cálculo do titular indicava essa ressalva (removida depois por ajuste manual).
+- **Outras dúvidas:** se o valor fixo dos filhos menores de 21 está dentro do teto de R$ 500 do titular (§2º); nome do código 9519 (aparece ora como filho menor de 21, ora como "filho 21 a 39").
+- **Relação com outras pendências:** substitui o escopo de **4.31** (IPSEMG Filho, agora 815/8115), **4.32/4.49/4.58** (IPSEMG 13º) e **4.33** (dependente) no que foi implementado; **4.60** e **4.61** seguem valendo (restituição como Vantagem entrando em "Outras Vantagens" do INSS Mensal).
+
+### 4.66 🟡 Pendente — definir como vincular a nova consulta de dados funcionais (servidores inativos/encerrados) ao cabeçalho
+
+- **Contexto (07/10):** a consulta anterior trazia em sua maioria servidores **ativos**, mas os técnicos pagam principalmente servidores **inativos ou com contrato encerrado**. Foi carregada uma nova consulta em `data/dados_funcionais_calculadora_verbas.csv` (arquivo ainda **sem versionar**). Análise completa e tentativa de implementação (revertida) na seção 28.
+- **Situação atual:** com o CSV novo, a importação **falha** (cabeçalho "Data Início" com acento × "Data Inicio" exigido; MASP com `/` antes do dígito verificador; 2 linhas com 12 campos, ver 28.1). O código voltou ao estado do último commit, sem nenhuma adaptação.
+- **A decidir:** (1) a base passa a ter só inativos/encerrados ou une com a consulta antiga de ativos; (2) filtrar a consulta por carreira (28.4); (3) estratégia de vinculação do vínculo (MASP + admissão) com seus períodos (28.3); (4) o que pedir à equipe que mantém a consulta (28.5). Relacionada às **4.11** (unicidade de `masp_admissao`) e **4.36** (atualização da base).
 
 ---
 
@@ -1820,3 +1854,100 @@ Cada vantagem "em atraso" da lista ganhou o desconto de "reposição" correspond
 **Pendências abertas desta sessão:** 4.64 (verbas sem par atraso/reposição), 4.63 (PMC), 4.62 (faltas e perda sexto/oitavo), 4.61 (restituições de INSS e a base do INSS), 4.60 (IPSEMG restituição/reposição), 4.58 (IPSEMG 13º como campo livre), 4.57 (piso: validação do modelo atraso/reposição e possível remoção do "Piso Enfermagem — Desconto"), 4.56 (regra do custeio de alimentação), 4.55 (nomenclatura das verbas 948/8849 e 3018/9018), 4.59 (GRS 13º e Desconto de Horas fora da lista; relacionada às 4.47 e 4.48 da seção 26.3), 4.51 (reposições × bases/pré-preenchimentos do histórico), 4.52 (variantes "Meses" de vencimento/abono), 4.53 (Devolução Custeio Ajuda de Custo e código 8070 duplicado) e 4.54 (regra do Auxílio Transporte e INSS).
 
 **Antes de entregar:** (a) testar no app o fluxo de competência mês a mês e o pré-preenchimento do piso (nada disso foi aberto no navegador nesta sessão, só validado por script); (b) rebuild e teste do `.exe` (pendência 4.35 cobre também estas mudanças); (c) **nenhuma alteração desta sessão foi commitada**; o arquivo `Verificação do PISO 1.XLSX` na raiz está sem versionar (decidir se entra no repositório).
+
+## 28. Sessão 06-07/10 — regras de IPSEMG e análise da nova consulta de dados funcionais
+
+### 28.1 ✅ Concluído (06/10, commit `4140063`) — regras de IPSEMG
+
+- Detalhes, fórmulas e dúvidas para a área na pendência **4.65** (bases do IPSEMG mensal e do 13º, regras da Lei 25.143/2025 não aplicadas). Material de referência da conversa com a área (Leud), print da calculadora e a lei ficam em `gestao/ipsemg/` (a pasta foi movida para `gestao/`).
+- Resumo do implementado: IPSEMG titular (1411/7801) = base × 3,2% **sem o 13º**; dependentes 3,2% (816/8116) com a mesma calculadora; IPSEMG 13º (1549/7701) = (13º + GIEFS 13º + Piso 13º) × 3,2%, campos pré-preenchidos do histórico e editáveis; filhos menores de 21 (1419/9619) e de 21 a 39 anos (815/8115) como campo editável com R$ 60 / R$ 90 de default e help; a verba "IPSEMG Filho 21 a 39 anos" (sem código) foi removida. Arquivos: `calculadoras/ipsemg.py`, `ipsemg_13.py`, `ipsemg_filho.py`, `factory.py`, `data/tabelas.json`, `ui/config.py`, `ui/selecao_verba.py`.
+
+### 28.2 Análise do CSV novo (`data/dados_funcionais_calculadora_verbas.csv`)
+
+- **Tamanho:** ~37,7 mil linhas, 34.782 vínculos (MASP + admissão), 22.784 servidores. Todas as datas fim são anteriores a 24/09/2026: **não há servidores ativos** (inverso da consulta antiga). Datas em `dd/mm/aaaa`.
+- **Formato:** cabeçalho `Data Início` (com acento); MASP vem como `1172928/2` (com `/` antes do dígito verificador) e com zero à esquerda (`0616904/9`), enquanto a coluna `Masp/Admissão` já vem sem zeros (`61690492`). O campo de MASP do app é só dígitos (a UI formata com `-`).
+- **Linhas malformadas (versão de 07/10 17:55):** as linhas 27434-27435 (NAELIA FERREIRA ROSA LIMA) têm o código de carreira como `74 305,"PENF"` (valor sem aspas + outro valor), gerando 12 campos; o importador (pandas) recusa o arquivo inteiro ("Expected 11 fields in line 27435, saw 12"). A última linha também vem vazia.
+- **Vários registros por vínculo:** 2.539 vínculos (5.425 linhas) têm 2 a 9 linhas, nunca idênticas. Dois padrões:
+  - **Prorrogação/renovação do mesmo contrato:** mesma data de início e **só a data fim muda** (760 combinações MASP+admissão+início; cargo, símbolo, nível, grau e CH iguais em todas, exceto uma). Exemplos: gaps de ~1 dia (ajuste de data), de ~365 dias (prorrogação anual, ex.: 04/02/2024 com fim 03/02/2025 e 03/02/2026) e vínculos com 4 a 9 prorrogações (início 01/02/2021, fins de 31/01/2022 a 03/06/2025).
+  - **Períodos diferentes** (data de início diferente) dentro da mesma admissão: renovações após intervalo (ex.: mesma admissão com 2016-2021 e 2023-2025) ou mudança de nível/símbolo (~170 vínculos). Em alguns casos o **número de admissão é reaproveitado para outro cargo** (ex.: AUAS em 2009 e PENF em 2021 na mesma admissão). 758 vínculos têm períodos sobrepostos.
+  - O importador antigo guardava uma linha por `masp_admissao` ("a última do arquivo vale"), escolha **arbitrária**.
+- **Carga horária (CH):** 53% vazia (19.843) e 1.496 linhas com `#MULTIVALUE` (exibidas como CH 0 no app).
+  - `#MULTIVALUE` é erro do **SAP BusinessObjects (Web Intelligence)**: a fórmula esperava um valor e encontrou vários no contexto (hipótese: o mesmo cargo/período pago com mais de uma CH). Concentrado em PENF (1.027), MED (311), AGAS (78) e TOS (49); em nenhum vínculo com `#MULTIVALUE` há outra linha com CH válida.
+  - CH vazia: carreiras antigas (C056, C049, C088, C043, C095, C120, AUAS...) têm **0%** de CH; por ano de início do contrato, só ~4% em 2009, ~30% em 2013, ~76% em 2015 e ~90-95% de 2016 em diante. Parece não existir CH registrada para registros antigos.
+
+### 28.3 Tentativa de implementação (revertida) — vinculação MASP + admissão + data de admissão
+
+- **Desenho testado (via script, sem navegador) e depois revertido a pedido do usuário** (o código voltou ao último commit; o usuário vai trabalhar numa melhor visualização dos dados antes de decidir):
+  - MASP e nº de admissão normalizados (só dígitos, sem zeros à esquerda; `1172928/2`, `1172928-2` e `11729282` iguais); cabeçalhos normalizados (acento/caixa); coluna `Masp/Admissão` deixa de ser obrigatória.
+  - Tabela `servidor_periodos` com chave (MASP, admissão, data de início); na importação, mesmo vínculo e mesma data de início ficam com a linha de **maior data fim**. Resultado com o CSV de 06/10: 36.856 períodos de 22.784 servidores.
+  - Fluxo na tela (**comportamento escolhido**): MASP + admissão preenchem **só o nome**; os demais campos (datas, cargo, nível, grau, CH) ficam vazios até o técnico **escolher o período** no **seletor de datas de admissão** (ex.: `26/08/2023 → 25/08/2025 · PENF4`) **ou informar a data** no campo **Data de Admissão** (continua editável). Data que existe na base preenche cargo, nível, grau, CH e data fim; o seletor tem a opção **"Outra data (digite abaixo)"** para o **preenchimento manual** quando nenhum período corresponde; data inexistente mostra aviso com as datas disponíveis e mantém os demais campos como digitados.
+  - Cuidado técnico: seletor com `key` incluindo a data atual (reposiciona ao mudar a data) e callbacks `on_change` que aplicam o período e incrementam `servidor_nonce`.
+- **Ponto de atenção:** manter a maior data fim é suficiente para o cálculo (cargo/nível/grau/CH são iguais nas prorrogações), mas a data fim exibida é a da última prorrogação; para competências intermediárias poderia ser útil listar as prorrogações no seletor (ex.: quando a diferença de data fim passar de ~31 dias).
+
+### 28.4 Filtrar a consulta por carreira?
+
+- A `tabela_cargos` do app só cobre **PENF, MED, TOS e AGAS**; para as demais carreiras (MEDRE e as antigas) o app não acha o vencimento, filtrando ou não.
+- Filtrando o CSV atual por essas 4 carreiras: 20.831 de 37.666 linhas (55%), 12.894 servidores, e a CH válida sobe de 47% para 69%. Sairiam as carreiras antigas e MEDRE (3.008 linhas).
+- **Decisão pendente:** se os técnicos pagam atrasos de servidores dessas outras carreiras. Se sim, melhor **não filtrar** (o app ainda preenche nome, datas e cargo) e corrigir `#MULTIVALUE`/CH nas 4 carreiras; se não, filtrar na consulta do BO.
+
+### 28.5 O que pedir à equipe da consulta (SAP BusinessObjects)
+
+1. Resolver o `#MULTIVALUE` da carga horária (uma CH por período, ou uma linha por CH).
+2. Informar qual CH vale para as carreiras antigas/anos sem CH registrada.
+3. Corrigir o código de carreira que veio com dois valores (`74 305` + `PENF`) e a linha final vazia.
+4. Incluir uma coluna que identifique o contrato (ou a data de admissão original) para separar contratos que reaproveitam o número de admissão, e confirmar que as repetições só com data fim diferente são prorrogações e não duplicidade.
+5. Confirmar se a consulta deve trazer ativos e inativos juntos.
+- **Acesso ao SAP:** discutida a possibilidade de integrar o Claude ao BO. Como o acesso é pelo navegador (BI Launchpad), o caminho mais simples é a extensão Claude in Chrome para ler as fórmulas da consulta (somente leitura, evitando dados pessoais na tela; confirmar antes a política de uso/LGPD com a TI). Nada configurado ainda.
+
+### 28.6 🟡 Próximos passos
+
+- Concluir a decisão da 4.66 (vinculação, filtro por carreira, ativos + inativos) e, então, reaplicar o desenho da 28.3 seguindo a receita da **28.7** (inclui importação tolerante a linhas malformadas). Inconsistências da consulta já filtrada (`data/Relatório 1.csv`) na **28.8**.
+- Pendências 4.65 (bases do IPSEMG) e 4.35 (rebuild e teste do `.exe` com as mudanças recentes).
+
+### 28.7 🟡 Plano de reaplicação (alterações revertidas em 07/10) — receita para retomar
+
+O código foi revertido com `git checkout` (nada foi commitado, não há branch/stash com ele). Esta é a receita para refazer; depende da decisão da 4.66. Todos os cenários abaixo já foram validados uma vez via `streamlit.testing.v1.AppTest`, com a base importada num banco temporário (`CALCULADORA_DB`).
+
+**Arquivos e mudanças**
+
+1. `data/armazenamento_local.py` (esquema SQLite)
+   - `DROP TABLE IF EXISTS servidores;` (esquema antigo, a base precisa ser reimportada; `analise_ativa` é preservada) e nova tabela `servidor_periodos (masp, numero_admissao, data_inicio NOT NULL, nome, data_fim_efetiva, cod_carreira, simbolo_vencimento, nivel, grau, carga_horaria, PRIMARY KEY (masp, numero_admissao, data_inicio))`. `data_inicio` vazio = `''`.
+2. `data/provedor_servidores.py`
+   - `normalizar_identificador(valor)`: só dígitos e sem zeros à esquerda (`0616904/9`, `0616904-9` e `6169049` → `6169049`; trata `1234567.0` do Excel). Usado na importação **e** na busca.
+   - `_normalizar_cabecalho`: NFKD sem acento + casefold + espaços; `_ler_planilha` renomeia as colunas para os nomes canônicos (aceita "Data Início"). `COLUNAS_OBRIGATORIAS` passa a ter `Data Início` e **perde** `Masp/Admissão`.
+   - Importação: chave `(masp, admissão, data_inicio)`; repetida → fica a de **maior data fim** (sem data fim vence). `info_base` passa a contar `COUNT(DISTINCT masp)`.
+   - `buscar_servidor` vira `buscar_periodos(masp, admissao) -> list[dict]`, ordenada por `COALESCE(NULLIF(data_fim_efetiva,''),'9999-12-31') DESC, data_inicio DESC`; `nivel` romano → arábico como antes (`NIVEL_ROMANO_PARA_ARABICO`).
+   - **Melhoria nova (não feita antes):** tolerar linhas com número de campos diferente (ignorar e **listar** as ignoradas em vez de recusar o arquivo; hoje o pandas aborta com "Expected 11 fields"). Aceitar CSV com espaços antes das aspas (`skipinitialspace`), pois o arquivo foi reformatado no editor.
+3. `ui/form_servidor.py`
+   - Helpers de módulo: `_rotulo_periodo` (`início → fim · símbolo`), `_aplicar_periodo(ds, p)` / `_limpar_periodo(ds)` (preenchem nome, `dt_admissao`, `dt_fim_efetiva`, cargo, nível, grau e `ch_semanal`), callbacks `_ao_escolher_periodo(key)` e `_ao_digitar_data_admissao(key)` (re-consultam os períodos, aplicam e fazem `servidor_nonce += 1`).
+   - `bloco_periodo = st.container()` criado entre a linha MASP/Admissão/Nome e a linha das datas, para o seletor aparecer acima das datas.
+   - A busca roda `buscar_periodos` a cada render (sem cache; também faz o seletor aparecer ao restaurar a análise); se `busca_atual != ultima_busca_servidor`: nonce++, `servidor_encontrado = bool(periodos)`, preenche **só o nome** (`periodos[0]["nome"]`) e limpa o restante (datas, cargo, nível, grau, CH) ou limpa tudo se não achar. O `_aplicar_periodo` (todos os campos) só roda a partir do seletor ou da data digitada.
+   - Seletor sempre que houver ao menos um período (com a opção "Outra data (digite abaixo)" ao final); `key = f"{nonce}::periodo::{data_atual}"` (a data na key recria o seletor posicionado no período certo; sem match → "Outra data"). Campo `Data de Admissão` com `on_change`. Aviso (`st.warning`) quando a data não existe entre os períodos, listando as datas disponíveis; mensagem de sucesso informa a quantidade de períodos e orienta a escolher a data.
+4. `desktop/build_exe.md`: colunas obrigatórias novas, múltiplos períodos por vínculo, e o aviso de que a base antiga é descartada (reimportar a planilha).
+
+**Testes que passaram (AppTest, MASP `1242103-8`, admissão 2)**: (1) busca → 2 períodos (versão testada preenchia o período mais recente; na versão escolhida os campos ficam vazios até escolher a data); (2) escolher o período 13/09/2016 → data fim 31/01/2021; (3) digitar 26/08/2023 → volta ao período de 2023; (4) digitar 01/01/2020 → aviso, demais campos mantidos; (5) vínculo com um período só (`0616904-9`, adm. 3) → na versão testada preenchia direto; na escolhida também exige escolher a data; (6) MASP inexistente → limpa o cabeçalho e mostra "não encontrado".
+
+**Comportamento de preenchimento (decidido em 07/10)**
+- MASP + nº de admissão preenchem **apenas o nome**. O restante (datas, cargo, nível, grau, CH) só é preenchido depois que o técnico **escolhe o período do contrato** no seletor de datas de admissão **ou informa a data** no campo editável; se nenhum período corresponder, vale a opção "Outra data" e o **preenchimento manual** (com aviso listando as datas existentes). Evita preencher um período que pode não ser o do pagamento, ao custo de um passo a mais mesmo quando há um período só.
+- A versão testada em 07/10 (revertida) preenchia tudo com o período mais recente já na busca; para chegar ao comportamento acima, basta não aplicar `periodos[0]` na busca além do nome (ajuste refletido na receita).
+
+**Pontos em aberto para a retomada**
+- Seletor das prorrogações (mesma data de início, só a data fim muda): hoje fica só a de maior data fim; avaliar mostrar todas quando a diferença passar de ~31 dias.
+- Não foi aberto no navegador; validar o visual (seletor entre as linhas de campos).
+- `scripts/populate_servidores.py` ainda usa o Supabase (obsoleto desde a seção 25) e a chave `masp_admissao`; não foi tocado.
+- Reimportação obrigatória ao atualizar (esquema novo). Avisar os técnicos.
+
+### 28.8 Inconsistências na consulta filtrada (`data/Relatório 1.csv`, 07/10)
+
+Filtro aplicado: só as carreiras PENF, TOS, AGAS e MED (sem variações de código). 20.833 linhas, 12.894 servidores, 18.142 vínculos. As linhas malformadas (12 campos) sumiram; datas todas válidas; MASP sempre `dddddd/d`; nenhum MASP com dois nomes. (O arquivo está reformatado com espaços antes das aspas, o que quebra o importador atual.)
+
+1. **Só 69% das linhas acham o vencimento no app** (carreira + nível + grau + CH): 4.500 com CH vazia, 1.467 `#MULTIVALUE`, 568 com grau fora da tabela, 5 com nível fora.
+2. A **CH é atributo do vínculo, não do período**: nenhum vínculo tem CH em estados mistos nem duas CH válidas (hipótese: `#MULTIVALUE` = vínculo com várias CH cadastradas).
+3. **37% dos servidores (4.796 de 12.894) não têm nenhuma CH válida**; contratos de 2009-2013 têm CH válida em 10-40% das linhas; de 2016 em diante ~93%, caindo a 86-90% em 2022+ por causa do `#MULTIVALUE`.
+4. **Símbolo `CMED7` (671 linhas, MED nível I, graus C e H, início 2009-2013)** é de plano de carreira médica antigo; grau C/H não existe em `tabela_cargos`. Risco: se o técnico informar nível 1/grau A, o app mostra o vencimento de outro plano. **Perguntar à unidade qual a tabela do CMED7.**
+5. 6 linhas MED com CH 36 (todas CMED7, 2009), que a tabela não conhece (só 12 e 24).
+6. 17 vínculos com **carreira diferente na mesma admissão** (número reaproveitado; ex.: PENF em 2009 e AGAS em 2023).
+7. **144 períodos com duração de 0 dias** (início = fim; ex.: 06/12/2017 a 06/12/2017); a conferir com a área (cancelamento? data fim errada?).
+8. 2.348 vínculos com mais de uma linha: em 604 só a data fim muda (prorrogações), em 606 há períodos sobrepostos; 37 períodos com mais de 10 anos e 1.076 com mais de 5.
+9. PENF nível 1 (3 linhas) e nível T (2 linhas) não existem na tabela de cargos.
+10. 3.556 servidores têm mais de uma admissão (normal; relevante para a vinculação da 28.7).

@@ -6,10 +6,10 @@ old/
 .claude/
 .streamlit/secrets.toml
 .streamlit/secrets_admin.toml
-*.csv
 build/
 dist/
 venv-build/
 desktop/*.ico
 *.spec.bak
 *.db
+*.csv

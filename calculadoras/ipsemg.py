@@ -7,7 +7,7 @@ class CalculadoraIPSEMG(CalculadoraVerba):
     @property
     def descricao_formula(self) -> str:
         return ("Fórmula: (Venc. Básico + Grat. Fim Semana + Ab. Emergência + GIEFS + "
-                "Ad. Noturno + GRS) × 3,2% (sem o 13º, que tem verba própria)")
+                "Ad. Noturno + GRS) × 3,2%")
 
     @property
     def campos_necessarios(self) -> list[str]:
@@ -44,6 +44,5 @@ class CalculadoraIPSEMG(CalculadoraVerba):
             f"─────────────────────",
             f"BASE de Incidência: {FormatadorCampos.brl(base)}",
             f"× 3,2% = {FormatadorCampos.brl(valor)}",
-            "Obs.: mínimo (R$ 60), máximo (R$ 500), adicional de 1% (59+ anos) e regra de renda baixa não aplicados.",
         ]
         return ResultadoCalculo(valor=round(valor, 2), memoria_calculo=memoria)
