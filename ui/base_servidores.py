@@ -1,5 +1,27 @@
+from dataclasses import asdict
+
 import streamlit as st
 from data import ProvedorServidoresLocal, ErroImportacao
+
+
+def _milhar(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
+def _formatar_resumo(r: dict) -> str:
+    """Resumo da importação (mesmo texto na mensagem logo após importar e no painel da base)."""
+    partes = [f"{_milhar(r['total'])} registros de contrato ({_milhar(r['servidores'])} servidores)."]
+    if r["tem_aba_ch"]:
+        partes.append(f"Carga horária: {_milhar(r['ch_corrigida'])} corrigida(s) pelo relatório de CH; "
+                      f"{_milhar(r['ch_indefinida'])} sem correspondência (ficam sem CH)"
+                      + (f"; {_milhar(r['ch_ambigua'])} ambígua(s) (ficam sem CH)." if r["ch_ambigua"] else "."))
+    if r["linhas_ignoradas"]:
+        partes.append(f"{r['linhas_ignoradas']} linha(s) sem MASP/Nº de admissão foram ignoradas.")
+    if r["linhas_malformadas"]:
+        partes.append(f"{r['linhas_malformadas']} linha(s) com número de colunas incorreto foram ignoradas.")
+    if r["datas_invalidas"]:
+        partes.append(f"{r['datas_invalidas']} data(s) inválida(s) ficaram em branco.")
+    return " ".join(partes)
 
 
 class BaseServidores:
@@ -28,6 +50,8 @@ class BaseServidores:
                 )
             else:
                 st.caption(f"Arquivo importado: {info['arquivo']}. Importar uma nova planilha substitui a base atual.")
+                if info["resumo"]:
+                    st.caption(f"Última importação: {_formatar_resumo(info['resumo'])}")
 
             arquivo = st.file_uploader(
                 "Planilha de dados funcionais (.csv ou .xlsx)", type=["csv", "xlsx"], key="upload_base_servidores"
@@ -39,12 +63,7 @@ class BaseServidores:
                     st.error(str(erro))
                     return
 
-                aviso = ""
-                if resultado.linhas_ignoradas:
-                    aviso += f" {resultado.linhas_ignoradas} linha(s) sem MASP/Nº de admissão foram ignoradas."
-                if resultado.datas_invalidas:
-                    aviso += f" {resultado.datas_invalidas} data(s) inválida(s) ficaram em branco."
                 st.session_state["_mensagem_importacao"] = (
-                    f"Base importada: {resultado.total} servidores.{aviso}"
+                    f"Base importada: {_formatar_resumo(asdict(resultado))}"
                 )
                 st.rerun()

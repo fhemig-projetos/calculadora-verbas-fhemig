@@ -1,6 +1,6 @@
 import streamlit as st
 from data import ProvedorDadosFhemig, ProvedorServidoresLocal
-from utils import FormatadorCampos, on_change_masp, on_change_maiusculo_strip, on_change_strip
+from utils import FormatadorCampos, on_change_masp, on_change_normalizar_masp, on_change_maiusculo_strip, on_change_strip
 import datetime
 
 class FormularioServidor:
@@ -42,7 +42,15 @@ class FormularioServidor:
             c1, c2, c3 = st.columns(3)
             c4, c5 = st.columns(2)
 
-            ds["masp"]     = c1.text_input("MASP", value=ds["masp"], help="Somente números, sem pontos ou traços." , placeholder="Ex: 12345678", key="masp")
+            # Sem value=: o widget tem on_change (que reescreve o valor); o estado inicial vem da análise salva.
+            if "masp" not in st.session_state:
+                st.session_state["masp"] = ds["masp"]
+            ds["masp"]     = c1.text_input(
+                "MASP", placeholder="Ex: 12345678", key="masp",
+                on_change=on_change_normalizar_masp, args=("masp",),
+                help="Somente números, com o dígito verificador. Pontos, traços e espaços são removidos. "
+                     "Zeros à esquerda são ignorados: o MASP pode ter 7 ou 8 dígitos (ex.: 0847104-7 → 8471047).",
+            )
             ds["admissao"] = c2.text_input("Nº de Admissão", value=ds["admissao"], help="Somente números.", placeholder="Ex: 1, 2", key="admissao")
 
             if ds["masp"] and ds["admissao"]:

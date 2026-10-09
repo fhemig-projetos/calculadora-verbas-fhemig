@@ -13,3 +13,4 @@ desktop/*.ico
 *.spec.bak
 *.db
 *.csv
+*.xlsx

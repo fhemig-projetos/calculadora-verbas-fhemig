@@ -1,3 +1,6 @@
+import re
+
+
 class FormatadorCampos:
 
     @staticmethod
@@ -6,6 +9,11 @@ class FormatadorCampos:
             return masp_cru
         digits = masp_cru.replace("-", "").strip()
         return f"{digits[:-1]}-{digits[-1]}"
+
+    @staticmethod
+    def masp_digitado(masp_cru: str) -> str:
+        """Só dígitos e sem zeros à esquerda, o formato do MASP na base (ex.: '0847104-7' → '8471047')."""
+        return re.sub(r"\D", "", masp_cru or "").lstrip("0")
 
     @staticmethod
     def arredondar_moeda(valor_cru) -> float:

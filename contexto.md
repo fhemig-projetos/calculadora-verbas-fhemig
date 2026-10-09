@@ -777,6 +777,8 @@ Observações do levantamento:
 
 ### 4.66 🟡 Pendente — definir como vincular a nova consulta de dados funcionais (servidores inativos/encerrados) ao cabeçalho
 
+- **Atualização (09/10):** a importação com mesclagem das duas abas e a gravação de um registro por contrato foram implementadas (seção **29.4**); a escolha do contrato no cabeçalho é a segunda implementação (**29.5**).
+
 - **Contexto (07/10):** a consulta anterior trazia em sua maioria servidores **ativos**, mas os técnicos pagam principalmente servidores **inativos ou com contrato encerrado**. Foi carregada uma nova consulta em `data/dados_funcionais_calculadora_verbas.csv` (arquivo ainda **sem versionar**). Análise completa e tentativa de implementação (revertida) na seção 28.
 - **Situação atual:** com o CSV novo, a importação **falha** (cabeçalho "Data Início" com acento × "Data Inicio" exigido; MASP com `/` antes do dígito verificador; 2 linhas com 12 campos, ver 28.1). O código voltou ao estado do último commit, sem nenhuma adaptação.
 - **A decidir:** (1) a base passa a ter só inativos/encerrados ou une com a consulta antiga de ativos; (2) filtrar a consulta por carreira (28.4); (3) estratégia de vinculação do vínculo (MASP + admissão) com seus períodos (28.3); (4) o que pedir à equipe que mantém a consulta (28.5). Relacionada às **4.11** (unicidade de `masp_admissao`) e **4.36** (atualização da base).
@@ -1951,3 +1953,53 @@ Filtro aplicado: só as carreiras PENF, TOS, AGAS e MED (sem variações de cód
 8. 2.348 vínculos com mais de uma linha: em 604 só a data fim muda (prorrogações), em 606 há períodos sobrepostos; 37 períodos com mais de 10 anos e 1.076 com mais de 5.
 9. PENF nível 1 (3 linhas) e nível T (2 linhas) não existem na tabela de cargos.
 10. 3.556 servidores têm mais de uma admissão (normal; relevante para a vinculação da 28.7).
+
+## 29. Sessão 09/10 — mesclagem das duas abas da nova consulta (`data/Novo_documento.xlsx`)
+
+### 29.1 Contexto
+
+A consulta passou a ser entregue em **uma planilha com dois relatórios (abas)**, com as mesmas colunas de dados funcionais. A aba 2 ("Relatório 3") acrescenta `Ano/Mês Referência` (competência paga) e traz a **carga horária (CH) sempre numérica**. A aba 1 ("Relatório 1", 15.567 linhas) tem 1.445 linhas com `#MULTIVALUE` e 53 com CH vazia. A aba 2 (11.854 linhas) deve ser **mesclada à aba 1** para corrigir a CH. O resultado **popula a tabela `servidores` do SQLite local** e continua sendo a única referência do pré-preenchimento do cabeçalho (`buscar_servidor`). Nada foi implementado nesta sessão (só análise e decisão de regra).
+
+### 29.2 Regra de identidade do contrato (decidida em 09/10)
+
+> **Mesmo MASP + mesmo Nº de Admissão + mesma Data de Início = o mesmo contrato**, independentemente da Data Fim Efetiva.
+
+- A chave de mesclagem entre as abas é, portanto, **(MASP, Nº Admissão, Data Início)**, com MASP e admissão normalizados (ver 28.7). A **Data Fim não entra na chave**.
+- **Por quê:** a mesma data de início aparece com data fim diferente por **prorrogação** (prazos maiores, como 1 ano) ou por **inconsistência/ajuste de lançamento** (prazos menores, de um a poucos dias). Em ambos os casos é o mesmo contrato, com a mesma carga horária.
+- **Evidência (testada em 09/10):** das 1.445 linhas `#MULTIVALUE`, a chave de 3 colunas resolve **1.146** e a de 4 colunas (com data fim) só **1.134**. As 12 de diferença têm exatamente o mesmo MASP, admissão e início nas duas abas, e só a data fim muda (ex.: 13803945/6, início 21/05/2024: fim 21/05/2025 na aba 1 × 20/05/2025 na aba 2; 15323744/1, início 27/09/2022: fim 26/09/2024 × 26/09/2023; 13053434/3, início 15/04/2021: fim 03/05/2021 × 30/06/2021). A aba 2 traz a data fim vigente na competência paga, por isso há 322 chaves de 3 colunas com mais de uma data fim nela.
+- **A CH é atributo do contrato (início), não da prorrogação:** na aba 2 nenhuma chave de 3 colunas tem mais de uma CH distinta; nos períodos `#MULTIVALUE` resolvidos, também nenhum tem CH ambígua.
+- **Consequência para o registro final:** a Data Fim (e demais campos) vêm da **aba 1**, que é a base de referência; a aba 2 contribui só com a CH. Entre prorrogações do mesmo contrato, vale a de maior data fim (já previsto na 28.7). Se algum dia a aba 2 trouxer mais de uma CH para a mesma chave, deixar a CH vazia e contar a linha como ambígua no resumo da importação.
+
+### 29.3 Resultado esperado da mesclagem (com `Novo_documento.xlsx`)
+
+- **1.146 de 1.445** `#MULTIVALUE` corrigidos pela chave de 3 colunas (~79%).
+- **299 restantes** têm um período (data de início) que não existe na aba 2: 124 sem nenhum registro do vínculo na aba 2; 157 com o vínculo presente e CH única em outro período; 18 com CH diferentes entre os períodos do vínculo. Decisão proposta: **não inferir pela CH do vínculo**; deixar a CH vazia, contar no resumo da importação e avisar o técnico na tela para informar manualmente (a inferência seria opcional, só para os 157, por não ser segura).
+- As 53 linhas com CH vazia na aba 1 não são resolvidas pela aba 2 (nenhuma delas aparece lá).
+- Nome, carreira, símbolo, nível e grau não divergem entre as abas.
+
+### 29.4 ✅ Implementado (09/10) — mesclagem das abas na importação
+
+- **Leitura (`data/provedor_servidores.py`):** `.xlsx` lido com todas as abas (`sheet_name=None`); a aba com a coluna `Ano/Mês Referência` é o relatório de CH, a outra é a base. Cabeçalhos aceitam variação de acento/caixa ("Data Início" = "Data Inicio"). `Masp/Admissão` deixou de ser obrigatória (conferido: é sempre MASP + Nº Admissão; o app recalcula). CSV simples continua aceito (sem correção de CH), agora também com espaços antes das aspas (`skipinitialspace`) e **tolerante a linhas malformadas** (descartadas e contadas, em vez de recusar o arquivo; a contagem é linhas do arquivo − linhas lidas, porque o pandas descarta algumas, como as de aspas quebradas, sem avisar).
+- **Mesclagem:** mapa `(MASP, Nº Admissão, Data Início) → CHs numéricas` da aba de CH; para cada linha da base com CH `#MULTIVALUE`/vazia: 1 CH → preenche (**corrigida**); mais de 1 → fica sem CH (**ambígua**, failsafe: 0 casos hoje); chave inexistente → fica sem CH (**indefinida**). Linhas com CH válida não mudam; o resto da linha vem da base. MASP e demais chaves **não são normalizados** na importação (as abas vêm no mesmo formato); só a regra já existente que tira o `.0`.
+- **Gravação:** a base guarda as linhas da consulta **como vieram, um registro por contrato** (inclusive vários para o mesmo MASP + admissão). `servidores` ganhou `id` autoincremento e `masp_admissao` virou coluna comum (recalculada); `_migrar` em `data/armazenamento_local.py` descarta a tabela do esquema antigo (a base precisa ser **reimportada**; `analise_ativa` é preservada).
+- **Resultado com `Novo_documento.xlsx`:** 15.567 registros (8.308 servidores); 1.146 CH corrigidas, 352 sem correspondência (299 `#MULTIVALUE` + 53 vazias), 0 ambíguas; 15.215 registros (97,7%) com CH válida.
+- **Resumo da importação:** `ResultadoImportacao` ganhou `servidores`, `linhas_malformadas`, `tem_aba_ch`, `ch_corrigida`, `ch_ambigua`, `ch_indefinida`; é mostrado na mensagem após importar e **guardado na tabela `meta`** (`base_resumo`), aparecendo como "Última importação" no painel da base. Não há colunas novas na base: CH 0 já indica "sem CH".
+- **Busca provisória:** `buscar_servidor` continua devolvendo **um** registro; com vários contratos, devolve o de maior data fim (sem data fim = mais recente), até a implementação de 29.5.
+- **MASP no cabeçalho:** o campo normaliza ao sair (`on_change_normalizar_masp` / `FormatadorCampos.masp_digitado`): só dígitos e sem zeros à esquerda (`0847104-7` → `8471047`); o help avisa que o MASP pode ter 7 ou 8 dígitos. Motivo: 139 + 107 linhas das abas têm MASP de 7 dígitos (zero à esquerda perdido na exportação para número); decidido **não** completar com zero (`zfill`).
+- **Validado:** importação do xlsx real, do `Relatório 1.csv` (espaços antes das aspas), CSV com linha malformada, planilha inválida (base mantida), migração do esquema antigo e AppTest do cabeçalho (`0847104-7` + admissão 3 encontra o servidor). Não foi aberto no navegador.
+
+### 29.5 🟡 Plano (segunda implementação) — escolha do contrato no cabeçalho
+
+Hoje, com mais de um contrato para o mesmo MASP + admissão (1.638 vínculos na planilha de 09/10, ex.: 12421038/2 com 13/09/2016 e 26/08/2023), o cabeçalho recebe o de maior data fim, sem o técnico saber. Plano:
+
+1. Buscar **todos** os contratos do MASP + admissão (`buscar_contratos`, ordenados por data fim) e puxar o **nome** do servidor assim que MASP e admissão forem preenchidos.
+2. Exibir o **seletor de contratos** pelo conjunto de datas (ex.: `13/09/2016 → 31/01/2021 · PENF4`), com a opção "Outra data (digite abaixo)" para o preenchimento manual, e o campo Data de Admissão continuando editável (digitar uma data existente seleciona o contrato).
+3. Só ao escolher o contrato preencher datas, cargo, nível, grau e CH (comportamento decidido em 07/10; ver 28.3 e a receita 28.7, que vale como base: `key` do seletor com a data atual, callbacks `on_change` e incremento de `servidor_nonce`).
+4. Prorrogações (mesma data de início, só a fim muda): decidir se aparecem todas no seletor ou só a de maior data fim (hoje a base guarda todas).
+5. Aviso na tela quando o contrato escolhido ficar sem CH (CH 0), orientando a informar manualmente; testar via AppTest e abrir no navegador.
+
+### 29.6 🟡 Pendente
+
+- Confirmar com a equipe da consulta: 299 `#MULTIVALUE` sem correspondência na aba de CH + 53 CH vazias (item 1 da 28.5, restante) e se a entrega será sempre `.xlsx` de duas abas.
+- Reimportar a planilha em todas as unidades ao atualizar o app (esquema novo); rebuild e teste do `.exe` (4.35).
+- `scripts/populate_servidores.py` segue obsoleto (Supabase).

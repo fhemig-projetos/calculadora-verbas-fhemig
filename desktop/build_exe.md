@@ -82,8 +82,17 @@ Arquivo: `%LOCALAPPDATA%\CalculadoraFhemig\calculadora.db` (um por usuário do W
   do app (aceita `.csv` ou `.xlsx`). Cada importação **substitui** a base inteira; se a
   planilha for inválida, a base anterior é mantida.
 - **Colunas obrigatórias** (mesmo layout do CSV de dados funcionais): `Nome Servidor`,
-  `MASP`, `Nº Admissão`, `Masp/Admissão`, `Data Inicio`, `Data Fim Efetiva`, `Cod Carreira`,
-  `Símbolo Vencimento`, `Nivel`, `Grau`, `Carga Horária Pagamento`.
+  `MASP`, `Nº Admissão`, `Data Inicio` (ou `Data Início`), `Data Fim Efetiva`, `Cod Carreira`,
+  `Símbolo Vencimento`, `Nivel`, `Grau`, `Carga Horária Pagamento`. `Masp/Admissão` é opcional.
+- **Planilha com dois relatórios (.xlsx):** a aba com a coluna extra `Ano/Mês Referência` traz a
+  carga horária por competência; ela corrige as linhas da outra aba em que a CH vem `#MULTIVALUE`
+  ou vazia, casando por MASP + Nº Admissão + Data Início. O resumo (CH corrigidas e sem
+  correspondência) aparece após importar e no painel da base.
+- **Vários contratos por servidor:** a base guarda uma linha por contrato (o mesmo MASP + admissão
+  pode ter vários). Por enquanto o cabeçalho usa o de maior data fim.
+- **Atualizando de uma versão anterior:** o esquema da tabela de servidores mudou; a base antiga é
+  descartada na primeira abertura e a planilha precisa ser **reimportada**.
+- **MASP:** zeros à esquerda são ignorados (o MASP tem 7 ou 8 dígitos, ex.: `0847104-7` → `8471047`).
 - **Fluxo mensal:** gere a planilha (de preferência só com os servidores da unidade),
   envie à unidade, e ela importa pelo painel. Não precisa de novo build.
 - Para "zerar" tudo (histórico + base), apague o `calculadora.db` com o app fechado.
