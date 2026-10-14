@@ -50,12 +50,13 @@ calculadora-verbas-fhemig/
 │   ├── ajuda_custo_desconto.py# ✅ Implementada
 │   ├── aumento_salarial.py    # ✅ Implementada
 │   ├── ipsemg.py              # ✅ Implementada
-│   └── licenca_maternidade.py # ✅ Implementada (17/08)
+│   ├── licenca_maternidade.py # ✅ Implementada (17/08)
+│   └── ...                    # + abono_emergencia_*, vencimento_basico_*, piso_enfermagem_*, plantao_medico_complementar, auxilio_transporte, custeio_alimentacao, ipsemg_13, ipsemg_filho (lista completa: `ls calculadoras/`; 36 módulos)
 │
 ├── data/                      # Dados externos
 │   ├── __init__.py
 │   ├── provedor_dados.py      # ProvedorDadosFhemig (cache + acesso JSON)
-│   ├── provedor_servidores.py # ProvedorServidoresSupabase (busca servidor por MASP+Admissão — ver 15.2)
+│   ├── provedor_servidores.py # ProvedorServidoresLocal (SQLite): importação CSV/XLSX + mescla de CH + busca por MASP+Admissão — ver seções 25 e 29
 │   ├── provedor_usuarios.py   # ProvedorUsuarios — login/sessão (branch feature/login-persistencia-historico — ver seção 16)
 │   └── tabelas.json           # Cargos, INSS, verbas, GRS, reajustes
 │
@@ -78,7 +79,9 @@ calculadora-verbas-fhemig/
 
 ## 2. O que já foi implementado (versão modular)
 
-### 2.1 Calculadoras (24 de 24 — completa)
+### 2.1 Calculadoras (36 módulos, 41 classes, 71 verbas registradas — atualizado em 14/10)
+
+> A tabela abaixo é o **conjunto original de 24 verbas** (histórico). Desde então foram adicionados as variantes **(Atraso)/(Reposição)** — mesma calculadora, tipo/código em `tabelas.json` —, Vencimento Básico, Abono de Emergência, Piso Enfermagem (dias/meses/desconto), PMC, Auxílio Transporte, Custeio Alimentação, IPSEMG 13º/dependentes/filhos, Perda Sexto Oitavo e outras. A fonte de verdade é `calculadoras/factory.py` (`REGISTRO_CALCULADORAS`, 71 entradas) e `data/tabelas.json` → `verbas` (71 itens, código + tipo).
 
 | Verba | Arquivo | Status |
 |---|---|---|
@@ -132,7 +135,7 @@ calculadora-verbas-fhemig/
 - `data/tabelas.json` com:
   - `tabela_cargos`: 4 registros (PENF, TOS, AGAS)
   - `tabela_inss`: 2024, 2025, 2026
-  - `verbas`: 23 metadados (código + tipo)
+  - `verbas`: 71 metadados (código + tipo; atualizado em 14/10 — eram 23 na versão original)
   - `tabela_grs`: `nao_faz_jus: 0.0`, `risco_medio: 160.20`, `risco_alto: 320.40`
   - `tabela_reajustes`: `2024: 0.0462`, `2026: 0.0540`
 
@@ -1133,7 +1136,7 @@ Levantadas pelo usuário após o app já publicado — ver detalhes em 4.7 a 4.1
 ### 14.7 ✅ Concluído (19/08) — README.md atualizado
 
 - Entrypoint corrigido para `main.py` (antes mandava rodar `app.py`, já removido).
-- Lista completa das 24 verbas com nomes atuais (antes faltavam Piso 13º, GRS 13º, GRS — Meses, Licença Maternidade).
+- Lista das 24 verbas (na época; hoje são 71 registradas) com nomes atuais (antes faltavam Piso 13º, GRS 13º, GRS — Meses, Licença Maternidade).
 - Nova seção com o link da aplicação publicada: `https://calculadora-verbas-fhemig.streamlit.app/`.
 - Instalação via `pip install -r requirements.txt` (antes só mandava instalar `streamlit`).
 - Seção "Próximos passos" desatualizada substituída por ponteiro para `contexto.md`/`duvidas.md`.
@@ -1984,11 +1987,23 @@ A consulta passou a ser entregue em **uma planilha com dois relatórios (abas)**
 - **Gravação:** a base guarda as linhas da consulta **como vieram, um registro por contrato** (inclusive vários para o mesmo MASP + admissão). `servidores` ganhou `id` autoincremento e `masp_admissao` virou coluna comum (recalculada); `_migrar` em `data/armazenamento_local.py` descarta a tabela do esquema antigo (a base precisa ser **reimportada**; `analise_ativa` é preservada).
 - **Resultado com `Novo_documento.xlsx`:** 15.567 registros (8.308 servidores); 1.146 CH corrigidas, 352 sem correspondência (299 `#MULTIVALUE` + 53 vazias), 0 ambíguas; 15.215 registros (97,7%) com CH válida.
 - **Resumo da importação:** `ResultadoImportacao` ganhou `servidores`, `linhas_malformadas`, `tem_aba_ch`, `ch_corrigida`, `ch_ambigua`, `ch_indefinida`; é mostrado na mensagem após importar e **guardado na tabela `meta`** (`base_resumo`), aparecendo como "Última importação" no painel da base. Não há colunas novas na base: CH 0 já indica "sem CH".
-- **Busca provisória:** `buscar_servidor` continua devolvendo **um** registro; com vários contratos, devolve o de maior data fim (sem data fim = mais recente), até a implementação de 29.5.
+- **Busca provisória (substituída em 14/10 — ver 29.5):** `buscar_servidor` devolvia **um** registro (o de maior data fim); agora é `buscar_contratos`.
 - **MASP no cabeçalho:** o campo normaliza ao sair (`on_change_normalizar_masp` / `FormatadorCampos.masp_digitado`): só dígitos e sem zeros à esquerda (`0847104-7` → `8471047`); o help avisa que o MASP pode ter 7 ou 8 dígitos. Motivo: 139 + 107 linhas das abas têm MASP de 7 dígitos (zero à esquerda perdido na exportação para número); decidido **não** completar com zero (`zfill`).
 - **Validado:** importação do xlsx real, do `Relatório 1.csv` (espaços antes das aspas), CSV com linha malformada, planilha inválida (base mantida), migração do esquema antigo e AppTest do cabeçalho (`0847104-7` + admissão 3 encontra o servidor). Não foi aberto no navegador.
 
-### 29.5 🟡 Plano (segunda implementação) — escolha do contrato no cabeçalho
+### 29.5 ✅ Implementado (14/10) — escolha do contrato no cabeçalho
+
+**Como ficou** (o plano original segue abaixo, para histórico):
+
+- `data/provedor_servidores.py`: `buscar_servidor` foi substituído por **`buscar_contratos(masp, admissão)`**, que devolve uma lista (mais recente primeiro). Um contrato = uma data de início; linhas com o mesmo início (prorrogações) viram **um só**, com a maior data fim (sem data fim = a mais recente) — decisão adotada para o ponto em aberto do item 4. Se a linha escolhida estiver sem CH e outra do mesmo início tiver, usa a CH da outra. Nível romano → arábico como antes.
+- `ui/form_servidor.py`: ao preencher MASP + admissão, só o **nome** é preenchido; datas, cargo, nível, grau e CH ficam vazios. Surge o seletor **"Contrato (data de admissão)"** (`01/02/2020 → sem data fim · TOS1`), com "Selecione o contrato..." e "Outra data (digite abaixo)". Escolher um contrato preenche datas, cargo, nível, grau e CH; "Outra data" esvazia só as datas e deixa o resto para edição manual; "Selecione..." limpa tudo.
+- Digitar no campo **Data de Admissão** uma data que é início de um contrato da base seleciona e aplica esse contrato; data inexistente vira "Outra data".
+- Contrato escolhido com CH 0 mostra aviso sob o campo de CH semanal ("informe manualmente").
+- Mecânica: callbacks `_ao_escolher_contrato` e `_ao_digitar_data_admissao` aplicam o contrato em `dados_servidor` e incrementam `servidor_nonce`; a key do seletor inclui o nonce e o callback já grava a opção na key nova. Na primeira renderização (análise restaurada) a posição do seletor vem da data de admissão do cabeçalho. A consulta roda a cada renderização (sem cache), pois a base pode ser reimportada.
+- **Validado via `streamlit.testing.v1.AppTest`** (banco temporário): busca com 2 contratos (+ prorrogação colapsada), escolha de cada contrato, contrato sem CH (aviso), data digitada existente e inexistente, "Outra data", troca de servidor e MASP inexistente. **Não foi aberto no navegador.**
+- Ainda em aberto: mostrar as prorrogações quando a diferença de data fim for grande (hoje só a maior data fim aparece); `date_input` tem `max_value=hoje`, então data fim futura na base lançaria exceção (já era assim).
+
+**Plano original:**
 
 Hoje, com mais de um contrato para o mesmo MASP + admissão (1.638 vínculos na planilha de 09/10, ex.: 12421038/2 com 13/09/2016 e 26/08/2023), o cabeçalho recebe o de maior data fim, sem o técnico saber. Plano:
 
@@ -2000,6 +2015,65 @@ Hoje, com mais de um contrato para o mesmo MASP + admissão (1.638 vínculos na 
 
 ### 29.6 🟡 Pendente
 
+- Testar o seletor de contrato no navegador (só AppTest até aqui) e rebuild do `.exe`.
 - Confirmar com a equipe da consulta: 299 `#MULTIVALUE` sem correspondência na aba de CH + 53 CH vazias (item 1 da 28.5, restante) e se a entrega será sempre `.xlsx` de duas abas.
 - Reimportar a planilha em todas as unidades ao atualizar o app (esquema novo); rebuild e teste do `.exe` (4.35).
 - `scripts/populate_servidores.py` segue obsoleto (Supabase).
+
+## 30. Revisão guiada das últimas implementações (em andamento — iniciada em 14/10)
+
+Revisão feita pelo usuário, aos poucos, do fluxo de importação e tratamento da base de servidores (seções 25, 28 e 29; commit `2d1e4ab`). Ordem planejada: **top-down**, seguindo a ordem de chamada.
+
+### 30.1 Progresso
+
+| Etapa | Arquivo / trecho | Status |
+|---|---|---|
+| 1 | `ui/base_servidores.py` (`_formatar_resumo`, `render`, upload + botão "Importar base", `session_state` + `st.rerun()`) | ✅ revisado (14/10) |
+| 2 | `data/provedor_servidores.py` → `importar_planilha`, em duas passadas: (a) esqueleto, com as chamadas como caixa-preta; (b) aprofundar cada helper | 🟡 **próximo (15/10)** |
+| 3 | `data/armazenamento_local.py` (`conexao()`, esquema, `_migrar`, `caminho_banco`) | ⏳ |
+| 4 | `buscar_contratos` (antes `buscar_servidor`; substituído em 14/10, ver 29.5) + `NIVEL_ROMANO_PARA_ARABICO` | ⏳ |
+| 5 | `ui/form_servidor.py` (uso da base no cabeçalho **e seletor de contrato novo, ver 30.4**), `utils/formatador_campos.py` e `utils/ui_callbacks.py` (MASP) | ⏳ |
+| 6 | `data/tabelas.json` (`tabela_cargos`) + `ProvedorDadosFhemig.buscar_cargo` | ⏳ |
+
+### 30.2 Roteiro da etapa 2 (aprofundamento dos helpers, na ordem em que aparecem)
+
+1. `_ler_planilha` (abas do xlsx, CSV tolerante, `_padronizar_colunas`)
+2. `_validar_colunas`
+3. `_mapa_carga_horaria` (por que o mapa usa `set`)
+4. `_chave_contrato` (regra MASP + admissão + data de início; ver 29.2)
+5. `_parse_data`, `_parse_carga_horaria`, `_numero_inteiro_como_texto`
+6. Loop de `importar_planilha` e a correção da CH (corrigida / ambígua / indefinida)
+7. Gravação: transação (`DELETE` + `INSERT`) e a tabela `meta`
+
+### 30.3 Anotações da revisão da etapa 1
+
+- `info_base()["total"]` = servidores (MASPs distintos); `["registros"]` = linhas/contratos. `registros` não é usado em nenhum lugar hoje.
+- Mensagem de sucesso (`_mensagem_importacao`) é de uso único (`pop`) e sobrevive ao `st.rerun()` via `session_state`. **Possível melhoria:** ela é desenhada dentro do expander, que fica recolhido após a importação (`expanded=vazia` e a base já existe); o técnico pode não vê-la. Opções: manter o expander aberto enquanto houver mensagem pendente ou exibi-la fora dele. Não implementado; não conferido no navegador.
+- O banco fica em `data/calculadora.db` (código-fonte) ou `%LOCALAPPDATA%\CalculadoraFhemig\calculadora.db` (`.exe`); são bases separadas.
+
+### 30.4 Alterações feitas em 14/10 para revisar (seletor de contrato — plano 29.5, ainda sem commit)
+
+Implementadas **depois** do commit `2d1e4ab`, no working tree. Rever junto com as etapas 4 e 5 do roteiro (30.1). Detalhes de comportamento na seção 29.5.
+
+**Arquivos alterados**
+- `data/provedor_servidores.py`: `buscar_servidor` (um registro) → **`buscar_contratos`** (lista). Agrupa por `data_inicio` (prorrogações viram um contrato só, com a maior data fim; sem data fim = a mais recente); se a linha escolhida está sem CH e outra do mesmo início tem, usa a CH da outra; nível romano → arábico como antes. Ordena do mais recente ao mais antigo.
+- `ui/form_servidor.py`:
+  - helpers de módulo: `_rotulo_contrato`, `_contrato_da_data`, `_aplicar_contrato`, `_limpar_contrato`, `_trocar_contrato`, `_ao_escolher_contrato`, `_ao_digitar_data_admissao` (constantes `SEM_CONTRATO` e `OUTRA_DATA`);
+  - `bloco_contrato = st.container()` criado entre a linha MASP/Admissão/Nome e a linha das datas, para o seletor aparecer acima delas;
+  - a consulta agora roda **a cada renderização** (antes só quando MASP/admissão mudavam); a busca nova preenche só o nome e limpa o resto;
+  - `date_input` de Data de Admissão ganhou `on_change`; aviso de CH ausente sob a CH semanal.
+- `contexto.md`: seção 29.5 marcada como implementada; seção 30 (este roteiro); contagens de verbas corrigidas (36 módulos, 41 classes, 71 verbas) nas seções 1 e 2.
+
+**Pontos de atenção**
+1. **Mecânica de estado (a parte mais delicada):** os callbacks alteram `dados_servidor` e incrementam `servidor_nonce`; a key do seletor é `"{nonce}::contrato"` e o callback já grava a opção escolhida na key **nova**. Na primeira renderização (ex.: análise restaurada) a posição do seletor vem de `ds["dt_admissao"]`. Se algo ficar "preso" ou o seletor voltar para "Selecione...", olhar primeiro essa troca de nonce.
+2. **Prorrogações:** hoje só a de maior data fim aparece. Decidir com a área se vale listar todas quando a diferença de data fim for grande (regra de corte a definir).
+3. **Sem CH na base (CH = 0):** o contrato é aplicado normalmente e só aparece o aviso para informar manualmente. Não há coluna de status: CH 0 significa "sem CH".
+4. **Pré-existente, não alterado:** `date_input` com `max_value=hoje` lança exceção se a base tiver data fim futura (contrato ativo com data fim posterior a hoje).
+5. **Colunas de data:** "Outra data" esvazia só as datas (cargo, nível, grau e CH ficam para edição); "Selecione o contrato..." limpa tudo menos o nome.
+6. **`scripts/populate_servidores.py`** segue obsoleto (Supabase) e usa a chave antiga `masp_admissao`.
+
+**Validação feita:** `streamlit.testing.v1.AppTest` com banco temporário (`CALCULADORA_DB`), 8 cenários (busca com 2 contratos e prorrogação colapsada, escolha de cada contrato, contrato sem CH, data digitada existente e inexistente, "Outra data", troca de servidor, MASP inexistente). **Não foi aberto no navegador** — conferir o visual do seletor entre as linhas de campos ao revisar.
+
+### 30.5 Filtro "Piso Enfermagem" no radio de tipo de verba (14/10)
+
+- `ui/selecao_verba.py`: `FILTROS_TIPO_VERBA` deixou de mapear rótulo → tipo e passou a mapear rótulo → regra `(nome, meta) → entra na lista?`. Nova opção **"Piso Enfermagem"** no radio (Todas / Vantagens / Descontos / Piso Enfermagem): lista as 7 verbas cujo nome começa com "Piso Enfermagem" (Dias, Meses e 13º, Atraso/Reposição, e Desconto). Só filtra o select; o cálculo não muda. Validado via AppTest. Padrão pronto para replicar a outras famílias (Vencimento Básico, Abono, GRS, GIEFS) se pedirem.

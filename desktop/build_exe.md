@@ -37,11 +37,13 @@ pip install -r requirements.txt
 # 3. Gerar o ícone .ico (o PyInstaller não aceita .png) — antes do build
 python -c "from PIL import Image; Image.open('assets/icone.png').save('desktop/icone.ico')"
 
-# 4. Build — sempre com --clean, senão o PyInstaller reaproveita análise antiga
-pyinstaller desktop/calculadora.spec --clean --noconfirm
+# 4. Build — sempre com --clean, senão o PyInstaller reaproveita análise antiga.
+#    --distpath/--workpath mandam o resultado e os temporários para dentro de desktop/
+#    (em vez de build/ e dist/ na raiz do projeto).
+pyinstaller desktop/calculadora.spec --clean --noconfirm --distpath desktop/dist --workpath desktop/build
 
 # 5. Resultado
-#    dist\CalculadoraVerbasFhemig\CalculadoraVerbasFhemig.exe
+#    desktop\dist\CalculadoraVerbasFhemig\CalculadoraVerbasFhemig.exe
 ```
 
 > **Git Bash / MSYS2:** a barra invertida (`\`) é caractere de escape nesses terminais e
@@ -54,7 +56,7 @@ no log costumam ser inofensivos; erro só se o app falhar ao abrir.
 
 ## Testar antes de distribuir
 
-1. Abra `dist\CalculadoraVerbasFhemig\CalculadoraVerbasFhemig.exe`: deve aparecer só a
+1. Abra `desktop\dist\CalculadoraVerbasFhemig\CalculadoraVerbasFhemig.exe`: deve aparecer só a
    janela do app (sem console, sem barra de endereço).
 2. Teste **importar a planilha de servidores** (.csv e .xlsx), a **busca por MASP/admissão**,
    **geração de PDF** e **persistência** (feche e reabra: a análise deve voltar) — são as
@@ -69,7 +71,7 @@ no log costumam ser inofensivos; erro só se o app falhar ao abrir.
 
 ## Distribuir
 
-Zipar a pasta **inteira** `dist\CalculadoraVerbasFhemig\` (o `.exe` sozinho não roda: ele
+Zipar a pasta **inteira** `desktop\dist\CalculadoraVerbasFhemig\` (o `.exe` sozinho não roda: ele
 depende da pasta `_internal\`). O usuário descompacta e abre o `.exe`.
 
 ## Dados locais (SQLite) e base de servidores

@@ -159,30 +159,40 @@ class ProvedorServidoresLocal:
     """Base de servidores no SQLite local, atualizada por importação de planilha."""
 
     @staticmethod
-    def buscar_servidor(masp: str, numero_admissao: str) -> Optional[dict]:
-        """Busca um servidor pelo MASP e Nº de Admissão. None se não achar ou a base estiver vazia.
+    def buscar_contratos(masp: str, numero_admissao: str) -> list[dict]:
+        """Contratos do MASP + Nº de Admissão, do mais recente ao mais antigo. Lista vazia se não achar
+        ou se a base estiver vazia.
 
-        O campo `nivel` vem em algarismo romano na base (ex: "II"), enquanto
-        `tabela_cargos` (data/tabelas.json) usa algarismo arábico — convertido
-        aqui para que a busca de cargo (ProvedorDadosFhemig.buscar_cargo) funcione.
+        Um contrato = uma data de início (a data fim muda em prorrogações e ajustes de lançamento e
+        não identifica o contrato — ver 29.2 do contexto.md). Quando a base tem várias linhas para a
+        mesma data de início, vale a de maior data fim (sem data fim = a mais recente); se essa estiver
+        sem CH e outra linha do mesmo início tiver, usa a CH da outra.
+
+        O campo `nivel` vem em algarismo romano na base (ex: "II"), enquanto `tabela_cargos`
+        (data/tabelas.json) usa arábico — convertido aqui para que a busca de cargo
+        (ProvedorDadosFhemig.buscar_cargo) funcione.
         Sem cache de propósito: a base pode ser reimportada a qualquer momento.
-
-        A base guarda um registro por contrato, então o mesmo MASP + admissão pode ter vários.
-        Enquanto o técnico não escolhe o contrato (ver 29.5 do contexto.md), devolve
-        o de maior data fim (contrato sem data fim vale como o mais recente).
         """
         with conexao() as con:
-            linha = con.execute(
+            linhas = con.execute(
                 "SELECT * FROM servidores WHERE masp = ? AND numero_admissao = ? "
-                "ORDER BY COALESCE(NULLIF(data_fim_efetiva, ''), '9999-12-31') DESC, "
-                "data_inicio DESC, id DESC LIMIT 1",
+                "ORDER BY COALESCE(NULLIF(data_fim_efetiva, ''), '9999-12-31') DESC, id DESC",
                 (masp.strip(), numero_admissao.strip()),
-            ).fetchone()
-        if linha is None:
-            return None
-        servidor = dict(linha)
-        servidor["nivel"] = NIVEL_ROMANO_PARA_ARABICO.get(servidor["nivel"], servidor["nivel"])
-        return servidor
+            ).fetchall()
+
+        por_inicio: dict[Optional[str], dict] = {}
+        for linha in linhas:
+            contrato = dict(linha)
+            contrato["nivel"] = NIVEL_ROMANO_PARA_ARABICO.get(contrato["nivel"], contrato["nivel"])
+            atual = por_inicio.setdefault(contrato["data_inicio"], contrato)
+            if not atual["carga_horaria"] and contrato["carga_horaria"]:
+                atual["carga_horaria"] = contrato["carga_horaria"]
+
+        return sorted(
+            por_inicio.values(),
+            key=lambda c: (c["data_inicio"] or "", c["data_fim_efetiva"] or "9999-12-31"),
+            reverse=True,
+        )
 
     @staticmethod
     def info_base() -> dict:

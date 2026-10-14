@@ -1,7 +1,7 @@
 # PyInstaller spec — build no Windows com:
-#   pyinstaller desktop/calculadora.spec --clean
+#   pyinstaller desktop/calculadora.spec --clean --noconfirm --distpath desktop/dist --workpath desktop/build
 #
-# Gera dist/CalculadoraVerbasFhemig/CalculadoraVerbasFhemig.exe (modo --onedir,
+# Gera desktop/dist/CalculadoraVerbasFhemig/CalculadoraVerbasFhemig.exe (modo --onedir,
 # recomendado: --onefile funciona mas fica mais lento para abrir, pois
 # descompacta tudo a cada execução).
 #

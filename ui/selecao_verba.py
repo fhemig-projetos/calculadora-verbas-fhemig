@@ -6,8 +6,13 @@ from utils import FormatadorCampos, GeradorPDF
 from datetime import date 
 from .config import CONFIG_CAMPOS
 
-# Filtro do select de verbas: rótulo exibido → valor do campo "tipo" em tabelas.json (None = todas)
-FILTROS_TIPO_VERBA = {"Todas": None, "Vantagens": "Vantagem", "Descontos": "Desconto"}
+# Filtro do select de verbas: rótulo exibido → regra (nome da verba, metadados em tabelas.json) → entra na lista?
+FILTROS_TIPO_VERBA = {
+    "Todas": lambda nome, meta: True,
+    "Vantagens": lambda nome, meta: meta["tipo"] == "Vantagem",
+    "Descontos": lambda nome, meta: meta["tipo"] == "Desconto",
+    "Piso Enfermagem": lambda nome, meta: nome.startswith("Piso Enfermagem"),
+}
 
 # Verbas de meses de direito em que o valor mensal é fixo: cada mês vira um lançamento com sua competência.
 # (GIEFS — Meses fica de fora porque o valor muda de mês a mês.)
@@ -56,11 +61,11 @@ class SelecaoVerba:
             horizontal=True,
             key="filtro_tipo_verba",
         )
-        tipo_filtrado = FILTROS_TIPO_VERBA[filtro_tipo]
+        entra_na_lista = FILTROS_TIPO_VERBA[filtro_tipo]
 
         # Ordem alfabética ignorando acentos e maiúsculas (ex.: "Décimo..." entre "D" e não depois do "Z")
         nomes_verbas = sorted(
-            (nome for nome, meta in verbas_json.items() if tipo_filtrado is None or meta["tipo"] == tipo_filtrado),
+            (nome for nome, meta in verbas_json.items() if entra_na_lista(nome, meta)),
             key=lambda nome: unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode().casefold(),
         )
 

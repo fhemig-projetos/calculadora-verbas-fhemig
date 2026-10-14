@@ -3,6 +3,82 @@ from data import ProvedorDadosFhemig, ProvedorServidoresLocal
 from utils import FormatadorCampos, on_change_masp, on_change_normalizar_masp, on_change_maiusculo_strip, on_change_strip
 import datetime
 
+SEM_CONTRATO = "Selecione o contrato..."
+OUTRA_DATA = "Outra data (digite abaixo)"
+
+
+def _data_br(iso):
+    return datetime.date.fromisoformat(iso).strftime("%d/%m/%Y") if iso else "sem data fim"
+
+
+def _rotulo_contrato(contrato: dict) -> str:
+    """Ex.: '13/09/2016 → 31/01/2021 · PENF4'."""
+    inicio = _data_br(contrato["data_inicio"]) if contrato["data_inicio"] else "sem data de início"
+    simbolo = contrato["simbolo_vencimento"] or contrato["cod_carreira"]
+    return f"{inicio} → {_data_br(contrato['data_fim_efetiva'])}" + (f" · {simbolo}" if simbolo else "")
+
+
+def _contrato_da_data(contratos: list, data) -> dict | None:
+    """Contrato cuja data de início é a data informada (None se não houver)."""
+    iso = data.isoformat() if data else None
+    return next((c for c in contratos if iso and c["data_inicio"] == iso), None)
+
+
+def _aplicar_contrato(ds: dict, contrato: dict):
+    ds["dt_admissao"] = datetime.date.fromisoformat(contrato["data_inicio"]) if contrato["data_inicio"] else None
+    ds["dt_fim_efetiva"] = (
+        datetime.date.fromisoformat(contrato["data_fim_efetiva"]) if contrato["data_fim_efetiva"] else None
+    )
+    ds["cargo_classe"] = contrato["cod_carreira"]
+    ds["cargo_nivel"] = contrato["nivel"]
+    ds["cargo_grau"] = contrato["grau"]
+    ds["ch_semanal"] = int(contrato["carga_horaria"] or 0)
+
+
+def _limpar_contrato(ds: dict):
+    """Esvazia tudo que vem do contrato (o nome do servidor fica)."""
+    ds["dt_admissao"] = None
+    ds["dt_fim_efetiva"] = None
+    ds["cargo_classe"] = ""
+    ds["cargo_nivel"] = ""
+    ds["cargo_grau"] = ""
+    ds["ch_semanal"] = 0
+
+
+def _trocar_contrato(rotulo_selecao: str):
+    """Usado pelos callbacks: nonce novo recria os campos (que leem o ds) e o seletor já nasce posicionado."""
+    st.session_state["servidor_nonce"] += 1
+    st.session_state[f"{st.session_state['servidor_nonce']}::contrato"] = rotulo_selecao
+
+
+def _ao_escolher_contrato(key: str):
+    ds = st.session_state["dados_servidor"]
+    escolha = st.session_state[key]
+    contratos = ProvedorServidoresLocal.buscar_contratos(st.session_state["masp"], st.session_state["admissao"])
+    escolhido = next((c for c in contratos if _rotulo_contrato(c) == escolha), None)
+    if escolhido:
+        _aplicar_contrato(ds, escolhido)
+    elif escolha == OUTRA_DATA:  # preenchimento manual: só esvazia as datas, o resto fica para editar
+        ds["dt_admissao"] = None
+        ds["dt_fim_efetiva"] = None
+    else:
+        _limpar_contrato(ds)
+    _trocar_contrato(escolha)
+
+
+def _ao_digitar_data_admissao(key: str):
+    """Data digitada que é o início de um contrato da base seleciona e aplica esse contrato."""
+    ds = st.session_state["dados_servidor"]
+    data = st.session_state[key]
+    contratos = ProvedorServidoresLocal.buscar_contratos(st.session_state["masp"], st.session_state["admissao"])
+    contrato = _contrato_da_data(contratos, data)
+    if contrato:
+        _aplicar_contrato(ds, contrato)
+    else:
+        ds["dt_admissao"] = data
+    _trocar_contrato(_rotulo_contrato(contrato) if contrato else OUTRA_DATA)
+
+
 class FormularioServidor:
     """Formulário de Dados do Servidor.
 
@@ -40,6 +116,7 @@ class FormularioServidor:
             ds = st.session_state["dados_servidor"] 
 
             c1, c2, c3 = st.columns(3)
+            bloco_contrato = st.container()  # seletor de contrato, entre a linha do MASP e a das datas
             c4, c5 = st.columns(2)
 
             # Sem value=: o widget tem on_change (que reescreve o valor); o estado inicial vem da análise salva.
@@ -53,59 +130,63 @@ class FormularioServidor:
             )
             ds["admissao"] = c2.text_input("Nº de Admissão", value=ds["admissao"], help="Somente números.", placeholder="Ex: 1, 2", key="admissao")
 
+            contratos = []
             if ds["masp"] and ds["admissao"]:
                 busca_atual = (ds["masp"], ds["admissao"])
+                contratos = ProvedorServidoresLocal.buscar_contratos(ds["masp"], ds["admissao"])
 
                 if busca_atual != st.session_state["ultima_busca_servidor"]:
                     """
-                    - Lógica de alteração da busca por masp e admissão.                     
-                    - Ativa nova consulta no banco quando altera o masp ou admissão.
-                    - Na linha `ds["servidor_encontrado"] = servidor_encontrado is not None`,                    
-                    ds["servidor_encontrado"] aponta para o mesmo endereço da memória que 
-                    st.session_state["dados_servidor"]["servidor_encontrado"]. Por isso, 
+                    - Lógica de alteração da busca por masp e admissão.
+                    - Ativa nova consulta quando altera o masp ou admissão: preenche só o NOME; datas, cargo,
+                    nível, grau e CH ficam vazios até o técnico escolher o contrato (ou digitar a data).
+                    - Na linha `ds["servidor_encontrado"] = bool(contratos)`,
+                    ds["servidor_encontrado"] aponta para o mesmo endereço da memória que
+                    st.session_state["dados_servidor"]["servidor_encontrado"]. Por isso,
                     essa atribuição já reflete diretamente na variável de session_state.
                     """
                     st.session_state["ultima_busca_servidor"] = busca_atual
-                    servidor_encontrado = ProvedorServidoresLocal.buscar_servidor(ds["masp"], ds["admissao"])
 
-                    # Incrementa o nonce que será usado nas chaves dos campos (evita bugs de preenchimento) 
+                    # Incrementa o nonce que será usado nas chaves dos campos (evita bugs de preenchimento)
                     st.session_state["servidor_nonce"] += 1
 
                     # Marca no session_state bool referente a se encontrou servidor ou não.
                     # Usado abaixo para corrigir bug de display da mensagem de busca
-                    ds["servidor_encontrado"] = servidor_encontrado is not None 
+                    ds["servidor_encontrado"] = bool(contratos)
 
-                    if servidor_encontrado:
-                        ds["nome"] = servidor_encontrado["nome"]
-                        ds["dt_admissao"] = (
-                            datetime.date.fromisoformat(servidor_encontrado["data_inicio"])
-                            if servidor_encontrado["data_inicio"] else None
-                        )
-                        ds["dt_fim_efetiva"] = (
-                            datetime.date.fromisoformat(servidor_encontrado["data_fim_efetiva"])
-                            if servidor_encontrado["data_fim_efetiva"] else None
+                    _limpar_contrato(ds)
+                    # Não encontrado: limpa também o nome, para não deixar dados de outro
+                    # servidor associados ao MASP/Admissão atual
+                    ds["nome"] = contratos[0]["nome"] if contratos else ""
+
+                with bloco_contrato:
+                    if contratos:
+                        # A key tem o nonce: o seletor é recriado a cada busca/troca de contrato. Na primeira
+                        # renderização (ex.: análise restaurada) a posição vem da data de admissão do cabeçalho.
+                        key_contrato = f"{st.session_state['servidor_nonce']}::contrato"
+                        if key_contrato not in st.session_state:
+                            atual = _contrato_da_data(contratos, ds["dt_admissao"])
+                            st.session_state[key_contrato] = (
+                                _rotulo_contrato(atual) if atual else (OUTRA_DATA if ds["dt_admissao"] else SEM_CONTRATO)
+                            )
+                        st.selectbox(
+                            "Contrato (data de admissão)",
+                            [SEM_CONTRATO, *[_rotulo_contrato(c) for c in contratos], OUTRA_DATA],
+                            key=key_contrato, on_change=_ao_escolher_contrato, args=(key_contrato,),
+                            help="Contratos deste MASP e Nº de admissão na base. Ao escolher, preenche datas, cargo, "
+                                 "nível, grau e carga horária. Prorrogações (mesmo início, outra data fim) aparecem "
+                                 "como um contrato só, com a maior data fim.",
                         )
 
-                        ds["cargo_classe"] = servidor_encontrado["cod_carreira"]
-                        ds["cargo_nivel"] = servidor_encontrado["nivel"]
-                        ds["cargo_grau"] = servidor_encontrado["grau"]
-                        ds["ch_semanal"] = int(servidor_encontrado["carga_horaria"])
+                    # Mensagem refletindo o resultado da última busca feita
+                    if ds.get("servidor_encontrado"):
+                        if _contrato_da_data(contratos, ds["dt_admissao"]):
+                            st.success("✅ Servidor encontrado na base — dados do contrato preenchidos automaticamente")
+                        else:
+                            st.info("ℹ️ Servidor encontrado na base. Escolha o contrato acima (ou digite a data de "
+                                    "admissão) para preencher os dados; ou preencha manualmente.")
                     else:
-                        # Não encontrado: limpa os dados da busca anterior, para não deixar
-                        # dados de outro servidor associados ao MASP/Admissão atual
-                        ds["nome"] = ""
-                        ds["dt_admissao"] = None
-                        ds["dt_fim_efetiva"] = None
-                        ds["cargo_classe"] = ""
-                        ds["cargo_nivel"] = ""
-                        ds["cargo_grau"] = ""
-                        ds["ch_semanal"] = 0
-
-                # Mensagem refletindo o resultado da última busca feita 
-                if ds.get("servidor_encontrado"):
-                    st.success("✅ Servidor encontrado na base — dados preenchidos automaticamente")
-                else:
-                    st.info("ℹ️ Servidor não encontrado na base. Preencha os dados manualmente.")
+                        st.info("ℹ️ Servidor não encontrado na base. Preencha os dados manualmente.")
 
             # Lido só após o bloco de busca, já com o nonce incrementado nesta
             # rodada (se houve busca nova) — os campos abaixo nascem com key
@@ -116,8 +197,9 @@ class FormularioServidor:
             # Define padrão de data explicitamente
             ds["dt_admissao"] = c4.date_input(
                 "Data de Admissão", value=ds["dt_admissao"], format="DD/MM/YYYY",
-                min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(), 
-                key=f"{nonce}::dt_admissao"
+                min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(),
+                key=f"{nonce}::dt_admissao",
+                on_change=_ao_digitar_data_admissao, args=(f"{nonce}::dt_admissao",),
             )
             ds["dt_fim_efetiva"] = c5.date_input(
                 "Data Fim Efetiva", value=ds["dt_fim_efetiva"], format="DD/MM/YYYY",
@@ -155,6 +237,10 @@ class FormularioServidor:
             ds["ch_semanal"] = c9.number_input(
                 "Carga Horária Semanal", value=ds["ch_semanal"], min_value=0, step=1,
                 key=f"{nonce}::ch_semanal")
+
+            contrato_atual = _contrato_da_data(contratos, ds["dt_admissao"])
+            if contrato_atual and not contrato_atual["carga_horaria"] and not ds["ch_semanal"]:
+                c9.warning("⚠️ Este contrato está sem carga horária na base. Informe manualmente.")
 
             # Calcula a ch mensal com base na ch semanal informada
             ds["ch_mensal"] = int(ds["ch_semanal"] / 5 * 30)
